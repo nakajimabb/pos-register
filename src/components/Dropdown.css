@@ -1,0 +1,11 @@
+.hover-overflow-visible:hover {
+  overflow: visible;
+}
+
+.triangle {
+  width: 0;
+  height: 0;
+  border-left: 6px solid darkgray;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+}
