@@ -24,7 +24,7 @@ const Label: React.FC<LabelProps> = ({
   );
 };
 
-type InputType = 'text' | 'number' | 'date' | 'checkbox' | 'radio';
+type InputType = 'text' | 'password' | 'number' | 'date' | 'checkbox' | 'radio';
 
 type InputProps = {
   id?: string;
@@ -35,6 +35,7 @@ type InputProps = {
   disabled?: boolean;
   required?: boolean;
   placeholder?: string;
+  autoComplete?: string;
   size?: 'sm' | 'md' | 'lg';
   onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyPress?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -54,10 +55,10 @@ const Input: (type: InputType) => React.FC<InputProps> =
     required,
     placeholder,
     size = 'md',
+    autoComplete = 'off',
     onChange,
     onKeyPress,
     className,
-    children,
     style,
   }) => {
     const padding = { sm: 'px-2 py-1', md: 'px-3 py-1.5', lg: 'px-4 py-2' };
@@ -75,6 +76,7 @@ const Input: (type: InputType) => React.FC<InputProps> =
         disabled={disabled}
         required={required}
         placeholder={placeholder}
+        autoComplete={autoComplete}
         onChange={onChange}
         onKeyPress={onKeyPress}
         className={clsx(
@@ -193,6 +195,7 @@ const TextArea: React.FC<TextAreaProps> = ({
 };
 
 const InputText = Input('text');
+const InputPassword = Input('password');
 const InputNumber = Input('number');
 const InputDate = Input('date');
 const InputCheckbox = Input('checkbox');
@@ -207,6 +210,7 @@ type FormProps = {
 type FormType = React.FC<FormProps> & {
   Label: typeof Label;
   Text: typeof InputText;
+  Password: typeof InputPassword;
   Number: typeof InputNumber;
   Date: typeof InputDate;
   Checkbox: typeof InputCheckbox;
@@ -224,6 +228,7 @@ const Form: FormType = ({ onSubmit, className, children, style }) => {
 };
 
 Form.Text = InputText;
+Form.Password = InputPassword;
 Form.Number = InputNumber;
 Form.Label = Label;
 Form.Date = InputDate;
