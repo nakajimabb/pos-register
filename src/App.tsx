@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route } from 'react-router-dom';
+import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
+
+import AppBar from './AppBar';
 import SignIn from './SignIn';
 import Tailwind from './Tailwind';
+import ImportProducts from './ImportProducts';
 import './App.css';
-import AppBar from './AppBar';
-import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -22,6 +24,7 @@ const App: React.FC = () => {
     <React.StrictMode>
       <Router>
         <Route path="/" component={AppBar} />
+        <Route exact path="/import_products" component={ImportProducts} />
         <Route exact path="/tailwind" component={Tailwind} />
       </Router>
     </React.StrictMode>

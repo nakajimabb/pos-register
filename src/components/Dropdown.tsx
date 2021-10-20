@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 
 import { Flex } from './';
@@ -6,6 +7,7 @@ import './Dropdown.css';
 
 type ItemProps = {
   title: React.ReactElement | string;
+  to?: string;
   onClick?(e: React.MouseEvent<HTMLDivElement>): void;
   setShow?: React.Dispatch<React.SetStateAction<boolean>>;
   trigger?: 'clicked' | 'downup';
@@ -14,6 +16,7 @@ type ItemProps = {
 
 const DropdownItem: React.FC<ItemProps> = ({
   title,
+  to,
   onClick,
   setShow,
   trigger = 'clicked',
@@ -46,7 +49,7 @@ const DropdownItem: React.FC<ItemProps> = ({
         className
       )}
     >
-      {children ? (
+      {children && (
         <>
           <Flex justify_content="between">
             {title}
@@ -60,9 +63,13 @@ const DropdownItem: React.FC<ItemProps> = ({
             })}
           </div>
         </>
-      ) : (
-        <div className="w-max">{title}</div>
       )}
+      {!children &&
+        (to ? (
+          <Link to={to}>{title}</Link>
+        ) : (
+          <div className="w-max">{title}</div>
+        ))}
     </div>
   );
 };
