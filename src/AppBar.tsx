@@ -1,7 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Flex, Icon, Navbar, Tooltip } from './components';
 import { getAuth, signOut } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Button, Flex, Dropdown, Icon, Navbar, Tooltip } from './components';
+import app from './firebase';
 import './App.css';
 
 const AppBar: React.FC = () => {
@@ -17,6 +19,24 @@ const AppBar: React.FC = () => {
           alert('エラーが発生しました。');
           console.log({ error });
         });
+    }
+  };
+
+  const getAuthUserByCode = async () => {
+    const uid = window.prompt('input uid');
+    if (uid) {
+      try {
+        const functions = getFunctions(app, 'asia-northeast1');
+        const result = await httpsCallable(
+          functions,
+          'getAuthUserByCode'
+        )({ uid });
+        console.log({ result });
+        alert('データを取得しました。');
+      } catch (error) {
+        console.log({ error });
+        alert('エラーが発生しました。');
+      }
     }
   };
 
@@ -37,6 +57,21 @@ const AppBar: React.FC = () => {
             </Button>
           </Tooltip>
         </Link>
+        <Dropdown
+          icon={
+            <Button
+              variant="icon"
+              size="sm"
+              color="none"
+              className="m-2 text-gray-500 hover:bg-gray-200 focus:ring-inset focus:ring-gray-300"
+            >
+              <Icon name="dots-vertical" />
+            </Button>
+          }
+          align="right"
+        >
+          <Dropdown.Item title="ユーザ情報取得" onClick={getAuthUserByCode} />
+        </Dropdown>
       </Flex>
     </Navbar>
   );
