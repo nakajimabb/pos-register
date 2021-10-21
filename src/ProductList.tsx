@@ -6,6 +6,10 @@ import {
   getDocs,
   deleteDoc,
   getFirestore,
+  orderBy,
+  startAt,
+  endAt,
+  QueryConstraint,
 } from 'firebase/firestore';
 
 import { Button, Card, Flex, Form, Icon, Table } from './components';
@@ -22,7 +26,18 @@ const ProductList: React.FC = () => {
   const [docId, setDocId] = useState<string | null>(null);
 
   const queryProducts = async () => {
-    const q = query(collection(db, 'products'));
+    const conds: QueryConstraint[] = [];
+    const searchText = search.trim();
+    if (searchText) {
+      if (searchText.match(/^\d+$/)) {
+        conds.push(orderBy('code'));
+      } else {
+        conds.push(orderBy('name'));
+      }
+      conds.push(startAt(searchText));
+      conds.push(endAt(searchText + '\uf8ff'));
+    }
+    const q = query(collection(db, 'products'), ...conds);
     const querySnapshot = await getDocs(q);
     const dataArray: Product[] = [];
     querySnapshot.forEach((doc) => {
@@ -64,7 +79,7 @@ const ProductList: React.FC = () => {
   };
 
   return (
-    <div className="pt-12 h-screen">
+    <div className="pt-12">
       <ProductEdit
         open={open}
         docId={docId}
@@ -74,7 +89,7 @@ const ProductList: React.FC = () => {
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">
         商品マスタ(共通)
       </h1>
-      <Card className="mx-8">
+      <Card className="mx-8 mb-4">
         <Flex className="p-4">
           <Form.Text
             placeholder="検索文字"
@@ -89,7 +104,7 @@ const ProductList: React.FC = () => {
             新規
           </Button>
         </Flex>
-        <Card.Body className="p-4 bg-gray-50">
+        <Card.Body className="p-4">
           <Table size="md" border="row" className="w-full">
             <Table.Head>
               <Table.Row>
@@ -113,7 +128,6 @@ const ProductList: React.FC = () => {
                   <Table.Cell>{product.note}</Table.Cell>
                   <Table.Cell>
                     <Button
-                      key={i}
                       variant="icon"
                       size="xs"
                       color="none"
@@ -123,7 +137,6 @@ const ProductList: React.FC = () => {
                       <Icon name="pencil-alt" />
                     </Button>
                     <Button
-                      key={i}
                       variant="icon"
                       size="xs"
                       color="none"

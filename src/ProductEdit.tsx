@@ -63,7 +63,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
       } else {
         const ref = doc(db, 'products', product.code);
         const snap = await getDoc(ref);
-        if (snap.exists()) throw 'PLUコードが既に存在します。';
+        if (snap.exists()) throw Error('PLUコードが既に存在します。');
         await setDoc(doc(db, 'products', product.code), product);
       }
       onUpdate(product);
