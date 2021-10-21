@@ -5,6 +5,7 @@ import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import AppBar from './AppBar';
 import SignIn from './SignIn';
 import Tailwind from './Tailwind';
+import ProductList from './ProductList';
 import ImportProducts from './ImportProducts';
 import RegisterMain from './RegisterMain';
 import './App.css';
@@ -25,6 +26,7 @@ const App: React.FC = () => {
     <React.StrictMode>
       <Router>
         <Route path="/" component={AppBar} />
+        <Route exact path="/products" component={ProductList} />
         <Route exact path="/import_products" component={ImportProducts} />
         <Route exact path="/tailwind" component={Tailwind} />
         <Route exact path="/register_main" component={RegisterMain} />

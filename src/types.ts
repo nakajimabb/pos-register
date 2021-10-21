@@ -1,8 +1,8 @@
-export interface Product {
-  abbr?: string | null,
-  code: string,
-  kana?: string | null,
-  name: string | null,
-  note?: string | null,
-  price: number | null
-}
+export type Product = {
+  abbr: string;
+  code: string;
+  kana: string;
+  name: string;
+  note: string;
+  price: number | null;
+};

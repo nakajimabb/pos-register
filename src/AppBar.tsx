@@ -70,9 +70,10 @@ const AppBar: React.FC = () => {
           }
           align="right"
         >
-          <Dropdown.Item title="ユーザ情報取得" onClick={getAuthUserByCode} />
+          <Dropdown.Item title="商品マスタ(共通)" to="/products" />
           <Dropdown.Item title="商品マスタ(共通)取込" to="/import_products" />
           <Dropdown.Item title="レジ画面" to="/register_main" />
+          <Dropdown.Item title="ユーザ情報取得" onClick={getAuthUserByCode} />
           <Dropdown.Item title="tailwind" to="/tailwind" />
         </Dropdown>
       </Flex>
