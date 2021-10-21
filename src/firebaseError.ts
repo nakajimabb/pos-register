@@ -134,10 +134,8 @@ export const firestoreErrorMessage = (error: any): string | undefined => {
   }
 };
 
-const firebaseError = (
-  error: any,
-  defaultMessage: string = ''
-): string => {
+const firebaseError = (error: any, defaultMessage: string = ''): string => {
+  if (typeof error === 'string') return error;
   const err = error.details || error;
   // FunctionsErrorCode
   let message = httpsErrorMessage(err);

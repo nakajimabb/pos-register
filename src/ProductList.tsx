@@ -53,9 +53,24 @@ const ProductList: React.FC = () => {
     }
   };
 
+  const onUpdate = (product: Product) => {
+    if (products.find((item) => item.code === product.code)) {
+      setProducts(
+        products.map((item) => (item.code === product.code ? product : item))
+      );
+    } else {
+      setProducts([product, ...products]);
+    }
+  };
+
   return (
     <div className="pt-12 h-screen">
-      <ProductEdit open={open} onClose={() => setOpen(false)} docId={docId} />
+      <ProductEdit
+        open={open}
+        docId={docId}
+        onClose={() => setOpen(false)}
+        onUpdate={onUpdate}
+      />
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">
         商品マスタ(共通)
       </h1>

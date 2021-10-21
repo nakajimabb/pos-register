@@ -9,11 +9,12 @@ const db = getFirestore();
 
 type Props = {
   open: boolean;
-  onClose: () => void;
   docId: string | null;
+  onClose: () => void;
+  onUpdate: (product: Product) => void;
 };
 
-const ProductEdit: React.FC<Props> = ({ open, onClose, docId }) => {
+const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
   const [product, setProduct] = useState<Product>({
     code: '',
     name: '',
@@ -57,8 +58,15 @@ const ProductEdit: React.FC<Props> = ({ open, onClose, docId }) => {
     e.preventDefault();
     setError('');
     try {
-      const id = docId ? docId : product.code;
-      await setDoc(doc(db, 'products', id), product);
+      if (docId) {
+        await setDoc(doc(db, 'products', docId), product);
+      } else {
+        const ref = doc(db, 'products', product.code);
+        const snap = await getDoc(ref);
+        if (snap.exists()) throw 'PLUコードが既に存在します。';
+        await setDoc(doc(db, 'products', product.code), product);
+      }
+      onUpdate(product);
       onClose();
     } catch (error) {
       console.log({ error });
