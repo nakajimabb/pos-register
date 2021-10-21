@@ -6,6 +6,7 @@ import AppBar from './AppBar';
 import SignIn from './SignIn';
 import Tailwind from './Tailwind';
 import ImportProducts from './ImportProducts';
+import RegisterMain from './RegisterMain';
 import './App.css';
 
 const App: React.FC = () => {
@@ -26,6 +27,7 @@ const App: React.FC = () => {
         <Route path="/" component={AppBar} />
         <Route exact path="/import_products" component={ImportProducts} />
         <Route exact path="/tailwind" component={Tailwind} />
+        <Route exact path="/register_main" component={RegisterMain} />
       </Router>
     </React.StrictMode>
   );
