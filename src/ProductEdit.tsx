@@ -129,7 +129,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
             <Form.Label>備考</Form.Label>
             <Form.Text
               placeholder="備考"
-              value={product.abbr}
+              value={product.note}
               onChange={(e) => setProduct({ ...product, note: e.target.value })}
             />
           </Grid>
