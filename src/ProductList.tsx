@@ -61,11 +61,11 @@ const ProductList: React.FC = () => {
             setProductCount(null);
           }
 
-          if (action == 'head') {
+          if (action === 'head') {
             conds.push(orderBy('code'));
             conds.push(limit(PER_PAGE));
             setPage(0);
-          } else if (action == 'next') {
+          } else if (action === 'next') {
             if (snapshot) {
               conds.push(orderBy('code'));
               const last = snapshot.docs[snapshot.docs.length - 1];
@@ -73,7 +73,7 @@ const ProductList: React.FC = () => {
               conds.push(limit(PER_PAGE));
               setPage(page + 1);
             }
-          } else if (action == 'prev') {
+          } else if (action === 'prev') {
             if (snapshot) {
               conds.push(orderBy('code', 'asc'));
               const last = snapshot.docs[0];
@@ -81,7 +81,7 @@ const ProductList: React.FC = () => {
               conds.push(limitToLast(PER_PAGE));
               setPage(page - 1);
             }
-          } else if (action == 'current') {
+          } else if (action === 'current') {
             if (snapshot) {
               const first = snapshot.docs[0];
               conds.push(startAt(first));
@@ -130,7 +130,7 @@ const ProductList: React.FC = () => {
         onUpdate={queryProducts('current')}
       />
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">
-        商品マスタ(共通)A
+        商品マスタ(共通)
       </h1>
       <Card className="mx-8 mb-4">
         <Flex justify_content="between" align_items="center" className="p-4">
@@ -158,7 +158,7 @@ const ProductList: React.FC = () => {
                 color="light"
                 size="xs"
                 disabled={
-                  !!search || page <= 0 || !snapshot || snapshot.size == 0
+                  !!search || page <= 0 || !snapshot || snapshot.size === 0
                 }
                 className="mr-2"
                 onClick={queryProducts('prev')}
@@ -172,7 +172,7 @@ const ProductList: React.FC = () => {
                   !!search ||
                   PER_PAGE * page + snapshot.size >= productCount ||
                   !snapshot ||
-                  snapshot.size == 0
+                  snapshot.size === 0
                 }
                 className="mr-2"
                 onClick={queryProducts('next')}
