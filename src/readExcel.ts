@@ -58,28 +58,36 @@ export type HeaderInfo = {
   label: string;
   name: string;
   string_as_number?: boolean;
+  zero_padding?: number;
 }[];
 
 export const readExcelAsOjects = async (blob: File, headerInfo: HeaderInfo) => {
   const { header, data } = await readExcel(blob, true);
-  console.log({ header, data });
 
   const fieldMap = new Map(headerInfo.map((col) => [col.label, col.name]));
-  const fields = header
-    .map((label) => fieldMap.get(String(label)))
-    .filter((name): name is string => typeof name == 'string');
+  const fields = header.map((label) => fieldMap.get(String(label)));
 
   const string_as_numbers = new Map(
     headerInfo.map((col) => [col.name, col.string_as_number])
   );
+  const zero_paddings = new Map(
+    headerInfo.map((col) => [col.name, col.zero_padding])
+  );
+  console.log({ fields, string_as_numbers, zero_paddings });
 
   return data.map((row) => {
     const item: { [key: string]: string | Date | number } = {};
     fields.forEach((name, i) => {
-      item[name] =
-        typeof row[i] == 'string' && string_as_numbers.get(name)
-          ? +row[i]
-          : row[i];
+      if (name) {
+        item[name] =
+          typeof row[i] == 'string' && string_as_numbers.get(name)
+            ? +row[i]
+            : row[i];
+        const padding = zero_paddings.get(name);
+        if (padding) {
+          item[name] = String(item[name]).padStart(padding, '0');
+        }
+      }
     });
     return item;
   });

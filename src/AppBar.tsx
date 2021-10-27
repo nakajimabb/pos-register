@@ -72,6 +72,11 @@ const AppBar: React.FC = () => {
         >
           <Dropdown.Item title="商品マスタ(共通)" to="/products" />
           <Dropdown.Item title="商品マスタ(共通)取込" to="/import_products" />
+          <Dropdown.Item title="店舗原価マスタ取込" to="/import_cost_prices" />
+          <Dropdown.Item
+            title="店舗売価マスタ取込"
+            to="/import_selling_prices"
+          />
           <Dropdown.Item title="レジ画面" to="/register_main" />
           <Dropdown.Item title="ユーザ情報取得" onClick={getAuthUserByCode} />
           <Dropdown.Item title="tailwind" to="/tailwind" />

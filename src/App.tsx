@@ -7,6 +7,8 @@ import SignIn from './SignIn';
 import Tailwind from './Tailwind';
 import ProductList from './ProductList';
 import ImportProducts from './ImportProducts';
+import ImportCostPrices from './ImportCostPrices';
+import ImportSellingPrices from './ImportSellingPrices';
 import RegisterMain from './RegisterMain';
 import './App.css';
 
@@ -28,6 +30,12 @@ const App: React.FC = () => {
         <Route path="/" component={AppBar} />
         <Route exact path="/products" component={ProductList} />
         <Route exact path="/import_products" component={ImportProducts} />
+        <Route exact path="/import_cost_prices" component={ImportCostPrices} />
+        <Route
+          exact
+          path="/import_selling_prices"
+          component={ImportSellingPrices}
+        />
         <Route exact path="/tailwind" component={Tailwind} />
         <Route exact path="/register_main" component={RegisterMain} />
       </Router>
