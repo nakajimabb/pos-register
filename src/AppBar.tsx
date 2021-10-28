@@ -70,6 +70,7 @@ const AppBar: React.FC = () => {
             title="店舗売価マスタ取込"
             to="/import_selling_prices"
           />
+          <Dropdown.Item title="仕入先マスタ" to="/suppliers" />
         </Dropdown>
       </Flex>
       <Flex align_items="center">

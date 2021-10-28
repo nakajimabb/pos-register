@@ -6,3 +6,8 @@ export type Product = {
   note: string;
   price: number | null;
 };
+
+export type Supplier = {
+  code: string;
+  name: string;
+}
