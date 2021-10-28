@@ -37,12 +37,29 @@ export const getAuthUserByCode = functions
     return await f();
   });
 
-export const updateCountProducts = functions
+export const updateProductCounts = functions
   .region('asia-northeast1')
   .firestore.document('products/{docId}')
   .onWrite((change) => {
     const FieldValue = admin.firestore.FieldValue;
     const countsRef = db.collection('productCounts').doc('all');
+
+    if (!change.before.exists) {
+      // 登録時に件数をインクリメント
+      return countsRef.update({ count: FieldValue.increment(1) });
+    } else if (change.before.exists && !change.after.exists) {
+      // 削除時に件数をデクリメント
+      return countsRef.update({ count: FieldValue.increment(-1) });
+    }
+    return;
+  });
+
+  export const updateSupplierCounts = functions
+  .region('asia-northeast1')
+  .firestore.document('suppliers/{docId}')
+  .onWrite((change) => {
+    const FieldValue = admin.firestore.FieldValue;
+    const countsRef = db.collection('supplierCounts').doc('all');
 
     if (!change.before.exists) {
       // 登録時に件数をインクリメント
