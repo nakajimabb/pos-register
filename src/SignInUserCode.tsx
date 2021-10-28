@@ -31,7 +31,7 @@ const SignInUserCode: React.FC = () => {
     <Form onSubmit={login} className="p-3">
       <Form.Text
         size="md"
-        placeholder="社員番号"
+        placeholder="店舗番号"
         disabled={loading}
         autoComplete="new-password"
         required
