@@ -28,6 +28,7 @@ const App: React.FC = () => {
     <React.StrictMode>
       <Router>
         <Route path="/" component={AppBar} />
+        <Route exact path="/" component={RegisterMain} />
         <Route exact path="/products" component={ProductList} />
         <Route exact path="/import_products" component={ImportProducts} />
         <Route exact path="/import_cost_prices" component={ImportCostPrices} />
@@ -37,7 +38,6 @@ const App: React.FC = () => {
           component={ImportSellingPrices}
         />
         <Route exact path="/tailwind" component={Tailwind} />
-        <Route exact path="/register_main" component={RegisterMain} />
       </Router>
     </React.StrictMode>
   );
