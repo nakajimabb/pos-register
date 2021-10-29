@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  collection,
+  query,
+  getDocs,
+} from 'firebase/firestore';
 
 import { Button, Card, Flex, Form, Grid, Icon, Table } from './components';
 import RegisterPayment from './RegisterPayment';
+import RegisterInput from './RegisterInput';
 import { Product } from './types';
 
 const RegisterMain: React.FC = () => {
@@ -11,17 +19,37 @@ const RegisterMain: React.FC = () => {
     quantity: number;
   };
 
+  type RegisterItem = {
+    code: string;
+    name: string;
+  };
+
   const [productCode, setProductCode] = useState<string>('');
   const [basketItems, setBasketItems] = useState<BasketItem[]>([]);
+  const [registerItem, setRegisterItem] = useState<RegisterItem>();
+  const [registerItems, setRegisterItems] = useState<RegisterItem[]>([]);
   const [openPayment, setOpenPayment] = useState<boolean>(false);
+  const [openInput, setOpenInput] = useState<boolean>(false);
+
+  const db = getFirestore();
+
+  const queryRegisterItems = async () => {
+    const q = query(collection(db, 'registerItems'));
+    const querySnapshot = await getDocs(q);
+    const items = new Array<RegisterItem>();
+    querySnapshot.forEach((doc) => {
+      items.push(doc.data() as RegisterItem);
+    });
+    setRegisterItems(items);
+  };
 
   useEffect(() => {
+    queryRegisterItems();
     document.getElementById('productCode')?.focus(); //非推奨
   }, []);
 
   const findProduct = async (code: string) => {
     try {
-      const db = getFirestore();
       const docRef = doc(db, 'products', code);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
@@ -64,8 +92,19 @@ const RegisterMain: React.FC = () => {
       <RegisterPayment
         open={openPayment}
         basketItems={basketItems}
+        setBasketItems={setBasketItems}
         onClose={() => {
           setOpenPayment(false);
+          document.getElementById('productCode')?.focus();
+        }}
+      />
+      <RegisterInput
+        open={openInput}
+        registerItem={registerItem}
+        basketItems={basketItems}
+        setBasketItems={setBasketItems}
+        onClose={() => {
+          setOpenInput(false);
           document.getElementById('productCode')?.focus();
         }}
       />
@@ -84,7 +123,7 @@ const RegisterMain: React.FC = () => {
             </Form>
 
             <div className="mt-8 h-96 overflow-y-scroll">
-              <Table border="row" className="table-fixed w-full text-sm ">
+              <Table border="row" className="table-fixed w-full text-xs">
                 <Table.Head>
                   <Table.Row>
                     <Table.Cell type="th" className="w-1/12">
@@ -93,13 +132,13 @@ const RegisterMain: React.FC = () => {
                     <Table.Cell type="th" className="w-2/12">
                       コード
                     </Table.Cell>
-                    <Table.Cell type="th" className="w-5/12">
+                    <Table.Cell type="th" className="w-4/12">
                       商品名
                     </Table.Cell>
-                    <Table.Cell type="th" className="w-1/12">
+                    <Table.Cell type="th" className="w-2/12">
                       単価
                     </Table.Cell>
-                    <Table.Cell type="th" className="w-1/12">
+                    <Table.Cell type="th" className="w-2/12">
                       数量
                     </Table.Cell>
                     <Table.Cell type="th" className="w-1/12" />
@@ -166,7 +205,27 @@ const RegisterMain: React.FC = () => {
           </Card.Body>
         </Card>
 
-        <Card className="m-2"></Card>
+        <Card className="m-2">
+          <div className="mt-16 p-2">
+            <Grid cols="4" gap="2">
+              {registerItems.map((registerItem, index) => (
+                <Button
+                  variant="contained"
+                  size="xs"
+                  color="info"
+                  className="h-14 hover:bg-blue-300"
+                  onClick={(e) => {
+                    setRegisterItem(registerItem);
+                    setOpenInput(true);
+                  }}
+                  key={index}
+                >
+                  {`${registerItem.code}. ${registerItem.name}`}
+                </Button>
+              ))}
+            </Grid>
+          </div>
+        </Card>
       </Grid>
     </Flex>
   );
