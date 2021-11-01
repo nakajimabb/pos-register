@@ -9,6 +9,7 @@ import ProductList from './ProductList';
 import ImportProducts from './ImportProducts';
 import ImportCostPrices from './ImportCostPrices';
 import ImportSellingPrices from './ImportSellingPrices';
+import ProductCategoryList from './ProductCategoryList';
 import SupplierList from './SupplierList';
 import RegisterMain from './RegisterMain';
 import './App.css';
@@ -39,6 +40,11 @@ const App: React.FC = () => {
           component={ImportSellingPrices}
         />
         <Route exact path="/suppliers" component={SupplierList} />
+        <Route
+          exact
+          path="/product_categories"
+          component={ProductCategoryList}
+        />
         <Route exact path="/tailwind" component={Tailwind} />
       </Router>
     </React.StrictMode>
