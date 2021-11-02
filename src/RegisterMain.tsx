@@ -11,6 +11,7 @@ import {
 import { Button, Card, Flex, Form, Grid, Icon, Table } from './components';
 import RegisterPayment from './RegisterPayment';
 import RegisterInput from './RegisterInput';
+import RegisterModify from './RegisterModify';
 import { Product } from './types';
 
 const RegisterMain: React.FC = () => {
@@ -25,11 +26,13 @@ const RegisterMain: React.FC = () => {
   };
 
   const [productCode, setProductCode] = useState<string>('');
+  const [basketItem, setBasketItem] = useState<BasketItem>();
   const [basketItems, setBasketItems] = useState<BasketItem[]>([]);
   const [registerItem, setRegisterItem] = useState<RegisterItem>();
   const [registerItems, setRegisterItems] = useState<RegisterItem[]>([]);
   const [openPayment, setOpenPayment] = useState<boolean>(false);
   const [openInput, setOpenInput] = useState<boolean>(false);
+  const [openModify, setOpenModify] = useState<boolean>(false);
 
   const db = getFirestore();
 
@@ -108,6 +111,16 @@ const RegisterMain: React.FC = () => {
           document.getElementById('productCode')?.focus();
         }}
       />
+      <RegisterModify
+        open={openModify}
+        basketItem={basketItem}
+        basketItems={basketItems}
+        setBasketItems={setBasketItems}
+        onClose={() => {
+          setOpenModify(false);
+          document.getElementById('productCode')?.focus();
+        }}
+      />
       <Grid cols="2" rows="1" gap="0" flow="col" className="h-full">
         <Card className="container justify-center m-2">
           <Card.Body>
@@ -160,6 +173,18 @@ const RegisterMain: React.FC = () => {
                         {basketItem.quantity}
                       </Table.Cell>
                       <Table.Cell className="text-center">
+                        <Button
+                          variant="icon"
+                          size="xs"
+                          color="none"
+                          className="hover:bg-gray-300"
+                          onClick={(e) => {
+                            setBasketItem(basketItem);
+                            setOpenModify(true);
+                          }}
+                        >
+                          <Icon name="pencil-alt" />
+                        </Button>
                         <Button
                           variant="icon"
                           size="xs"
