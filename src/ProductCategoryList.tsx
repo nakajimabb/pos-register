@@ -12,14 +12,16 @@ import {
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import ProductCategoryEdit from './ProductCategoryEdit';
+import { sortedProductCategories } from './tools';
 import { ProductCategory } from './types';
 
 const db = getFirestore();
 
 const ProductCategoryList: React.FC = () => {
   const [search, setSearch] = useState('');
-  const [snapshot, setSnapshot] =
-    useState<QuerySnapshot<ProductCategory> | null>(null);
+  const [productCategories, setProductCategories] = useState<
+    { id: string; productCategory: ProductCategory }[]
+  >([]);
   const [open, setOpen] = useState(false);
   const [docId, setDocId] = useState<string | null>(null);
   const [error, setError] = useState<string>('');
@@ -28,8 +30,11 @@ const ProductCategoryList: React.FC = () => {
     try {
       setError('');
       const q = query(collection(db, 'productCategories'));
-      const querySnapshot = await getDocs(q);
-      setSnapshot(querySnapshot as QuerySnapshot<ProductCategory>);
+      const snapshot = await getDocs(q);
+      const categories = sortedProductCategories(
+        snapshot as QuerySnapshot<ProductCategory>
+      );
+      setProductCategories(categories);
     } catch (error) {
       console.log({ error });
       setError(firebaseError(error));
@@ -58,52 +63,12 @@ const ProductCategoryList: React.FC = () => {
     }
   };
 
-  const sortedProductCategories = () => {
-    const flatten = (
-      id: string,
-      childrenIds: Map<string, string[]>,
-      categories: Map<string, ProductCategory>,
-      result: { id: string; productCategory: ProductCategory }[]
-    ) => {
-      const ids = childrenIds.get(id);
-      const productCategory = categories.get(id);
-      if (productCategory) result.push({ id, productCategory });
-      if (ids) {
-        ids.forEach((id) => {
-          flatten(id, childrenIds, categories, result);
-        });
-      }
-      return result;
-    };
-    if (snapshot) {
-      const childrenIds = new Map<string, string[]>(); // parent_id, child_ids
-      const categories = new Map<string, ProductCategory>(); // id, ProductCategory
-      snapshot.docs.forEach((doc, i) => {
-        const productCategory = doc.data();
-        const docId = doc.id;
-        const parentRef = productCategory.parentRef;
-        const parentId = parentRef ? parentRef.id : '';
-        const tmp = childrenIds.get(parentId);
-        const ids = tmp ? tmp : [];
-        ids.push(docId);
-        categories.set(docId, productCategory);
-        childrenIds.set(parentId, ids);
-      });
-      return flatten('', childrenIds, categories, []);
-    }
-  };
-
-  const categories = sortedProductCategories();
-  const parentCategories = categories
-    ? categories.filter((elem) => elem.productCategory.level <= 2)
-    : [];
-
   return (
     <div className="pt-12 mx-auto max-w-4xl">
       <ProductCategoryEdit
         open={open}
         docId={docId}
-        parentCategories={parentCategories}
+        productCategories={productCategories}
         onClose={() => setOpen(false)}
         onUpdate={queryProductCategories}
       />
@@ -146,42 +111,41 @@ const ProductCategoryList: React.FC = () => {
               </Table.Row>
             </Table.Head>
             <Table.Body>
-              {categories &&
-                categories.map((elem, i) => {
-                  const docId = elem.id;
-                  const productCategory = elem.productCategory;
-                  return (
-                    <Table.Row key={i}>
-                      <Table.Cell>
-                        {[...Array(productCategory.level)].map((s, j) => (
-                          <React.Fragment key={j}>&emsp;</React.Fragment>
-                        ))}
-                        {productCategory.name}
-                      </Table.Cell>
-                      <Table.Cell>{productCategory.level}</Table.Cell>
-                      <Table.Cell>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300 "
-                          onClick={editProductCategory(docId)}
-                        >
-                          <Icon name="pencil-alt" />
-                        </Button>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300"
-                          onClick={deleteProductCategory(docId)}
-                        >
-                          <Icon name="trash" />
-                        </Button>
-                      </Table.Cell>
-                    </Table.Row>
-                  );
-                })}
+              {productCategories.map((elem, i) => {
+                const docId = elem.id;
+                const productCategory = elem.productCategory;
+                return (
+                  <Table.Row key={i}>
+                    <Table.Cell>
+                      {[...Array(productCategory.level)].map((s, j) => (
+                        <React.Fragment key={j}>&emsp;</React.Fragment>
+                      ))}
+                      {productCategory.name}
+                    </Table.Cell>
+                    <Table.Cell>{productCategory.level}</Table.Cell>
+                    <Table.Cell>
+                      <Button
+                        variant="icon"
+                        size="xs"
+                        color="none"
+                        className="hover:bg-gray-300 "
+                        onClick={editProductCategory(docId)}
+                      >
+                        <Icon name="pencil-alt" />
+                      </Button>
+                      <Button
+                        variant="icon"
+                        size="xs"
+                        color="none"
+                        className="hover:bg-gray-300"
+                        onClick={deleteProductCategory(docId)}
+                      >
+                        <Icon name="trash" />
+                      </Button>
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })}
             </Table.Body>
           </Table>
         </Card.Body>

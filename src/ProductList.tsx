@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   collection,
   doc,
@@ -16,12 +16,14 @@ import {
   endAt,
   QueryConstraint,
   QuerySnapshot,
+  onSnapshot,
 } from 'firebase/firestore';
 
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import ProductEdit from './ProductEdit';
-import { Product } from './types';
+import { sortedProductCategories } from './tools';
+import { Product, ProductCategory } from './types';
 
 const db = getFirestore();
 const PER_PAGE = 25;
@@ -30,11 +32,27 @@ const MAX_SEARCH = 50;
 const ProductList: React.FC = () => {
   const [search, setSearch] = useState('');
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Product> | null>(null);
+  const [productCategories, setProductCategories] = useState<
+    { id: string; productCategory: ProductCategory }[]
+  >([]);
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState(false);
   const [docId, setDocId] = useState<string | null>(null);
   const [productCount, setProductCount] = useState<number | null>(null);
   const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, 'productCategories'),
+      (snapshot) => {
+        const categories = sortedProductCategories(
+          snapshot as QuerySnapshot<ProductCategory>
+        );
+        setProductCategories(categories);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
 
   const queryProducts =
     (action: 'head' | 'prev' | 'next' | 'current') => async () => {
@@ -126,6 +144,7 @@ const ProductList: React.FC = () => {
       <ProductEdit
         open={open}
         docId={docId}
+        productCategories={productCategories}
         onClose={() => setOpen(false)}
         onUpdate={queryProducts('current')}
       />

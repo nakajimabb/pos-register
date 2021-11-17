@@ -17,7 +17,7 @@ const db = getFirestore();
 type Props = {
   open: boolean;
   docId: string | null;
-  parentCategories: { id: string; productCategory: ProductCategory }[];
+  productCategories: { id: string; productCategory: ProductCategory }[];
   onClose: () => void;
   onUpdate: (productCategory: ProductCategory) => void;
 };
@@ -25,7 +25,7 @@ type Props = {
 const ProductCategoryEdit: React.FC<Props> = ({
   open,
   docId,
-  parentCategories,
+  productCategories,
   onClose,
   onUpdate,
 }) => {
@@ -34,14 +34,11 @@ const ProductCategoryEdit: React.FC<Props> = ({
     name: '',
     level: 1,
   });
-  const [parent, setParent] = useState<
-    | {
-        id: string;
-        productCategory: ProductCategory;
-      }
-    | undefined
-  >(undefined);
+  const [parentId, setParentId] = useState('');
   const [error, setError] = useState('');
+  const [categoryOptions, setCategoryOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
 
   useEffect(() => {
     const f = async () => {
@@ -51,10 +48,7 @@ const ProductCategoryEdit: React.FC<Props> = ({
         if (snap.exists()) {
           const category = snap.data() as ProductCategory;
           setProductCategory(category);
-          const elem = parentCategories.find(
-            (elem) => elem.id === category.parentRef?.id
-          );
-          setParent(elem);
+          setParentId(category.parentRef ? category.parentRef.id : '');
         } else {
           resetProductCategory();
         }
@@ -63,8 +57,18 @@ const ProductCategoryEdit: React.FC<Props> = ({
       }
       setError('');
     };
+
+    const categories = productCategories.filter(
+      ({ id, productCategory }) => id !== docId && productCategory.level <= 2
+    );
+    const options = categories.map(({ id, productCategory }) => ({
+      value: id,
+      label: '　'.repeat(productCategory.level) + productCategory.name,
+    }));
+    options.unshift({ label: '', value: '' });
+    setCategoryOptions(options);
     f();
-  }, [docId, parentCategories]);
+  }, [docId, productCategories]);
 
   const resetProductCategory = () => {
     setProductCategory({
@@ -78,8 +82,17 @@ const ProductCategoryEdit: React.FC<Props> = ({
     e.preventDefault();
     setError('');
     try {
-      const parentRef = parent ? doc(db, 'productCategories', parent.id) : null;
-      const level = parent ? parent.productCategory.level + 1 : 1;
+      const parentRef = parentId
+        ? doc(db, 'productCategories', parentId)
+        : null;
+      let level = 1;
+      if (parentRef) {
+        const parentSnap = await getDoc(parentRef);
+        const parentCategory = parentSnap.data();
+        if (parentCategory) {
+          level = parentCategory.level + 1;
+        }
+      }
       const category = { ...productCategory, parentRef, level };
       if (docId) {
         await setDoc(doc(db, 'productCategories', docId), category);
@@ -114,21 +127,9 @@ const ProductCategoryEdit: React.FC<Props> = ({
           >
             <Form.Label>親カテゴリ</Form.Label>
             <Form.Select
-              options={[{ label: '', value: '' }].concat(
-                parentCategories
-                  .filter((elem) => elem.id !== docId)
-                  .map((elem) => ({
-                    label: elem.productCategory.name,
-                    value: elem.id,
-                  }))
-              )}
-              value={parent?.id}
-              onChange={(e) => {
-                const elem = parentCategories.find(
-                  (elem) => elem.id === e.target.value
-                );
-                setParent(elem);
-              }}
+              options={categoryOptions}
+              value={parentId}
+              onChange={(e) => setParentId(e.target.value)}
             />
             <Form.Label>カテゴリ名称</Form.Label>
             <Form.Text

@@ -61,6 +61,7 @@ const RegisterModify: React.FC<Props> = ({
               kana: '',
               name: discountName,
               price: discountPrice,
+              categoryRef: null,
               note: '',
             },
             quantity: 1,

@@ -1,29 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  getFirestore,
+  DocumentReference,
+} from 'firebase/firestore';
 
 import { Alert, Button, Form, Grid, Modal } from './components';
 import firebaseError from './firebaseError';
-import { Product } from './types';
+import { Product, ProductCategory } from './types';
 
 const db = getFirestore();
 
 type Props = {
   open: boolean;
   docId: string | null;
+  productCategories: { id: string; productCategory: ProductCategory }[];
   onClose: () => void;
   onUpdate: (product: Product) => void;
 };
 
-const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
+const ProductEdit: React.FC<Props> = ({
+  open,
+  docId,
+  productCategories,
+  onClose,
+  onUpdate,
+}) => {
   const [product, setProduct] = useState<Product>({
     code: '',
     name: '',
     kana: '',
     abbr: '',
     price: null,
+    categoryRef: null,
     note: '',
   });
+  const [productCategoryId, setProductCategoryId] = useState('');
   const [error, setError] = useState('');
+  const [categoryOptions, setCategoryOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
+
+  useEffect(() => {
+    const options = productCategories.map(({ id, productCategory }) => ({
+      value: id,
+      label: '　'.repeat(productCategory.level) + productCategory.name,
+    }));
+    options.unshift({ label: '', value: '' });
+    setCategoryOptions(options);
+  }, [productCategories]);
 
   useEffect(() => {
     const f = async () => {
@@ -31,7 +58,9 @@ const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
         const ref = doc(db, 'products', docId);
         const snap = await getDoc(ref);
         if (snap.exists()) {
-          setProduct(snap.data() as Product);
+          const prdct = snap.data() as Product;
+          setProduct(prdct);
+          setProductCategoryId(prdct.categoryRef ? prdct.categoryRef.id : '');
         } else {
           resetProduct();
         }
@@ -50,6 +79,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
       kana: '',
       abbr: '',
       price: null,
+      categoryRef: null,
       note: '',
     });
   };
@@ -58,12 +88,20 @@ const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
     e.preventDefault();
     setError('');
     try {
+      if (productCategoryId) {
+        const categoryRef = doc(db, 'productCategories', productCategoryId);
+        product.categoryRef = categoryRef as DocumentReference<ProductCategory>;
+      } else {
+        product.categoryRef = null;
+      }
+
       if (docId) {
         await setDoc(doc(db, 'products', docId), product);
       } else {
         const ref = doc(db, 'products', product.code);
         const snap = await getDoc(ref);
         if (snap.exists()) throw Error('PLUコードが既に存在します。');
+
         await setDoc(doc(db, 'products', product.code), product);
       }
       onUpdate(product);
@@ -75,7 +113,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
   };
 
   return (
-    <Modal open={open} size="md" onClose={onClose}>
+    <Modal open={open} size="none" onClose={onClose} className="w-2/3">
       <Form onSubmit={save} className="space-y-2">
         <Modal.Header centered={false} onClose={onClose}>
           商品編集
@@ -90,7 +128,8 @@ const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
             cols="1 sm:2"
             gap="0 sm:3"
             auto_cols="fr"
-            className="max-w-xl row-end-2"
+            template_cols="1fr 2fr"
+            className="row-end-2"
           >
             <Form.Label>PLUコード</Form.Label>
             <Form.Text
@@ -125,6 +164,15 @@ const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
               onChange={(e) =>
                 setProduct({ ...product, price: +e.target.value })
               }
+            />
+            <Form.Label>カテゴリ</Form.Label>
+            <Form.Select
+              id="select"
+              size="md"
+              className="mb-3 sm:mb-0"
+              value={productCategoryId}
+              options={categoryOptions}
+              onChange={(e) => setProductCategoryId(e.target.value)}
             />
             <Form.Label>備考</Form.Label>
             <Form.Text

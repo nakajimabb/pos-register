@@ -49,6 +49,7 @@ const RegisterInput: React.FC<Props> = ({
             kana: '',
             name: registerItem.name,
             price: price,
+            categoryRef: null,
             note: '',
           },
           quantity: 1,
