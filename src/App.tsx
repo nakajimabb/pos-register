@@ -12,6 +12,7 @@ import ImportSellingPrices from './ImportSellingPrices';
 import ProductCategoryList from './ProductCategoryList';
 import SupplierList from './SupplierList';
 import RegisterMain from './RegisterMain';
+import ShortcutEdit from './ShortcutEdit';
 import './App.css';
 
 const App: React.FC = () => {
@@ -45,6 +46,7 @@ const App: React.FC = () => {
           path="/product_categories"
           component={ProductCategoryList}
         />
+        <Route exact path="/shortcut_edit" component={ShortcutEdit} />
         <Route exact path="/tailwind" component={Tailwind} />
       </Router>
     </React.StrictMode>

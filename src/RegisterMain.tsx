@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   getFirestore,
   doc,
@@ -20,6 +21,12 @@ const RegisterMain: React.FC = () => {
     quantity: number;
   };
 
+  type ShortcutItem = {
+    index: number;
+    product: Product;
+    color: String;
+  };
+
   type RegisterItem = {
     code: string;
     name: string;
@@ -30,6 +37,9 @@ const RegisterMain: React.FC = () => {
   const [basketItems, setBasketItems] = useState<BasketItem[]>([]);
   const [registerItem, setRegisterItem] = useState<RegisterItem>();
   const [registerItems, setRegisterItems] = useState<RegisterItem[]>([]);
+  const [shortcutItems, setShortcutItems] = useState<(ShortcutItem | null)[]>(
+    []
+  );
   const [openPayment, setOpenPayment] = useState<boolean>(false);
   const [openInput, setOpenInput] = useState<boolean>(false);
   const [openModify, setOpenModify] = useState<boolean>(false);
@@ -46,8 +56,21 @@ const RegisterMain: React.FC = () => {
     setRegisterItems(items);
   };
 
+  const queryShortcutItems = async () => {
+    const q = query(collection(db, 'shops', '05', 'shortcutItems'));
+    const querySnapshot = await getDocs(q);
+    const items = new Array<ShortcutItem | null>(20);
+    items.fill(null);
+    querySnapshot.forEach((doc) => {
+      const item = doc.data() as ShortcutItem;
+      items[item.index] = item;
+    });
+    setShortcutItems(items);
+  };
+
   useEffect(() => {
     queryRegisterItems();
+    queryShortcutItems();
     document.getElementById('productCode')?.focus(); //非推奨
   }, []);
 
@@ -238,7 +261,7 @@ const RegisterMain: React.FC = () => {
                   variant="contained"
                   size="xs"
                   color="info"
-                  className="h-14 hover:bg-blue-300"
+                  className="h-14"
                   onClick={(e) => {
                     setRegisterItem(registerItem);
                     setOpenInput(true);
@@ -246,6 +269,51 @@ const RegisterMain: React.FC = () => {
                   key={index}
                 >
                   {`${registerItem.code}. ${registerItem.name}`}
+                </Button>
+              ))}
+            </Grid>
+          </div>
+
+          <div className="mt-4 p-2">
+            <Link to="/shortcut_edit">
+              <Button color="light" size="xs">
+                ショートカット登録
+              </Button>
+            </Link>
+          </div>
+          <div className="mt-4 p-2">
+            <Grid cols="4" gap="2">
+              {shortcutItems.map((item, index) => (
+                <Button
+                  variant={item ? 'contained' : 'outlined'}
+                  size="xs"
+                  color="info"
+                  className="h-14 truncate"
+                  onClick={(e) => {
+                    if (item) {
+                      const existingIndex = basketItems.findIndex(
+                        (basketItem) =>
+                          basketItem.product.code === item.product.code
+                      );
+                      if (existingIndex >= 0) {
+                        basketItems[existingIndex].quantity += 1;
+                        setBasketItems([...basketItems]);
+                      } else {
+                        const basketItem = {
+                          product: item.product,
+                          quantity: 1,
+                        };
+                        setBasketItems([...basketItems, basketItem]);
+                      }
+                    }
+                  }}
+                  key={index}
+                >
+                  {item?.product.name}
+                  <br />
+                  {item
+                    ? `¥${Number(item.product.price).toLocaleString()}`
+                    : null}
                 </Button>
               ))}
             </Grid>
