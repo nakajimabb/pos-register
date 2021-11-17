@@ -14,6 +14,7 @@ import {
   endBefore,
   startAt,
   endAt,
+  where,
   QueryConstraint,
   QuerySnapshot,
   onSnapshot,
@@ -30,7 +31,7 @@ const PER_PAGE = 25;
 const MAX_SEARCH = 50;
 
 const ProductList: React.FC = () => {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState({ text: '', categoryId: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Product> | null>(null);
   const [productCategories, setProductCategories] = useState<
     { id: string; productCategory: ProductCategory }[]
@@ -39,6 +40,9 @@ const ProductList: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [docId, setDocId] = useState<string | null>(null);
   const [productCount, setProductCount] = useState<number | null>(null);
+  const [categoryOptions, setCategoryOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
@@ -49,25 +53,40 @@ const ProductList: React.FC = () => {
           snapshot as QuerySnapshot<ProductCategory>
         );
         setProductCategories(categories);
+        const options = categories.map(({ id, productCategory }) => ({
+          value: id,
+          label: '　'.repeat(productCategory.level) + productCategory.name,
+        }));
+        options.unshift({ label: '', value: '' });
+        setCategoryOptions(options);
       }
     );
     return () => unsubscribe();
   }, []);
+
+  const existSearch = () => search.text.trim() || search.categoryId.trim();
 
   const queryProducts =
     (action: 'head' | 'prev' | 'next' | 'current') => async () => {
       try {
         setError('');
         const conds: QueryConstraint[] = [];
-        const searchText = search.trim();
-        if (searchText) {
-          if (searchText.match(/^\d+$/)) {
-            conds.push(orderBy('code'));
-          } else {
-            conds.push(orderBy('name'));
+        if (existSearch()) {
+          const searchText = search.text.trim();
+          const categoryId = search.categoryId.trim();
+          if (searchText) {
+            if (searchText.match(/^\d+$/)) {
+              conds.push(orderBy('code'));
+            } else {
+              conds.push(orderBy('name'));
+            }
+            conds.push(startAt(searchText));
+            conds.push(endAt(searchText + '\uf8ff'));
           }
-          conds.push(startAt(searchText));
-          conds.push(endAt(searchText + '\uf8ff'));
+          if (categoryId) {
+            const ref = doc(db, 'productCategories', categoryId);
+            conds.push(where('categoryRef', '==', ref));
+          }
           conds.push(limit(MAX_SEARCH));
           setPage(0);
           setProductCount(null);
@@ -157,8 +176,18 @@ const ProductList: React.FC = () => {
             <Form.Text
               placeholder="検索文字"
               className="mr-2"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={search.text}
+              onChange={(e) => setSearch({ ...search, text: e.target.value })}
+            />
+            <Form.Select
+              id="select"
+              size="md"
+              className="mr-2"
+              value={search.categoryId}
+              options={categoryOptions}
+              onChange={(e) =>
+                setSearch({ ...search, categoryId: e.target.value })
+              }
             />
             <Button
               variant="outlined"
@@ -177,7 +206,10 @@ const ProductList: React.FC = () => {
                 color="light"
                 size="xs"
                 disabled={
-                  !!search || page <= 0 || !snapshot || snapshot.size === 0
+                  !!existSearch() ||
+                  page <= 0 ||
+                  !snapshot ||
+                  snapshot.size === 0
                 }
                 className="mr-2"
                 onClick={queryProducts('prev')}
@@ -188,7 +220,7 @@ const ProductList: React.FC = () => {
                 color="light"
                 size="xs"
                 disabled={
-                  !!search ||
+                  !!existSearch() ||
                   PER_PAGE * page + snapshot.size >= productCount ||
                   !snapshot ||
                   snapshot.size === 0
