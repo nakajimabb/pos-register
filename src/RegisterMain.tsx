@@ -1,19 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  collection,
-  query,
-  getDocs,
-} from 'firebase/firestore';
+import { getFirestore, doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
 
 import { Button, Card, Flex, Form, Grid, Icon, Table } from './components';
+import { Brand } from './components/type';
 import RegisterPayment from './RegisterPayment';
 import RegisterInput from './RegisterInput';
 import RegisterModify from './RegisterModify';
-import { Product } from './types';
+import { Product, ShortcutItem } from './types';
+
+const db = getFirestore();
 
 const RegisterMain: React.FC = () => {
   type BasketItem = {
@@ -21,10 +17,10 @@ const RegisterMain: React.FC = () => {
     quantity: number;
   };
 
-  type ShortcutItem = {
+  type Shortcut = {
     index: number;
-    product: Product;
     color: String;
+    product: Product;
   };
 
   type RegisterItem = {
@@ -37,42 +33,10 @@ const RegisterMain: React.FC = () => {
   const [basketItems, setBasketItems] = useState<BasketItem[]>([]);
   const [registerItem, setRegisterItem] = useState<RegisterItem>();
   const [registerItems, setRegisterItems] = useState<RegisterItem[]>([]);
-  const [shortcutItems, setShortcutItems] = useState<(ShortcutItem | null)[]>(
-    []
-  );
+  const [shortcuts, setShortcuts] = useState<(Shortcut | null)[]>([]);
   const [openPayment, setOpenPayment] = useState<boolean>(false);
   const [openInput, setOpenInput] = useState<boolean>(false);
   const [openModify, setOpenModify] = useState<boolean>(false);
-
-  const db = getFirestore();
-
-  const queryRegisterItems = async () => {
-    const q = query(collection(db, 'registerItems'));
-    const querySnapshot = await getDocs(q);
-    const items = new Array<RegisterItem>();
-    querySnapshot.forEach((doc) => {
-      items.push(doc.data() as RegisterItem);
-    });
-    setRegisterItems(items);
-  };
-
-  const queryShortcutItems = async () => {
-    const q = query(collection(db, 'shops', '05', 'shortcutItems'));
-    const querySnapshot = await getDocs(q);
-    const items = new Array<ShortcutItem | null>(20);
-    items.fill(null);
-    querySnapshot.forEach((doc) => {
-      const item = doc.data() as ShortcutItem;
-      items[item.index] = item;
-    });
-    setShortcutItems(items);
-  };
-
-  useEffect(() => {
-    queryRegisterItems();
-    queryShortcutItems();
-    document.getElementById('productCode')?.focus(); //非推奨
-  }, []);
 
   const findProduct = async (code: string) => {
     try {
@@ -80,9 +44,7 @@ const RegisterMain: React.FC = () => {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const product = docSnap.data() as Product;
-        const existingIndex = basketItems.findIndex(
-          (item) => item.product.code === code
-        );
+        const existingIndex = basketItems.findIndex((item) => item.product.code === code);
         if (existingIndex >= 0) {
           basketItems[existingIndex].quantity += 1;
           setBasketItems([...basketItems]);
@@ -108,13 +70,45 @@ const RegisterMain: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const unsubRegisterItems = onSnapshot(collection(db, 'registerItems'), async (snapshot) => {
+      const items = new Array<RegisterItem>();
+      snapshot.forEach((doc) => {
+        items.push(doc.data() as RegisterItem);
+      });
+      setRegisterItems(items);
+    });
+
+    const unsubShortcutItems = onSnapshot(collection(db, 'shops', '05', 'shortcutItems'), async (snapshot) => {
+      const shortcutArray = new Array<Shortcut | null>(20);
+      const shortcutItemArray = new Array<ShortcutItem>();
+      shortcutArray.fill(null);
+      snapshot.forEach((doc) => {
+        const item = doc.data() as ShortcutItem;
+        shortcutItemArray.push(item);
+      });
+      for (let item of shortcutItemArray) {
+        if (item.productRef) {
+          const productSnap = await getDoc(item.productRef);
+          if (productSnap.exists()) {
+            const product = productSnap.data() as Product;
+            shortcutArray[item.index] = { index: item.index, color: item.color, product };
+          }
+        }
+      }
+      setShortcuts(shortcutArray);
+    });
+
+    document.getElementById('productCode')?.focus();
+
+    return () => {
+      unsubRegisterItems();
+      unsubShortcutItems();
+    };
+  }, []);
+
   return (
-    <Flex
-      direction="col"
-      justify_content="center"
-      align_items="center"
-      className="h-screen"
-    >
+    <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
       <RegisterPayment
         open={openPayment}
         basketItems={basketItems}
@@ -168,7 +162,7 @@ const RegisterMain: React.FC = () => {
                     <Table.Cell type="th" className="w-2/12">
                       コード
                     </Table.Cell>
-                    <Table.Cell type="th" className="w-4/12">
+                    <Table.Cell type="th" className="w-3/12">
                       商品名
                     </Table.Cell>
                     <Table.Cell type="th" className="w-2/12">
@@ -177,24 +171,17 @@ const RegisterMain: React.FC = () => {
                     <Table.Cell type="th" className="w-2/12">
                       数量
                     </Table.Cell>
-                    <Table.Cell type="th" className="w-1/12" />
+                    <Table.Cell type="th" className="w-2/12" />
                   </Table.Row>
                 </Table.Head>
                 <Table.Body>
                   {basketItems?.map((basketItem, index) => (
-                    <Table.Row
-                      key={index}
-                      className={index % 2 === 1 ? 'bg-blue-50' : ''}
-                    >
+                    <Table.Row key={index} className={index % 2 === 1 ? 'bg-blue-50' : ''}>
                       <Table.Cell>{index + 1}</Table.Cell>
                       <Table.Cell>{basketItem.product.code}</Table.Cell>
-                      <Table.Cell>{basketItem.product.name}</Table.Cell>
-                      <Table.Cell className="text-right">
-                        ¥{basketItem.product.price?.toLocaleString()}
-                      </Table.Cell>
-                      <Table.Cell className="text-right">
-                        {basketItem.quantity}
-                      </Table.Cell>
+                      <Table.Cell className="truncate">{basketItem.product.name}</Table.Cell>
+                      <Table.Cell className="text-right">¥{basketItem.product.price?.toLocaleString()}</Table.Cell>
+                      <Table.Cell className="text-right">{basketItem.quantity}</Table.Cell>
                       <Table.Cell className="text-center">
                         <Button
                           variant="icon"
@@ -214,12 +201,7 @@ const RegisterMain: React.FC = () => {
                           color="none"
                           className="hover:bg-gray-300"
                           onClick={(e) => {
-                            setBasketItems(
-                              basketItems.filter(
-                                (item) =>
-                                  item.product.code !== basketItem.product.code
-                              )
-                            );
+                            setBasketItems(basketItems.filter((item) => item.product.code !== basketItem.product.code));
                           }}
                         >
                           <Icon name="trash" />
@@ -240,11 +222,7 @@ const RegisterMain: React.FC = () => {
                   <Table.Cell className="text-right text-xl pr-4">
                     ¥
                     {basketItems
-                      .reduce(
-                        (result, item) =>
-                          result + Number(item.product.price) * item.quantity,
-                        0
-                      )
+                      .reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
                       .toLocaleString()}
                   </Table.Cell>
                 </Table.Row>
@@ -275,32 +253,35 @@ const RegisterMain: React.FC = () => {
           </div>
 
           <div className="mt-4 p-2">
-            <Link to="/shortcut_edit">
-              <Button color="light" size="xs">
-                ショートカット登録
-              </Button>
-            </Link>
+            <Grid cols="4" gap="2">
+              <div>
+                <Link to="/shortcut_edit">
+                  <Button color="light" size="xs" disabled={basketItems.length > 0} className="w-full">
+                    ショートカット登録
+                  </Button>
+                </Link>
+              </div>
+            </Grid>
           </div>
           <div className="mt-4 p-2">
             <Grid cols="4" gap="2">
-              {shortcutItems.map((item, index) => (
+              {shortcuts.map((shortcut, index) => (
                 <Button
-                  variant={item ? 'contained' : 'outlined'}
+                  variant={shortcut ? 'contained' : 'outlined'}
                   size="xs"
-                  color="info"
+                  color={shortcut ? (shortcut.color as Brand) : 'info'}
                   className="h-14 truncate"
                   onClick={(e) => {
-                    if (item) {
+                    if (shortcut) {
                       const existingIndex = basketItems.findIndex(
-                        (basketItem) =>
-                          basketItem.product.code === item.product.code
+                        (basketItem) => basketItem.product.code === shortcut.product.code
                       );
                       if (existingIndex >= 0) {
                         basketItems[existingIndex].quantity += 1;
                         setBasketItems([...basketItems]);
                       } else {
                         const basketItem = {
-                          product: item.product,
+                          product: shortcut.product,
                           quantity: 1,
                         };
                         setBasketItems([...basketItems, basketItem]);
@@ -309,11 +290,9 @@ const RegisterMain: React.FC = () => {
                   }}
                   key={index}
                 >
-                  {item?.product.name}
+                  {shortcut?.product.name}
                   <br />
-                  {item
-                    ? `¥${Number(item.product.price).toLocaleString()}`
-                    : null}
+                  {shortcut ? `¥${Number(shortcut.product.price).toLocaleString()}` : null}
                 </Button>
               ))}
             </Grid>

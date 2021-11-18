@@ -1,51 +1,45 @@
 import React, { useState, useEffect } from 'react';
+import { useTheme } from './components/ThemeProvider';
 import { Link } from 'react-router-dom';
 import {
   getFirestore,
   doc,
   getDoc,
   collection,
-  query,
-  getDocs,
   setDoc,
   deleteDoc,
+  DocumentReference,
+  DocumentData,
+  onSnapshot,
 } from 'firebase/firestore';
-import { Button, Card, Flex, Form, Grid, Icon, Table } from './components';
-import { Product } from './types';
+import { Button, Card, Flex, Form, Grid, Table } from './components';
+import { Brand, Brands } from './components/type';
+import { Product, ShortcutItem } from './types';
+
+const db = getFirestore();
 
 const ShortcutEdit: React.FC = () => {
-  type ShortcutItem = {
+  type Shortcut = {
     index: number;
     product: Product;
-    color: String;
+    color: Brand;
   };
 
   const [itemIndex, setItemIndex] = useState<number | null>();
+  const [itemColor, setItemColor] = useState<Brand | null>('info');
   const [productCode, setProductCode] = useState<string>('');
+  const [productRef, setProductRef] = useState<DocumentReference<DocumentData> | null>(null);
   const [product, setProduct] = useState<Product | null>();
-  const [shortcutItems, setShortcutItems] = useState<(ShortcutItem | null)[]>(
-    []
-  );
+  const [shortcuts, setShortcuts] = useState<(Shortcut | null)[]>([]);
 
-  const db = getFirestore();
-
-  const queryShortcutItems = async () => {
-    const q = query(collection(db, 'shops', '05', 'shortcutItems'));
-    const querySnapshot = await getDocs(q);
-    const items = new Array<ShortcutItem | null>(20);
-    items.fill(null);
-    querySnapshot.forEach((doc) => {
-      const item = doc.data() as ShortcutItem;
-      items[item.index] = item;
-    });
-    setShortcutItems(items);
-  };
+  const { theme } = useTheme();
 
   const findProduct = async (code: string) => {
     try {
       const docRef = doc(db, 'products', code);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
+        setProductRef(docRef as DocumentReference<DocumentData>);
         setProduct(docSnap.data() as Product);
       } else {
         console.log('no such product');
@@ -66,15 +60,12 @@ const ShortcutEdit: React.FC = () => {
     e.preventDefault();
     try {
       if (itemIndex != null) {
-        const item = { color: '', index: itemIndex, product };
-        await setDoc(
-          doc(db, 'shops', '05', 'shortcutItems', itemIndex.toString()),
-          item
-        );
-        setItemIndex(null);
-        setProductCode('');
+        const item = { color: itemColor, index: itemIndex, productRef };
+        await setDoc(doc(db, 'shops', '05', 'shortcutItems', itemIndex.toString()), item);
         setProduct(null);
-        queryShortcutItems();
+        setProductRef(null);
+        setProductCode('');
+        setItemIndex(null);
       }
     } catch (error) {
       console.log({ error });
@@ -85,13 +76,11 @@ const ShortcutEdit: React.FC = () => {
     e.preventDefault();
     try {
       if (itemIndex != null) {
-        await deleteDoc(
-          doc(db, 'shops', '05', 'shortcutItems', itemIndex.toString())
-        );
-        setItemIndex(null);
-        setProductCode('');
+        await deleteDoc(doc(db, 'shops', '05', 'shortcutItems', itemIndex.toString()));
         setProduct(null);
-        queryShortcutItems();
+        setProductRef(null);
+        setProductCode('');
+        setItemIndex(null);
       }
     } catch (error) {
       console.log({ error });
@@ -99,53 +88,77 @@ const ShortcutEdit: React.FC = () => {
   };
 
   useEffect(() => {
-    queryShortcutItems();
+    const unsubShortcutItems = onSnapshot(collection(db, 'shops', '05', 'shortcutItems'), async (snapshot) => {
+      const shortcutArray = new Array<Shortcut | null>(20);
+      const shortcutItemArray = new Array<ShortcutItem>();
+      shortcutArray.fill(null);
+      snapshot.forEach((doc) => {
+        const item = doc.data() as ShortcutItem;
+        shortcutItemArray.push(item);
+      });
+      for (let item of shortcutItemArray) {
+        if (item.productRef) {
+          const productSnap = await getDoc(item.productRef);
+          if (productSnap.exists()) {
+            const product = productSnap.data() as Product;
+            shortcutArray[item.index] = { index: item.index, color: item.color as Brand, product };
+          }
+        }
+      }
+      setShortcuts(shortcutArray);
+    });
+
     document.getElementById('productCode')?.focus();
+
+    return () => unsubShortcutItems();
   }, [itemIndex]);
 
   return (
-    <Flex
-      direction="col"
-      justify_content="center"
-      align_items="center"
-      className="h-screen"
-    >
+    <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
       <Card className="m-2 w-1/2">
-        <Card.Header className="p-2">
-          商品を登録する枠を選択してください。
-        </Card.Header>
+        <Card.Header className="p-2">商品を登録する枠を選択してください。</Card.Header>
         <Card.Body className="p-2">
           <Grid cols="4" gap="2">
-            {shortcutItems.map((item, index) => (
-              <Button
-                variant={item || index === itemIndex ? 'contained' : 'outlined'}
-                size="xs"
-                color="info"
-                className="h-14 hover:bg-blue-300 truncate"
-                onClick={(e) => {
-                  setItemIndex(index);
-
-                  if (item) {
-                    setProductCode(item.product.code);
-                    setProduct(item.product);
-                  } else {
-                    setProductCode('');
-                    setProduct(null);
-                  }
-                }}
-                key={index}
-              >
-                {item ? (
-                  <>
-                    {index + 1}. {item?.product.name}
-                    <br />
-                    {`¥${Number(item.product.price).toLocaleString()}`}
-                  </>
-                ) : (
-                  index + 1
-                )}
-              </Button>
-            ))}
+            {shortcuts.map((shortcut, index) => {
+              const classes = ['h-14', 'truncate'];
+              if (index === itemIndex) {
+                classes.push('ring-2', 'ring-offset-1');
+                if (shortcut) {
+                  classes.push(`ring-${theme.color[shortcut.color]}`);
+                }
+              }
+              return (
+                <Button
+                  variant={shortcut ? 'contained' : 'outlined'}
+                  size="xs"
+                  color={shortcut ? (shortcut.color as Brand) : 'info'}
+                  className={classes.join(' ')}
+                  onClick={(e) => {
+                    setItemIndex(index);
+                    if (shortcut) {
+                      setItemColor(shortcut.color);
+                      setProductCode(shortcut.product.code);
+                      setProduct(shortcut.product);
+                    } else {
+                      setItemColor('info');
+                      setProductCode('');
+                      setProduct(null);
+                    }
+                  }}
+                  key={index}
+                >
+                  {shortcut ? (
+                    <>
+                      {index + 1}. {shortcut?.product.name}
+                      <br />
+                      {`¥${Number(shortcut.product.price).toLocaleString()}`}
+                    </>
+                  ) : (
+                    index + 1
+                  )}
+                </Button>
+              );
+            })}
           </Grid>
         </Card.Body>
       </Card>
@@ -154,7 +167,7 @@ const ShortcutEdit: React.FC = () => {
           <Card.Body className="p-2">
             <Flex className="items-center h-12">
               <div>No. {itemIndex + 1}</div>
-              {shortcutItems[itemIndex] ? null : (
+              {shortcuts[itemIndex] ? null : (
                 <Form className="m-2" onSubmit={handleSubmit}>
                   <Form.Text
                     id="productCode"
@@ -168,54 +181,70 @@ const ShortcutEdit: React.FC = () => {
               )}
             </Flex>
             {product ? (
-              <Table border="row" className="table-fixed w-full text-xs">
-                <Table.Head>
-                  <Table.Row>
-                    <Table.Cell type="th" className="w-8/12">
-                      商品名
-                    </Table.Cell>
-                    <Table.Cell type="th" className="w-2/12">
-                      単価
-                    </Table.Cell>
-                    <Table.Cell type="th" className="w-2/12" />
-                  </Table.Row>
-                </Table.Head>
-                <Table.Body>
-                  <Table.Row>
-                    <Table.Cell>{product.name}</Table.Cell>
-                    <Table.Cell className="text-right">
-                      ¥{product.price?.toLocaleString()}
-                    </Table.Cell>
-                    <Table.Cell className="text-center">
-                      {shortcutItems[itemIndex] ? (
-                        <Button
-                          variant="contained"
-                          size="xs"
-                          color="danger"
-                          className="ml-2"
-                          onClick={remove}
-                        >
-                          削除
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="contained"
-                          size="xs"
-                          color="primary"
-                          onClick={save}
-                        >
-                          登録
-                        </Button>
-                      )}
-                    </Table.Cell>
-                  </Table.Row>
-                </Table.Body>
-              </Table>
+              <>
+                <Table border="row" className="table-fixed w-full text-xs">
+                  <Table.Head>
+                    <Table.Row>
+                      <Table.Cell type="th" className="w-8/12">
+                        商品名
+                      </Table.Cell>
+                      <Table.Cell type="th" className="w-2/12">
+                        単価
+                      </Table.Cell>
+                      <Table.Cell type="th" className="w-2/12" />
+                    </Table.Row>
+                  </Table.Head>
+                  <Table.Body>
+                    <Table.Row>
+                      <Table.Cell className="truncate">{product.name}</Table.Cell>
+                      <Table.Cell className="text-right">¥{product.price?.toLocaleString()}</Table.Cell>
+                      <Table.Cell className="text-center"></Table.Cell>
+                    </Table.Row>
+                  </Table.Body>
+                </Table>
+                <Flex className="items-center h-12 justify-between">
+                  <Flex>
+                    <div className="mr-2 text-xs">カラーを選択</div>
+                    {Brands.map((brand, index) => {
+                      if (brand !== 'none') {
+                        const classes = ['mr-1'];
+                        if (brand === itemColor) {
+                          classes.push('ring-2', 'ring-offset-1', `ring-${theme.color[itemColor]}`);
+                        }
+                        return (
+                          <Button
+                            variant="contained"
+                            size="xs"
+                            color={brand}
+                            className={classes.join(' ')}
+                            key={index}
+                            onClick={() => {
+                              setItemColor(brand);
+                            }}
+                          ></Button>
+                        );
+                      } else {
+                        return null;
+                      }
+                    })}
+                  </Flex>
+                  <div>
+                    <Button variant="contained" size="xs" color="primary" className="mr-2" onClick={save}>
+                      登録
+                    </Button>
+                    {shortcuts[itemIndex] ? (
+                      <Button variant="contained" size="xs" color="danger" className="mr-2" onClick={remove}>
+                        削除
+                      </Button>
+                    ) : null}
+                  </div>
+                </Flex>
+              </>
             ) : null}
           </Card.Body>
         ) : null}
       </Card>
-      <div className="mt-2 p-2">
+      <div className="m-2">
         <Link to="/">
           <Button color="light" size="sm">
             戻る

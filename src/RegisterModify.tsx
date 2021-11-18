@@ -15,32 +15,22 @@ type Props = {
   onClose: () => void;
 };
 
-const RegisterModify: React.FC<Props> = ({
-  open,
-  basketItem,
-  basketItems,
-  setBasketItems,
-  onClose,
-}) => {
+const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBasketItems, onClose }) => {
   const [quantity, setQuantity] = useState<number>(0);
   const [discount, setDiscount] = useState<number>(0);
   const [rate, setRate] = useState<number>(0);
 
   useEffect(() => {
     setQuantity(Number(basketItem?.quantity));
-    const inputQuantity = document.getElementById(
-      'inputQuantity'
-    ) as HTMLInputElement;
+    const inputQuantity = document.getElementById('inputQuantity') as HTMLInputElement;
     inputQuantity?.focus(); //非推奨
     inputQuantity?.select(); //非推奨
-  }, [open]);
+  }, [open, basketItem]);
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (basketItem) {
-      const existingIndex = basketItems.findIndex(
-        (item) => item.product.code === basketItem.product.code
-      );
+      const existingIndex = basketItems.findIndex((item) => item.product.code === basketItem.product.code);
       if (existingIndex >= 0) {
         basketItems[existingIndex].quantity = quantity;
         if (discount > 0 || rate > 0) {
@@ -50,9 +40,7 @@ const RegisterModify: React.FC<Props> = ({
             discountPrice = -discount;
           } else {
             discountName += `(${rate}%)`;
-            discountPrice = -Math.floor(
-              (Number(basketItem.product.price) * rate) / 100.0
-            );
+            discountPrice = -Math.floor((Number(basketItem.product.price) * rate) / 100.0);
           }
           const discountItem = {
             product: {
@@ -90,9 +78,7 @@ const RegisterModify: React.FC<Props> = ({
             </Table.Row>
             <Table.Row>
               <Table.Cell type="th">単価</Table.Cell>
-              <Table.Cell>
-                {basketItem?.product.price?.toLocaleString()}
-              </Table.Cell>
+              <Table.Cell>{basketItem?.product.price?.toLocaleString()}</Table.Cell>
             </Table.Row>
             <Table.Row>
               <Table.Cell type="th">数量</Table.Cell>
@@ -102,9 +88,7 @@ const RegisterModify: React.FC<Props> = ({
                     id="inputQuantity"
                     placeholder="数量"
                     value={quantity.toString()}
-                    onChange={(e) =>
-                      setQuantity(Number(e.target.value.replace(/\D/, '')))
-                    }
+                    onChange={(e) => setQuantity(Number(e.target.value.replace(/\D/, '')))}
                     className="text-right w-full"
                   />
                 </Form>
@@ -118,9 +102,7 @@ const RegisterModify: React.FC<Props> = ({
                     id="inputDiscount"
                     placeholder="値引き(金額)"
                     value={discount.toString()}
-                    onChange={(e) =>
-                      setDiscount(Number(e.target.value.replace(/\D/, '')))
-                    }
+                    onChange={(e) => setDiscount(Number(e.target.value.replace(/\D/, '')))}
                     className="text-right w-full"
                   />
                 </Form>
@@ -134,9 +116,7 @@ const RegisterModify: React.FC<Props> = ({
                     id="inputRate"
                     placeholder="値引き(%)"
                     value={rate.toString()}
-                    onChange={(e) =>
-                      setRate(Number(e.target.value.replace(/\D/, '')))
-                    }
+                    onChange={(e) => setRate(Number(e.target.value.replace(/\D/, '')))}
                     className="text-right w-full"
                   />
                 </Form>
@@ -146,12 +126,7 @@ const RegisterModify: React.FC<Props> = ({
         </Table>
       </Modal.Body>
       <Modal.Footer className="flex justify-end">
-        <Button
-          color="secondary"
-          variant="outlined"
-          className="mr-3"
-          onClick={onClose}
-        >
+        <Button color="secondary" variant="outlined" className="mr-3" onClick={onClose}>
           キャンセル
         </Button>
         <Button color="primary" onClick={save}>

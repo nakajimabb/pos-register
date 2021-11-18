@@ -21,3 +21,9 @@ export type Supplier = {
   code: string;
   name: string;
 };
+
+export type ShortcutItem = {
+  index: number;
+  color: String;
+  productRef: DocumentReference<Product>;
+};
