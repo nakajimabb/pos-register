@@ -114,144 +114,148 @@ const ShortcutEdit: React.FC = () => {
   }, [itemIndex]);
 
   return (
-    <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
-      <Card className="m-2 w-1/2">
-        <Card.Header className="p-2">商品を登録する枠を選択してください。</Card.Header>
-        <Card.Body className="p-2">
-          <Grid cols="4" gap="2">
-            {shortcuts.map((shortcut, index) => {
-              const classes = ['h-14', 'truncate'];
-              if (index === itemIndex) {
-                classes.push('ring-2', 'ring-offset-1');
-                if (shortcut) {
-                  classes.push(`ring-${theme.color[shortcut.color]}`);
-                }
-              }
-              return (
-                <Button
-                  variant={shortcut ? 'contained' : 'outlined'}
-                  size="xs"
-                  color={shortcut ? (shortcut.color as Brand) : 'info'}
-                  className={classes.join(' ')}
-                  onClick={(e) => {
-                    setItemIndex(index);
+    <>
+      {shortcuts.length > 0 && (
+        <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
+          <Card className="m-2 w-1/2">
+            <Card.Header className="p-2">商品を登録する枠を選択してください。</Card.Header>
+            <Card.Body className="p-2">
+              <Grid cols="4" gap="2">
+                {shortcuts.map((shortcut, index) => {
+                  const classes = ['h-14', 'truncate'];
+                  if (index === itemIndex) {
+                    classes.push('ring-2', 'ring-offset-1');
                     if (shortcut) {
-                      setItemColor(shortcut.color);
-                      setProductCode(shortcut.product.code);
-                      setProduct(shortcut.product);
-                    } else {
-                      setItemColor('info');
-                      setProductCode('');
-                      setProduct(null);
+                      classes.push(`ring-${theme.color[shortcut.color]}`);
                     }
-                  }}
-                  key={index}
-                >
-                  {shortcut ? (
-                    <>
-                      {index + 1}. {shortcut?.product.name}
-                      <br />
-                      {`¥${Number(shortcut.product.price).toLocaleString()}`}
-                    </>
-                  ) : (
-                    index + 1
-                  )}
-                </Button>
-              );
-            })}
-          </Grid>
-        </Card.Body>
-      </Card>
-      <Card className="m-2 w-1/2 h-48">
-        {itemIndex != null ? (
-          <Card.Body className="p-2">
-            <Flex className="items-center h-12">
-              <div>No. {itemIndex + 1}</div>
-              {shortcuts[itemIndex] ? null : (
-                <Form className="m-2" onSubmit={handleSubmit}>
-                  <Form.Text
-                    id="productCode"
-                    size="md"
-                    placeholder="商品コード"
-                    className="mb-3 sm:mb-0"
-                    value={productCode}
-                    onChange={(e) => setProductCode(e.target.value.trim())}
-                  />
-                </Form>
-              )}
-            </Flex>
-            {product ? (
-              <>
-                <Table border="row" className="table-fixed w-full text-xs">
-                  <Table.Head>
-                    <Table.Row>
-                      <Table.Cell type="th" className="w-8/12">
-                        商品名
-                      </Table.Cell>
-                      <Table.Cell type="th" className="w-2/12">
-                        単価
-                      </Table.Cell>
-                      <Table.Cell type="th" className="w-2/12" />
-                    </Table.Row>
-                  </Table.Head>
-                  <Table.Body>
-                    <Table.Row>
-                      <Table.Cell className="truncate">{product.name}</Table.Cell>
-                      <Table.Cell className="text-right">¥{product.price?.toLocaleString()}</Table.Cell>
-                      <Table.Cell className="text-center"></Table.Cell>
-                    </Table.Row>
-                  </Table.Body>
-                </Table>
-                <Flex className="items-center h-12 justify-between">
-                  <Flex>
-                    <div className="mr-2 text-xs">カラーを選択</div>
-                    {Brands.map((brand, index) => {
-                      if (brand !== 'none') {
-                        const classes = ['mr-1'];
-                        if (brand === itemColor) {
-                          classes.push('ring-2', 'ring-offset-1', `ring-${theme.color[itemColor]}`);
+                  }
+                  return (
+                    <Button
+                      variant={shortcut ? 'contained' : 'outlined'}
+                      size="xs"
+                      color={shortcut ? (shortcut.color as Brand) : 'info'}
+                      className={classes.join(' ')}
+                      onClick={(e) => {
+                        setItemIndex(index);
+                        if (shortcut) {
+                          setItemColor(shortcut.color);
+                          setProductCode(shortcut.product.code);
+                          setProduct(shortcut.product);
+                        } else {
+                          setItemColor('info');
+                          setProductCode('');
+                          setProduct(null);
                         }
-                        return (
-                          <Button
-                            variant="contained"
-                            size="xs"
-                            color={brand}
-                            className={classes.join(' ')}
-                            key={index}
-                            onClick={() => {
-                              setItemColor(brand);
-                            }}
-                          ></Button>
-                        );
-                      } else {
-                        return null;
-                      }
-                    })}
-                  </Flex>
-                  <div>
-                    <Button variant="contained" size="xs" color="primary" className="mr-2" onClick={save}>
-                      登録
+                      }}
+                      key={index}
+                    >
+                      {shortcut ? (
+                        <>
+                          {index + 1}. {shortcut?.product.name}
+                          <br />
+                          {`¥${Number(shortcut.product.price).toLocaleString()}`}
+                        </>
+                      ) : (
+                        index + 1
+                      )}
                     </Button>
-                    {shortcuts[itemIndex] ? (
-                      <Button variant="contained" size="xs" color="danger" className="mr-2" onClick={remove}>
-                        削除
-                      </Button>
-                    ) : null}
-                  </div>
+                  );
+                })}
+              </Grid>
+            </Card.Body>
+          </Card>
+          <Card className="m-2 w-1/2 h-48">
+            {itemIndex != null ? (
+              <Card.Body className="p-2">
+                <Flex className="items-center h-12">
+                  <div>No. {itemIndex + 1}</div>
+                  {shortcuts[itemIndex] ? null : (
+                    <Form className="m-2" onSubmit={handleSubmit}>
+                      <Form.Text
+                        id="productCode"
+                        size="md"
+                        placeholder="商品コード"
+                        className="mb-3 sm:mb-0"
+                        value={productCode}
+                        onChange={(e) => setProductCode(e.target.value.trim())}
+                      />
+                    </Form>
+                  )}
                 </Flex>
-              </>
+                {product ? (
+                  <>
+                    <Table border="row" className="table-fixed w-full text-xs">
+                      <Table.Head>
+                        <Table.Row>
+                          <Table.Cell type="th" className="w-8/12">
+                            商品名
+                          </Table.Cell>
+                          <Table.Cell type="th" className="w-2/12">
+                            単価
+                          </Table.Cell>
+                          <Table.Cell type="th" className="w-2/12" />
+                        </Table.Row>
+                      </Table.Head>
+                      <Table.Body>
+                        <Table.Row>
+                          <Table.Cell className="truncate">{product.name}</Table.Cell>
+                          <Table.Cell className="text-right">¥{product.price?.toLocaleString()}</Table.Cell>
+                          <Table.Cell className="text-center"></Table.Cell>
+                        </Table.Row>
+                      </Table.Body>
+                    </Table>
+                    <Flex className="items-center h-12 justify-between">
+                      <Flex>
+                        <div className="mr-2 text-xs">カラーを選択</div>
+                        {Brands.map((brand, index) => {
+                          if (brand !== 'none') {
+                            const classes = ['mr-1'];
+                            if (brand === itemColor) {
+                              classes.push('ring-2', 'ring-offset-1', `ring-${theme.color[itemColor]}`);
+                            }
+                            return (
+                              <Button
+                                variant="contained"
+                                size="xs"
+                                color={brand}
+                                className={classes.join(' ')}
+                                key={index}
+                                onClick={() => {
+                                  setItemColor(brand);
+                                }}
+                              ></Button>
+                            );
+                          } else {
+                            return null;
+                          }
+                        })}
+                      </Flex>
+                      <div>
+                        <Button variant="contained" size="xs" color="primary" className="mr-2" onClick={save}>
+                          登録
+                        </Button>
+                        {shortcuts[itemIndex] ? (
+                          <Button variant="contained" size="xs" color="danger" className="mr-2" onClick={remove}>
+                            削除
+                          </Button>
+                        ) : null}
+                      </div>
+                    </Flex>
+                  </>
+                ) : null}
+              </Card.Body>
             ) : null}
-          </Card.Body>
-        ) : null}
-      </Card>
-      <div className="m-2">
-        <Link to="/">
-          <Button color="light" size="sm">
-            戻る
-          </Button>
-        </Link>
-      </div>
-    </Flex>
+          </Card>
+          <div className="m-2">
+            <Link to="/">
+              <Button color="light" size="sm">
+                戻る
+              </Button>
+            </Link>
+          </div>
+        </Flex>
+      )}
+    </>
   );
 };
 

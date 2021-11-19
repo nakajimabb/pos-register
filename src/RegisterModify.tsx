@@ -65,7 +65,7 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
   };
 
   return (
-    <Modal open={open && !!basketItem} size="md" onClose={onClose}>
+    <Modal open={open && !!basketItem} size="none" onClose={onClose} className="w-1/2">
       <Modal.Header centered={false} onClose={onClose}>
         明細修正
       </Modal.Header>

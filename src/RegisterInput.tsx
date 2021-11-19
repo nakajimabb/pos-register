@@ -20,13 +20,7 @@ type Props = {
   onClose: () => void;
 };
 
-const RegisterInput: React.FC<Props> = ({
-  open,
-  registerItem,
-  basketItems,
-  setBasketItems,
-  onClose,
-}) => {
+const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBasketItems, onClose }) => {
   const [price, setPrice] = useState<number>(0);
   useEffect(() => {
     document.getElementById('inputPrice')?.focus(); //非推奨
@@ -35,9 +29,7 @@ const RegisterInput: React.FC<Props> = ({
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (registerItem && price > 0) {
-      const existingIndex = basketItems.findIndex(
-        (item) => item.product.code === registerItem.code
-      );
+      const existingIndex = basketItems.findIndex((item) => item.product.code === registerItem.code);
       if (existingIndex >= 0) {
         basketItems[existingIndex].product.price = price;
         setBasketItems([...basketItems]);
@@ -62,7 +54,7 @@ const RegisterInput: React.FC<Props> = ({
   };
 
   return (
-    <Modal open={open && !!registerItem} size="md" onClose={onClose}>
+    <Modal open={open && !!registerItem} size="none" onClose={onClose} className="w-1/3">
       <Modal.Header centered={false} onClose={onClose}>
         {`${registerItem?.code}. ${registerItem?.name}`}
       </Modal.Header>
@@ -77,9 +69,7 @@ const RegisterInput: React.FC<Props> = ({
                     id="inputPrice"
                     placeholder="金額"
                     value={price.toString()}
-                    onChange={(e) =>
-                      setPrice(Number(e.target.value.replace(/\D/, '')))
-                    }
+                    onChange={(e) => setPrice(Number(e.target.value.replace(/\D/, '')))}
                     className="text-right w-full"
                   />
                 </Form>
@@ -89,12 +79,7 @@ const RegisterInput: React.FC<Props> = ({
         </Table>
       </Modal.Body>
       <Modal.Footer className="flex justify-end">
-        <Button
-          color="secondary"
-          variant="outlined"
-          className="mr-3"
-          onClick={onClose}
-        >
+        <Button color="secondary" variant="outlined" className="mr-3" onClick={onClose}>
           キャンセル
         </Button>
         <Button color="primary" onClick={save}>

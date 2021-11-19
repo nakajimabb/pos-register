@@ -15,12 +15,7 @@ type Props = {
   onClose: () => void;
 };
 
-const RegisterPayment: React.FC<Props> = ({
-  open,
-  basketItems,
-  setBasketItems,
-  onClose,
-}) => {
+const RegisterPayment: React.FC<Props> = ({ open, basketItems, setBasketItems, onClose }) => {
   const [cash, setCash] = useState<number>(0);
   const componentRef = useRef(null);
   const pageStyle = `
@@ -42,7 +37,7 @@ const RegisterPayment: React.FC<Props> = ({
   }, [open]);
 
   return (
-    <Modal open={open} size="md" onClose={onClose}>
+    <Modal open={open} size="none" onClose={onClose} className="w-1/3">
       <Modal.Header centered={false} onClose={onClose}>
         お会計
       </Modal.Header>
@@ -56,11 +51,7 @@ const RegisterPayment: React.FC<Props> = ({
               <Table.Cell className="text-right text-xl pr-4">
                 ¥
                 {basketItems
-                  .reduce(
-                    (result, item) =>
-                      result + Number(item.product.price) * item.quantity,
-                    0
-                  )
+                  .reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
                   .toLocaleString()}
               </Table.Cell>
             </Table.Row>
@@ -72,9 +63,7 @@ const RegisterPayment: React.FC<Props> = ({
                     id="inputCash"
                     placeholder="金額"
                     value={cash.toString()}
-                    onChange={(e) =>
-                      setCash(Number(e.target.value.replace(/\D/, '')))
-                    }
+                    onChange={(e) => setCash(Number(e.target.value.replace(/\D/, '')))}
                     onKeyPress={(e) => {
                       if (e.key === 'Enter' && handlePrint) {
                         e.preventDefault();
@@ -91,12 +80,7 @@ const RegisterPayment: React.FC<Props> = ({
               <Table.Cell className="text-right pr-4">
                 ¥
                 {(
-                  cash -
-                  basketItems.reduce(
-                    (result, item) =>
-                      result + Number(item.product.price) * item.quantity,
-                    0
-                  )
+                  cash - basketItems.reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
                 ).toLocaleString()}
               </Table.Cell>
             </Table.Row>
@@ -130,17 +114,10 @@ const RegisterPayment: React.FC<Props> = ({
                   <Table.Row key={index}>
                     <Table.Cell></Table.Cell>
                     <Table.Cell>{basketItem.product.name}</Table.Cell>
-                    <Table.Cell className="text-right">
-                      {basketItem.quantity}
-                    </Table.Cell>
-                    <Table.Cell className="text-right">
-                      ¥{basketItem.product.price?.toLocaleString()}
-                    </Table.Cell>
+                    <Table.Cell className="text-right">{basketItem.quantity}</Table.Cell>
+                    <Table.Cell className="text-right">¥{basketItem.product.price?.toLocaleString()}</Table.Cell>
                     <Table.Cell className="text-center">
-                      ¥
-                      {(
-                        Number(basketItem.product.price) * basketItem.quantity
-                      )?.toLocaleString()}
+                      ¥{(Number(basketItem.product.price) * basketItem.quantity)?.toLocaleString()}
                     </Table.Cell>
                   </Table.Row>
                 ))}
@@ -156,19 +133,13 @@ const RegisterPayment: React.FC<Props> = ({
                   <Table.Cell className="text-right text-xl pr-4">
                     ¥
                     {basketItems
-                      .reduce(
-                        (result, item) =>
-                          result + Number(item.product.price) * item.quantity,
-                        0
-                      )
+                      .reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
                       .toLocaleString()}
                   </Table.Cell>
                 </Table.Row>
                 <Table.Row>
                   <Table.Cell type="th">お預かり</Table.Cell>
-                  <Table.Cell className="text-right pr-4">
-                    ¥{cash.toLocaleString()}
-                  </Table.Cell>
+                  <Table.Cell className="text-right pr-4">¥{cash.toLocaleString()}</Table.Cell>
                 </Table.Row>
                 <Table.Row>
                   <Table.Cell type="th">お釣り</Table.Cell>
@@ -176,11 +147,7 @@ const RegisterPayment: React.FC<Props> = ({
                     ¥
                     {(
                       cash -
-                      basketItems.reduce(
-                        (result, item) =>
-                          result + Number(item.product.price) * item.quantity,
-                        0
-                      )
+                      basketItems.reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
                     ).toLocaleString()}
                   </Table.Cell>
                 </Table.Row>
@@ -190,12 +157,7 @@ const RegisterPayment: React.FC<Props> = ({
         </div>
       </Modal.Body>
       <Modal.Footer className="flex justify-end">
-        <Button
-          color="secondary"
-          variant="outlined"
-          className="mr-3"
-          onClick={onClose}
-        >
+        <Button color="secondary" variant="outlined" className="mr-3" onClick={onClose}>
           キャンセル
         </Button>
         <Button onClick={handlePrint} color="primary">

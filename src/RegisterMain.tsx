@@ -7,6 +7,7 @@ import { Brand } from './components/type';
 import RegisterPayment from './RegisterPayment';
 import RegisterInput from './RegisterInput';
 import RegisterModify from './RegisterModify';
+import RegisterSearch from './RegisterSearch';
 import { Product, ShortcutItem } from './types';
 
 const db = getFirestore();
@@ -37,6 +38,7 @@ const RegisterMain: React.FC = () => {
   const [openPayment, setOpenPayment] = useState<boolean>(false);
   const [openInput, setOpenInput] = useState<boolean>(false);
   const [openModify, setOpenModify] = useState<boolean>(false);
+  const [openSearch, setOpenSearch] = useState<boolean>(false);
 
   const findProduct = async (code: string) => {
     try {
@@ -138,19 +140,33 @@ const RegisterMain: React.FC = () => {
           document.getElementById('productCode')?.focus();
         }}
       />
+      <RegisterSearch
+        open={openSearch}
+        basketItems={basketItems}
+        setBasketItems={setBasketItems}
+        onClose={() => {
+          setOpenSearch(false);
+          document.getElementById('productCode')?.focus();
+        }}
+      ></RegisterSearch>
       <Grid cols="2" rows="1" gap="0" flow="col" className="h-full">
         <Card className="container justify-center m-2">
           <Card.Body>
-            <Form className="mt-16 ml-4" onSubmit={handleSubmit}>
-              <Form.Text
-                id="productCode"
-                size="md"
-                placeholder="商品コード"
-                className="mb-3 sm:mb-0"
-                value={productCode}
-                onChange={(e) => setProductCode(e.target.value.trim())}
-              />
-            </Form>
+            <Flex>
+              <Form className="mt-16 ml-4" onSubmit={handleSubmit}>
+                <Form.Text
+                  id="productCode"
+                  size="md"
+                  placeholder="商品コード"
+                  className="mb-3 sm:mb-0"
+                  value={productCode}
+                  onChange={(e) => setProductCode(e.target.value.trim())}
+                />
+              </Form>
+              <Button color="light" size="xs" className="mt-16 ml-4" onClick={() => setOpenSearch(true)}>
+                商品検索
+              </Button>
+            </Flex>
 
             <div className="mt-8 h-96 overflow-y-scroll">
               <Table border="row" className="table-fixed w-full text-xs">
@@ -232,71 +248,73 @@ const RegisterMain: React.FC = () => {
         </Card>
 
         <Card className="m-2">
-          <div className="mt-16 p-2">
-            <Grid cols="4" gap="2">
-              {registerItems.map((registerItem, index) => (
-                <Button
-                  variant="contained"
-                  size="xs"
-                  color="info"
-                  className="h-14"
-                  onClick={(e) => {
-                    setRegisterItem(registerItem);
-                    setOpenInput(true);
-                  }}
-                  key={index}
-                >
-                  {`${registerItem.code}. ${registerItem.name}`}
-                </Button>
-              ))}
-            </Grid>
-          </div>
-
-          <div className="mt-4 p-2">
-            <Grid cols="4" gap="2">
-              <div>
-                <Link to="/shortcut_edit">
-                  <Button color="light" size="xs" disabled={basketItems.length > 0} className="w-full">
-                    ショートカット登録
+          <Card.Body>
+            <div className="mt-16 p-2">
+              <Grid cols="4" gap="2">
+                {registerItems.map((registerItem, index) => (
+                  <Button
+                    variant="contained"
+                    size="xs"
+                    color="info"
+                    className="h-14"
+                    onClick={(e) => {
+                      setRegisterItem(registerItem);
+                      setOpenInput(true);
+                    }}
+                    key={index}
+                  >
+                    {`${registerItem.code}. ${registerItem.name}`}
                   </Button>
-                </Link>
-              </div>
-            </Grid>
-          </div>
-          <div className="mt-4 p-2">
-            <Grid cols="4" gap="2">
-              {shortcuts.map((shortcut, index) => (
-                <Button
-                  variant={shortcut ? 'contained' : 'outlined'}
-                  size="xs"
-                  color={shortcut ? (shortcut.color as Brand) : 'info'}
-                  className="h-14 truncate"
-                  onClick={(e) => {
-                    if (shortcut) {
-                      const existingIndex = basketItems.findIndex(
-                        (basketItem) => basketItem.product.code === shortcut.product.code
-                      );
-                      if (existingIndex >= 0) {
-                        basketItems[existingIndex].quantity += 1;
-                        setBasketItems([...basketItems]);
-                      } else {
-                        const basketItem = {
-                          product: shortcut.product,
-                          quantity: 1,
-                        };
-                        setBasketItems([...basketItems, basketItem]);
+                ))}
+              </Grid>
+            </div>
+
+            <div className="mt-4 p-2">
+              <Grid cols="4" gap="2">
+                <div>
+                  <Link to="/shortcut_edit">
+                    <Button color="light" size="xs" disabled={basketItems.length > 0} className="w-full">
+                      ショートカット登録
+                    </Button>
+                  </Link>
+                </div>
+              </Grid>
+            </div>
+            <div className="mt-4 p-2">
+              <Grid cols="4" gap="2">
+                {shortcuts.map((shortcut, index) => (
+                  <Button
+                    variant={shortcut ? 'contained' : 'outlined'}
+                    size="xs"
+                    color={shortcut ? (shortcut.color as Brand) : 'info'}
+                    className="h-14 truncate"
+                    onClick={(e) => {
+                      if (shortcut) {
+                        const existingIndex = basketItems.findIndex(
+                          (basketItem) => basketItem.product.code === shortcut.product.code
+                        );
+                        if (existingIndex >= 0) {
+                          basketItems[existingIndex].quantity += 1;
+                          setBasketItems([...basketItems]);
+                        } else {
+                          const basketItem = {
+                            product: shortcut.product,
+                            quantity: 1,
+                          };
+                          setBasketItems([...basketItems, basketItem]);
+                        }
                       }
-                    }
-                  }}
-                  key={index}
-                >
-                  {shortcut?.product.name}
-                  <br />
-                  {shortcut ? `¥${Number(shortcut.product.price).toLocaleString()}` : null}
-                </Button>
-              ))}
-            </Grid>
-          </div>
+                    }}
+                    key={index}
+                  >
+                    {shortcut?.product.name}
+                    <br />
+                    {shortcut ? `¥${Number(shortcut.product.price).toLocaleString()}` : null}
+                  </Button>
+                ))}
+              </Grid>
+            </div>
+          </Card.Body>
         </Card>
       </Grid>
     </Flex>
