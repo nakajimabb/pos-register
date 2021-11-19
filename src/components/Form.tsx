@@ -7,18 +7,9 @@ type LabelProps = {
   style?: CSSProperties;
 };
 
-const Label: React.FC<LabelProps> = ({
-  htmlFor,
-  className,
-  children,
-  style,
-}) => {
+const Label: React.FC<LabelProps> = ({ htmlFor, className, children, style }) => {
   return (
-    <label
-      htmlFor={htmlFor}
-      className={clsx('leading-normal focus:shadow-outline', className)}
-      style={style}
-    >
+    <label htmlFor={htmlFor} className={clsx('leading-normal focus:shadow-outline', className)} style={style}>
       {children}
     </label>
   );
@@ -124,7 +115,7 @@ const Select: React.FC<SelectProps> = ({
   className,
   style,
 }) => {
-  const padding = { sm: 'px-2 py-1', md: 'px-3 py-2', lg: 'px-4 py-2' };
+  const padding = { sm: 'px-2 py-1', md: 'px-3 py-1.5', lg: 'px-4 py-2' };
   const textSize = { sm: 'text-sm', md: 'text-base', lg: 'text-lg' };
   const baseClass = 'text-base block border border-gray-300 rounded shadow-md';
 
@@ -138,17 +129,16 @@ const Select: React.FC<SelectProps> = ({
       style={style}
     >
       {label && <option value="">{label}</option>}
-      {options.map(
-        (option: { label: string; value: string } | string, index: number) =>
-          typeof option === 'string' ? (
-            <option key={index} value={option}>
-              {option}
-            </option>
-          ) : (
-            <option key={index} value={option.value}>
-              {option.label}
-            </option>
-          )
+      {options.map((option: { label: string; value: string } | string, index: number) =>
+        typeof option === 'string' ? (
+          <option key={index} value={option}>
+            {option}
+          </option>
+        ) : (
+          <option key={index} value={option.value}>
+            {option.label}
+          </option>
+        )
       )}
     </select>
   );

@@ -89,15 +89,17 @@ const RegisterMain: React.FC = () => {
         const item = doc.data() as ShortcutItem;
         shortcutItemArray.push(item);
       });
-      for (let item of shortcutItemArray) {
-        if (item.productRef) {
-          const productSnap = await getDoc(item.productRef);
-          if (productSnap.exists()) {
-            const product = productSnap.data() as Product;
-            shortcutArray[item.index] = { index: item.index, color: item.color, product };
+      await Promise.all(
+        shortcutItemArray.map(async (item) => {
+          if (item.productRef) {
+            const productSnap = await getDoc(item.productRef);
+            if (productSnap.exists()) {
+              const product = productSnap.data() as Product;
+              shortcutArray[item.index] = { index: item.index, color: item.color, product };
+            }
           }
-        }
-      }
+        })
+      );
       setShortcuts(shortcutArray);
     });
 
@@ -247,75 +249,77 @@ const RegisterMain: React.FC = () => {
           </Card.Body>
         </Card>
 
-        <Card className="m-2">
-          <Card.Body>
-            <div className="mt-16 p-2">
-              <Grid cols="4" gap="2">
-                {registerItems.map((registerItem, index) => (
-                  <Button
-                    variant="contained"
-                    size="xs"
-                    color="info"
-                    className="h-14"
-                    onClick={(e) => {
-                      setRegisterItem(registerItem);
-                      setOpenInput(true);
-                    }}
-                    key={index}
-                  >
-                    {`${registerItem.code}. ${registerItem.name}`}
-                  </Button>
-                ))}
-              </Grid>
-            </div>
-
-            <div className="mt-4 p-2">
-              <Grid cols="4" gap="2">
-                <div>
-                  <Link to="/shortcut_edit">
-                    <Button color="light" size="xs" disabled={basketItems.length > 0} className="w-full">
-                      ショートカット登録
+        {registerItems.length > 0 && shortcuts.length > 0 && (
+          <Card className="m-2">
+            <Card.Body>
+              <div className="mt-16 p-2">
+                <Grid cols="4" gap="2">
+                  {registerItems.map((registerItem, index) => (
+                    <Button
+                      variant="contained"
+                      size="xs"
+                      color="info"
+                      className="h-14"
+                      onClick={(e) => {
+                        setRegisterItem(registerItem);
+                        setOpenInput(true);
+                      }}
+                      key={index}
+                    >
+                      {`${registerItem.code}. ${registerItem.name}`}
                     </Button>
-                  </Link>
-                </div>
-              </Grid>
-            </div>
-            <div className="mt-4 p-2">
-              <Grid cols="4" gap="2">
-                {shortcuts.map((shortcut, index) => (
-                  <Button
-                    variant={shortcut ? 'contained' : 'outlined'}
-                    size="xs"
-                    color={shortcut ? (shortcut.color as Brand) : 'info'}
-                    className="h-14 truncate"
-                    onClick={(e) => {
-                      if (shortcut) {
-                        const existingIndex = basketItems.findIndex(
-                          (basketItem) => basketItem.product.code === shortcut.product.code
-                        );
-                        if (existingIndex >= 0) {
-                          basketItems[existingIndex].quantity += 1;
-                          setBasketItems([...basketItems]);
-                        } else {
-                          const basketItem = {
-                            product: shortcut.product,
-                            quantity: 1,
-                          };
-                          setBasketItems([...basketItems, basketItem]);
+                  ))}
+                </Grid>
+              </div>
+
+              <div className="mt-4 p-2">
+                <Grid cols="4" gap="2">
+                  <div>
+                    <Link to="/shortcut_edit">
+                      <Button color="light" size="xs" disabled={basketItems.length > 0} className="w-full">
+                        ショートカット登録
+                      </Button>
+                    </Link>
+                  </div>
+                </Grid>
+              </div>
+              <div className="mt-4 p-2">
+                <Grid cols="4" gap="2">
+                  {shortcuts.map((shortcut, index) => (
+                    <Button
+                      variant={shortcut ? 'contained' : 'outlined'}
+                      size="xs"
+                      color={shortcut ? (shortcut.color as Brand) : 'info'}
+                      className="h-14 truncate"
+                      onClick={(e) => {
+                        if (shortcut) {
+                          const existingIndex = basketItems.findIndex(
+                            (basketItem) => basketItem.product.code === shortcut.product.code
+                          );
+                          if (existingIndex >= 0) {
+                            basketItems[existingIndex].quantity += 1;
+                            setBasketItems([...basketItems]);
+                          } else {
+                            const basketItem = {
+                              product: shortcut.product,
+                              quantity: 1,
+                            };
+                            setBasketItems([...basketItems, basketItem]);
+                          }
                         }
-                      }
-                    }}
-                    key={index}
-                  >
-                    {shortcut?.product.name}
-                    <br />
-                    {shortcut ? `¥${Number(shortcut.product.price).toLocaleString()}` : null}
-                  </Button>
-                ))}
-              </Grid>
-            </div>
-          </Card.Body>
-        </Card>
+                      }}
+                      key={index}
+                    >
+                      {shortcut?.product.name}
+                      <br />
+                      {shortcut ? `¥${Number(shortcut.product.price).toLocaleString()}` : null}
+                    </Button>
+                  ))}
+                </Grid>
+              </div>
+            </Card.Body>
+          </Card>
+        )}
       </Grid>
     </Flex>
   );

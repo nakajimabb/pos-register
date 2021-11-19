@@ -118,8 +118,14 @@ const RegisterSearch: React.FC<Props> = ({ open, basketItems, setBasketItems, on
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    queryProducts('head')();
+  };
+
   useEffect(() => {
     setSnapshot(null);
+    setSearch({ text: '', categoryId: '' });
     const unsubscribe = onSnapshot(collection(db, 'productCategories'), (snapshot) => {
       const categories = sortedProductCategories(snapshot as QuerySnapshot<ProductCategory>);
       const options = categories.map(({ id, productCategory }) => ({
@@ -142,25 +148,25 @@ const RegisterSearch: React.FC<Props> = ({ open, basketItems, setBasketItems, on
         <Card className="mx-8 mb-4">
           <Flex justify_content="between" align_items="center" className="p-4">
             <Flex>
-              <Form.Text
-                size="sm"
-                placeholder="検索文字"
-                className="mr-2"
-                id="searchText"
-                value={search.text}
-                onChange={(e) => setSearch({ ...search, text: e.target.value })}
-              />
-              <Form.Select
-                id="select"
-                size="sm"
-                className="mr-2"
-                value={search.categoryId}
-                options={categoryOptions}
-                onChange={(e) => setSearch({ ...search, categoryId: e.target.value })}
-              />
-              <Button variant="outlined" size="sm" className="mr-2" onClick={queryProducts('head')}>
-                検索
-              </Button>
+              <Form onSubmit={handleSubmit}>
+                <Form.Text
+                  placeholder="検索文字"
+                  className="mr-2 inline"
+                  id="searchText"
+                  value={search.text}
+                  onChange={(e) => setSearch({ ...search, text: e.target.value })}
+                />
+                <Form.Select
+                  id="select"
+                  className="mr-2 inline"
+                  value={search.categoryId}
+                  options={categoryOptions}
+                  onChange={(e) => setSearch({ ...search, categoryId: e.target.value })}
+                />
+                <Button variant="outlined" size="sm" className="mr-2" onClick={queryProducts('head')}>
+                  検索
+                </Button>
+              </Form>
             </Flex>
             {snapshot && productCount && (
               <Flex>
