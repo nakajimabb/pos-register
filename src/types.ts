@@ -1,4 +1,4 @@
-import { DocumentReference } from 'firebase/firestore';
+import { DocumentReference, Timestamp } from 'firebase/firestore';
 
 export type Product = {
   abbr: string;
@@ -27,3 +27,36 @@ export type ShortcutItem = {
   color: String;
   productRef: DocumentReference<Product>;
 };
+
+export type Sale = {
+  code: string;
+  createdAt: Timestamp;
+  detailsCount: number;
+  salesTotal: number;
+  taxTotal: number;
+  discountTotal: number;
+  paymentType: 'Cash' | 'Credit';
+  cashAmount: number;
+  salesNormalTotal: number;
+  salesReductionTotal: number;
+  taxNormalTotal: number;
+  taxReductionTotal: number;
+  status: 'Sales' | 'Cancel' | 'PartialCancel' | 'Return' | 'PartialReturn';
+}
+
+export type SaleDetail = {
+  salesId: string;
+  index: number;
+  productCode: string;
+  price: number;
+  quantity: number;
+  discount: number;
+  taxRate: number;
+  status: 'Sales' | 'Cancel' | 'Return';
+}
+
+export type Stock = {
+  storeCode: string;
+  productRef: DocumentReference<Product>;
+  quantity: number;
+}

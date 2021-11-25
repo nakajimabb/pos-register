@@ -39,6 +39,7 @@ const RegisterMain: React.FC = () => {
   const [openInput, setOpenInput] = useState<boolean>(false);
   const [openModify, setOpenModify] = useState<boolean>(false);
   const [openSearch, setOpenSearch] = useState<boolean>(false);
+  const [registerMode, setRegisterMode] = useState<'Sales' | 'Return'>('Sales');
 
   const findProduct = async (code: string) => {
     try {
@@ -167,6 +168,24 @@ const RegisterMain: React.FC = () => {
               </Form>
               <Button color="light" size="xs" className="mt-16 ml-4" onClick={() => setOpenSearch(true)}>
                 商品検索
+              </Button>
+              <Button
+                variant={registerMode === 'Sales' ? 'contained' : 'outlined'}
+                color={registerMode === 'Sales' ? 'info' : 'light'}
+                size="xs"
+                className="w-16 mt-16 ml-16"
+                onClick={() => setRegisterMode('Sales')}
+              >
+                売上
+              </Button>
+              <Button
+                variant={registerMode === 'Return' ? 'contained' : 'outlined'}
+                color={registerMode === 'Return' ? 'info' : 'light'}
+                size="xs"
+                className="w-16 mt-16"
+                onClick={() => setRegisterMode('Return')}
+              >
+                返品
               </Button>
             </Flex>
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getFirestore, doc, collection, setDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { useReactToPrint } from 'react-to-print';
 import { Button, Form, Modal, Table } from './components';
-import { Product } from './types';
+import { Product, Sale, SaleDetail } from './types';
 
 type BasketItem = {
   product: Product;
@@ -15,6 +16,8 @@ type Props = {
   onClose: () => void;
 };
 
+const db = getFirestore();
+
 const RegisterPayment: React.FC<Props> = ({ open, basketItems, setBasketItems, onClose }) => {
   const [cash, setCash] = useState<number>(0);
   const componentRef = useRef(null);
@@ -23,10 +26,46 @@ const RegisterPayment: React.FC<Props> = ({ open, basketItems, setBasketItems, o
       @page { size: JIS-B5 portrait; }
     }  
   `;
+
+  const save = async () => {
+    const sale: Sale = {
+      code: '05',
+      createdAt: Timestamp.fromDate(new Date()),
+      detailsCount: basketItems.length,
+      salesTotal: basketItems.reduce((result, item) => result + Number(item.product.price) * item.quantity, 0),
+      taxTotal: 0,
+      discountTotal: 0,
+      paymentType: 'Cash',
+      cashAmount: cash,
+      salesNormalTotal: 0,
+      salesReductionTotal: 0,
+      taxNormalTotal: 0,
+      taxReductionTotal: 0,
+      status: 'Sales',
+    };
+    const docRef = await addDoc(collection(db, 'sales'), sale);
+    await Promise.all(
+      basketItems.map(async (item, index) => {
+        const detail: SaleDetail = {
+          salesId: docRef.id,
+          index: index,
+          productCode: item.product.code,
+          price: Number(item.product.price),
+          quantity: item.quantity,
+          discount: 0,
+          taxRate: 0,
+          status: 'Sales',
+        };
+        await setDoc(doc(db, 'sales', docRef.id, 'saleDetails', index.toString()), detail);
+      })
+    );
+  };
+
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
     pageStyle,
     onAfterPrint: () => {
+      save();
       setBasketItems([]);
       onClose();
     },
