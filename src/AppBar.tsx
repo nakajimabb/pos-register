@@ -27,10 +27,7 @@ const AppBar: React.FC = () => {
     if (uid) {
       try {
         const functions = getFunctions(app, 'asia-northeast1');
-        const result = await httpsCallable(
-          functions,
-          'getAuthUserByCode'
-        )({ uid });
+        const result = await httpsCallable(functions, 'getAuthUserByCode')({ uid });
         console.log({ result });
         alert('データを取得しました。');
       } catch (error) {
@@ -43,11 +40,7 @@ const AppBar: React.FC = () => {
   return (
     <Navbar fixed className="bg-gray-100 flex justify-between h-12">
       <Flex align_items="center">
-        <img
-          src="pos-register.png"
-          alt="logo"
-          className="h-10 mx-6 hidden sm:block"
-        />
+        <img src="pos-register.png" alt="logo" className="h-10 mx-6 hidden sm:block" />
         <Link to="/" className="mx-2">
           <Button color="light" size="sm">
             レジ画面
@@ -66,12 +59,21 @@ const AppBar: React.FC = () => {
           <Dropdown.Item title="商品マスタ(共通)" to="/products" />
           <Dropdown.Item title="商品マスタ(共通)取込" to="/import_products" />
           <Dropdown.Item title="店舗原価マスタ取込" to="/import_cost_prices" />
-          <Dropdown.Item
-            title="店舗売価マスタ取込"
-            to="/import_selling_prices"
-          />
-          <Dropdown.Item title="仕入先マスタ" to="/suppliers" />
+          <Dropdown.Item title="店舗売価マスタ取込" to="/import_selling_prices" />
           <Dropdown.Item title="商品カテゴリ" to="/product_categories" />
+        </Dropdown>
+        <Dropdown
+          icon={
+            <Button color="light" size="sm" className="flex">
+              その他
+              <div className="triangle-down ml-2 my-1"></div>
+            </Button>
+          }
+          align="left"
+          className="mx-2"
+        >
+          <Dropdown.Item title="店舗一覧" to="/shops" />
+          <Dropdown.Item title="仕入先マスタ" to="/suppliers" />
         </Dropdown>
       </Flex>
       <Flex align_items="center">

@@ -13,6 +13,7 @@ import ProductCategoryList from './ProductCategoryList';
 import SupplierList from './SupplierList';
 import RegisterMain from './RegisterMain';
 import ShortcutEdit from './ShortcutEdit';
+import ShopList from './ShopList';
 import './App.css';
 
 const App: React.FC = () => {
@@ -35,17 +36,10 @@ const App: React.FC = () => {
         <Route exact path="/products" component={ProductList} />
         <Route exact path="/import_products" component={ImportProducts} />
         <Route exact path="/import_cost_prices" component={ImportCostPrices} />
-        <Route
-          exact
-          path="/import_selling_prices"
-          component={ImportSellingPrices}
-        />
+        <Route exact path="/import_selling_prices" component={ImportSellingPrices} />
         <Route exact path="/suppliers" component={SupplierList} />
-        <Route
-          exact
-          path="/product_categories"
-          component={ProductCategoryList}
-        />
+        <Route exact path="/product_categories" component={ProductCategoryList} />
+        <Route exact path="/shops" component={ShopList} />
         <Route exact path="/shortcut_edit" component={ShortcutEdit} />
         <Route exact path="/tailwind" component={Tailwind} />
       </Router>

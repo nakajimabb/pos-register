@@ -64,12 +64,7 @@ const DropdownItem: React.FC<ItemProps> = ({
           </div>
         </>
       )}
-      {!children &&
-        (to ? (
-          <Link to={to}>{title}</Link>
-        ) : (
-          <div className="w-max">{title}</div>
-        ))}
+      {!children && (to ? <Link to={to}>{title}</Link> : <div className="w-max">{title}</div>)}
     </div>
   );
 };
@@ -93,28 +88,17 @@ type DropdownProps = {
 type DropdownType = React.FC<DropdownProps> & {
   Item: typeof DropdownItem;
   Divider: typeof Divider;
+  className?: string;
 };
 
-const Dropdown: DropdownType = ({
-  icon,
-  align = 'right',
-  onEnter,
-  trigger = 'clicked',
-  children,
-}) => {
+const Dropdown: DropdownType = ({ icon, align = 'right', onEnter, trigger = 'clicked', className, children }) => {
   const [show, setShow] = useState(false);
   var clicking = false;
 
   return (
     <>
       {/* Background overlay */}
-      {show && (
-        <div
-          className="fixed inset-0"
-          aria-hidden="true"
-          onClick={() => setShow(false)}
-        ></div>
-      )}
+      {show && <div className="fixed inset-0" aria-hidden="true" onClick={() => setShow(false)}></div>}
       <span
         onClick={async () => {
           if (trigger === 'clicked') {
@@ -134,7 +118,7 @@ const Dropdown: DropdownType = ({
           clicking = false;
           if (trigger === 'downup' && show) setShow(false);
         }}
-        className="relative"
+        className={clsx('relative', className)}
       >
         {icon}
         {show && (

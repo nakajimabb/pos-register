@@ -1,5 +1,20 @@
 import { DocumentReference, Timestamp } from 'firebase/firestore';
 
+export type Shop = {
+  code: string;
+  name: string;
+  kana: string;
+  hidden: boolean;
+  email: string;
+  zip: string;
+  prefecture: number;
+  municipality: string;
+  house_number: string;
+  building_name: string;
+  tel: string;
+  fax: string;
+};
+
 export type Product = {
   abbr: string;
   code: string;
