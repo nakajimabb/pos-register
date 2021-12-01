@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
+import * as client from 'cheerio-httpcli';
 
 admin.initializeApp();
 
@@ -15,6 +16,7 @@ const db = admin.firestore();
 // });
 
 const MAIL_DOMAIN = '@ebondregister.com';
+const KKB_URL = 'https://ebondkkb.com';
 
 const emailFromUserCode = (userCode: string) => userCode + MAIL_DOMAIN;
 
@@ -37,7 +39,54 @@ export const getAuthUserByCode = functions
     return await f();
   });
 
-export const updateProductCounts = functions
+  const loginKkb = async () => {
+    const snap = await db.collection('configs').doc('KKB_USER').get();
+    const kkbUser = snap.data();
+    if (kkbUser) {
+      const uri = KKB_URL + '/users/sign_in';
+      const result = await client.fetch(uri);
+      await result.$('#new_user').submit({
+        'user[login]': kkbUser.code,
+        'user[password]': kkbUser.password,
+      });
+      return result;
+    } else {
+      throw new functions.https.HttpsError(
+        'unknown',
+        `KKBログイン情報が存在しません。`
+      );
+    }
+  };
+
+  export const updateShopsFromKKb = functions
+  .region('asia-northeast1')
+  .https.onCall(async () => {
+    const f = async () => {
+      try {
+        await loginKkb();
+        const url = KKB_URL + '/departments/valid_list';
+        const params = '?only_login_user=true&except_lunar=true';
+        const result = await client.fetch(url + params);
+        const shops = JSON.parse(result.body);
+        for await (const shop of shops) {
+          await db
+          .collection('shops')
+          .doc(shop.code)
+          .set({ ...shop, hidden: false });
+        }
+        return { shops: shops, result };
+      } catch (error) {
+        throw new functions.https.HttpsError(
+          'unknown',
+          'error in updateShopsFromKKb',
+          error
+        );
+      }
+    };
+    return await f();
+  });
+
+  export const updateProductCounts = functions
   .region('asia-northeast1')
   .firestore.document('products/{docId}')
   .onWrite((change) => {
