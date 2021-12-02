@@ -16,6 +16,8 @@ import {
   QueryConstraint,
   QuerySnapshot,
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import app from './firebase';
 
 import { Alert, Button, Card, Flex, Form, Table } from './components';
 import firebaseError from './firebaseError';
@@ -33,6 +35,7 @@ const ShopList: React.FC = () => {
   const [page, setPage] = useState(0);
   const [shopCount, setShopCount] = useState<number | null>(null);
   const [error, setError] = useState<string>('');
+  const [disabled, setDisabled] = useState(false);
 
   const existSearch = () => search.text.trim();
 
@@ -103,6 +106,23 @@ const ShopList: React.FC = () => {
     }
   };
 
+  const pullKkb = async () => {
+    if (window.confirm('KKBから最新情報を取得しますか？')) {
+      try {
+        setDisabled(true);
+        const functions = getFunctions(app, 'asia-northeast1');
+        const result = await httpsCallable(functions, 'updateShopsFromKKb')();
+        console.log({ result });
+        setDisabled(false);
+        alert('店舗情報を更新しました。');
+      } catch (error) {
+        console.log({ error });
+        setDisabled(false);
+        alert('エラーが発生しました。');
+      }
+    }
+  };
+
   return (
     <div className="pt-12">
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">店舗一覧</h1>
@@ -115,8 +135,11 @@ const ShopList: React.FC = () => {
               value={search.text}
               onChange={(e) => setSearch({ ...search, text: e.target.value })}
             />
-            <Button variant="outlined" className="mr-2" onClick={queryShops('head')}>
+            <Button variant="outlined" className="mr-2" disabled={disabled} onClick={queryShops('head')}>
               検索
+            </Button>
+            <Button variant="outlined" className="mr-2" disabled={disabled} onClick={pullKkb}>
+              店舗情報更新
             </Button>
           </Flex>
           {snapshot && shopCount && (
