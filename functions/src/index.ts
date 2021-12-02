@@ -59,22 +59,38 @@ const loginKkb = async () => {
 };
 
 export const updateShopsFromKKb = functions
+  .runWith({ timeoutSeconds: 300 })
   .region('asia-northeast1')
   .https.onCall(async () => {
     const f = async () => {
       try {
+        // KKBにログイン
         await loginKkb();
+
+        // KKBから店舗情報を取得
         const url = KKB_URL + '/departments/valid_list';
         const params = '?only_login_user=true&except_lunar=true';
         const result = await client.fetch(url + params);
         const shops = JSON.parse(result.body);
-        for await (const shop of shops) {
-          await db
-            .collection('shops')
-            .doc(shop.code)
-            .set({ ...shop, hidden: false });
-        }
-        return { shops: shops, result };
+
+        // firesotre 更新
+        const BATCH_UNIT = 100;
+        const taskSize = Math.ceil(shops.length / BATCH_UNIT);
+        const sequential = [...Array(taskSize).keys()];
+        const tasks = sequential.map(async (i) => {
+          const batch = db.batch();
+          for await (const shop of shops.slice(
+            i * BATCH_UNIT,
+            (i + 1) * BATCH_UNIT
+          )) {
+            const snap = await db.collection('shops').doc(shop.code).get();
+            batch.set(snap.ref, { ...shop, hidden: false });
+          }
+          return await batch.commit();
+        });
+        await Promise.all(tasks);
+
+        return { shops: shops };
       } catch (error) {
         throw new functions.https.HttpsError(
           'unknown',
@@ -84,6 +100,23 @@ export const updateShopsFromKKb = functions
       }
     };
     return await f();
+  });
+
+export const updateShopCounts = functions
+  .region('asia-northeast1')
+  .firestore.document('shops/{docId}')
+  .onWrite((change) => {
+    const FieldValue = admin.firestore.FieldValue;
+    const countsRef = db.collection('shopCounts').doc('all');
+
+    if (!change.before.exists) {
+      // 登録時に件数をインクリメント
+      return countsRef.update({ count: FieldValue.increment(1) });
+    } else if (change.before.exists && !change.after.exists) {
+      // 削除時に件数をデクリメント
+      return countsRef.update({ count: FieldValue.increment(-1) });
+    }
+    return;
   });
 
 export const updateProductCounts = functions
