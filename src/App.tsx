@@ -8,6 +8,7 @@ import Tailwind from './Tailwind';
 import ProductList from './ProductList';
 import ImportProducts from './ImportProducts';
 import ImportCostPrices from './ImportCostPrices';
+import ImportSuppliers from './ImportSuppliers';
 import ImportSellingPrices from './ImportSellingPrices';
 import ProductCategoryList from './ProductCategoryList';
 import SupplierList from './SupplierList';
@@ -37,6 +38,7 @@ const App: React.FC = () => {
         <Route exact path="/import_products" component={ImportProducts} />
         <Route exact path="/import_cost_prices" component={ImportCostPrices} />
         <Route exact path="/import_selling_prices" component={ImportSellingPrices} />
+        <Route exact path="/import_suppliers" component={ImportSuppliers} />
         <Route exact path="/suppliers" component={SupplierList} />
         <Route exact path="/product_categories" component={ProductCategoryList} />
         <Route exact path="/shops" component={ShopList} />

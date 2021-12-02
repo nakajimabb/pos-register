@@ -35,7 +35,7 @@ const ShopList: React.FC = () => {
   const [page, setPage] = useState(0);
   const [shopCount, setShopCount] = useState<number | null>(null);
   const [error, setError] = useState<string>('');
-  const [disabled, setDisabled] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const existSearch = () => search.text.trim();
 
@@ -109,15 +109,15 @@ const ShopList: React.FC = () => {
   const pullKkb = async () => {
     if (window.confirm('KKBから最新情報を取得しますか？')) {
       try {
-        setDisabled(true);
+        setLoading(true);
         const functions = getFunctions(app, 'asia-northeast1');
         const result = await httpsCallable(functions, 'updateShopsFromKKb')();
         console.log({ result });
-        setDisabled(false);
+        setLoading(false);
         alert('店舗情報を更新しました。');
       } catch (error) {
         console.log({ error });
-        setDisabled(false);
+        setLoading(false);
         alert('エラーが発生しました。');
       }
     }
@@ -135,10 +135,10 @@ const ShopList: React.FC = () => {
               value={search.text}
               onChange={(e) => setSearch({ ...search, text: e.target.value })}
             />
-            <Button variant="outlined" className="mr-2" disabled={disabled} onClick={queryShops('head')}>
+            <Button variant="outlined" className="mr-2" disabled={loading} onClick={queryShops('head')}>
               検索
             </Button>
-            <Button variant="outlined" className="mr-2" disabled={disabled} onClick={pullKkb}>
+            <Button variant="outlined" className="mr-2" disabled={loading} onClick={pullKkb}>
               店舗情報更新
             </Button>
           </Flex>
