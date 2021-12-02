@@ -39,26 +39,26 @@ export const getAuthUserByCode = functions
     return await f();
   });
 
-  const loginKkb = async () => {
-    const snap = await db.collection('configs').doc('KKB_USER').get();
-    const kkbUser = snap.data();
-    if (kkbUser) {
-      const uri = KKB_URL + '/users/sign_in';
-      const result = await client.fetch(uri);
-      await result.$('#new_user').submit({
-        'user[login]': kkbUser.code,
-        'user[password]': kkbUser.password,
-      });
-      return result;
-    } else {
-      throw new functions.https.HttpsError(
-        'unknown',
-        `KKBログイン情報が存在しません。`
-      );
-    }
-  };
+const loginKkb = async () => {
+  const snap = await db.collection('configs').doc('KKB_USER').get();
+  const kkbUser = snap.data();
+  if (kkbUser) {
+    const uri = KKB_URL + '/users/sign_in';
+    const result = await client.fetch(uri);
+    await result.$('#new_user').submit({
+      'user[login]': kkbUser.code,
+      'user[password]': kkbUser.password,
+    });
+    return result;
+  } else {
+    throw new functions.https.HttpsError(
+      'unknown',
+      `KKBログイン情報が存在しません。`
+    );
+  }
+};
 
-  export const updateShopsFromKKb = functions
+export const updateShopsFromKKb = functions
   .region('asia-northeast1')
   .https.onCall(async () => {
     const f = async () => {
@@ -70,9 +70,9 @@ export const getAuthUserByCode = functions
         const shops = JSON.parse(result.body);
         for await (const shop of shops) {
           await db
-          .collection('shops')
-          .doc(shop.code)
-          .set({ ...shop, hidden: false });
+            .collection('shops')
+            .doc(shop.code)
+            .set({ ...shop, hidden: false });
         }
         return { shops: shops, result };
       } catch (error) {
@@ -86,7 +86,7 @@ export const getAuthUserByCode = functions
     return await f();
   });
 
-  export const updateProductCounts = functions
+export const updateProductCounts = functions
   .region('asia-northeast1')
   .firestore.document('products/{docId}')
   .onWrite((change) => {
@@ -103,7 +103,7 @@ export const getAuthUserByCode = functions
     return;
   });
 
-  export const updateSupplierCounts = functions
+export const updateSupplierCounts = functions
   .region('asia-northeast1')
   .firestore.document('suppliers/{docId}')
   .onWrite((change) => {
