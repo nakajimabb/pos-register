@@ -30,5 +30,6 @@ module.exports = {
     "import/no-unresolved": 0,
     "object-curly-spacing": ["error", "always"],
     "linebreak-style": ["error", "unix"],
+    "max-len": ["error", { "code": 120 }]
     },
 };
