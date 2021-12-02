@@ -20,24 +20,18 @@ const KKB_URL = 'https://ebondkkb.com';
 
 const emailFromUserCode = (userCode: string) => userCode + MAIL_DOMAIN;
 
-export const getAuthUserByCode = functions
-  .region('asia-northeast1')
-  .https.onCall(async (data) => {
-    const f = async () => {
-      try {
-        const email = emailFromUserCode(data.uid);
-        const userRecord = await auth.getUserByEmail(email);
-        return { userRecord };
-      } catch (error) {
-        throw new functions.https.HttpsError(
-          'unknown',
-          'error in getAuthUser',
-          error
-        );
-      }
-    };
-    return await f();
-  });
+export const getAuthUserByCode = functions.region('asia-northeast1').https.onCall(async (data) => {
+  const f = async () => {
+    try {
+      const email = emailFromUserCode(data.uid);
+      const userRecord = await auth.getUserByEmail(email);
+      return { userRecord };
+    } catch (error) {
+      throw new functions.https.HttpsError('unknown', 'error in getAuthUser', error);
+    }
+  };
+  return await f();
+});
 
 const loginKkb = async () => {
   const snap = await db.collection('configs').doc('KKB_USER').get();
@@ -51,10 +45,7 @@ const loginKkb = async () => {
     });
     return result;
   } else {
-    throw new functions.https.HttpsError(
-      'unknown',
-      `KKBログイン情報が存在しません。`
-    );
+    throw new functions.https.HttpsError('unknown', `KKBログイン情報が存在しません。`);
   }
 };
 
@@ -88,10 +79,7 @@ export const updateShopsFromKKb = functions
         const sequential = [...Array(taskSize).keys()];
         const tasks = sequential.map(async (i) => {
           const batch = db.batch();
-          for await (const shop of shops.slice(
-            i * BATCH_UNIT,
-            (i + 1) * BATCH_UNIT
-          )) {
+          for await (const shop of shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT)) {
             const snap = await db.collection('shops').doc(shop.code).get();
             batch.set(snap.ref, { ...shop, hidden: false });
           }
@@ -101,11 +89,7 @@ export const updateShopsFromKKb = functions
 
         return { shops: shops };
       } catch (error) {
-        throw new functions.https.HttpsError(
-          'unknown',
-          'error in updateShopsFromKKb',
-          error
-        );
+        throw new functions.https.HttpsError('unknown', 'error in updateShopsFromKKb', error);
       }
     };
     return await f();
@@ -161,3 +145,48 @@ export const updateSupplierCounts = functions
     }
     return;
   });
+
+export const createSale = functions.region('asia-northeast1').https.onCall(async (data) => {
+  const f = async () => {
+    try {
+      await db.runTransaction(async (transaction) => {
+        const items = data.items as Array<any>;
+        const sale = {
+          code: '05',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          detailsCount: items.length,
+          salesTotal: items.reduce((result, item) => result + Number(item.price) * item.quantity, 0),
+          taxTotal: 0,
+          discountTotal: 0,
+          paymentType: 'Cash',
+          cashAmount: data.cash,
+          salesNormalTotal: 0,
+          salesReductionTotal: 0,
+          taxNormalTotal: 0,
+          taxReductionTotal: 0,
+          status: 'Sales',
+        };
+        const saleRef = db.collection('sales').doc();
+        transaction.set(saleRef, sale);
+
+        items.map(async (item, index) => {
+          const detail = {
+            salesId: saleRef.id,
+            index: index,
+            productCode: item.code,
+            price: Number(item.price),
+            quantity: item.quantity,
+            discount: 0,
+            taxRate: 0,
+            status: 'Sales',
+          };
+          const detailRef = db.collection('sales').doc(saleRef.id).collection('saleDetails').doc(index.toString());
+          transaction.set(detailRef, detail);
+        });
+      });
+    } catch (error) {
+      throw new functions.https.HttpsError('unknown', 'error in createSale', error);
+    }
+  };
+  return await f();
+});

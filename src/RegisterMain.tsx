@@ -40,6 +40,7 @@ const RegisterMain: React.FC = () => {
   const [openModify, setOpenModify] = useState<boolean>(false);
   const [openSearch, setOpenSearch] = useState<boolean>(false);
   const [registerMode, setRegisterMode] = useState<'Sales' | 'Return'>('Sales');
+  const [paymentType, setPaymentType] = useState<'Cash' | 'Credit'>('Cash');
 
   const findProduct = async (code: string) => {
     try {
@@ -116,6 +117,7 @@ const RegisterMain: React.FC = () => {
     <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
       <RegisterPayment
         open={openPayment}
+        paymentType={paymentType}
         basketItems={basketItems}
         setBasketItems={setBasketItems}
         onClose={() => {
@@ -265,6 +267,34 @@ const RegisterMain: React.FC = () => {
                 </Table.Row>
               </Table.Body>
             </Table>
+            <div className="mt-4">
+              <Grid cols="4" gap="2">
+                <Button
+                  color="info"
+                  size="xs"
+                  disabled={basketItems.length === 0}
+                  className="h-14"
+                  onClick={() => {
+                    setPaymentType('Cash');
+                    setOpenPayment(true);
+                  }}
+                >
+                  現金会計
+                </Button>
+                <Button
+                  color="info"
+                  size="xs"
+                  disabled={basketItems.length === 0}
+                  className="h-14"
+                  onClick={() => {
+                    setPaymentType('Credit');
+                    setOpenPayment(true);
+                  }}
+                >
+                  クレジット会計
+                </Button>
+              </Grid>
+            </div>
           </Card.Body>
         </Card>
 

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getFirestore, doc, collection, setDoc, addDoc, Timestamp } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useReactToPrint } from 'react-to-print';
 import { Button, Form, Modal, Table } from './components';
-import { Product, Sale, SaleDetail } from './types';
+import { Product } from './types';
+import app from './firebase';
 
 type BasketItem = {
   product: Product;
@@ -11,6 +13,7 @@ type BasketItem = {
 
 type Props = {
   open: boolean;
+  paymentType: 'Cash' | 'Credit';
   basketItems: BasketItem[];
   setBasketItems: React.Dispatch<React.SetStateAction<BasketItem[]>>;
   onClose: () => void;
@@ -18,7 +21,7 @@ type Props = {
 
 const db = getFirestore();
 
-const RegisterPayment: React.FC<Props> = ({ open, basketItems, setBasketItems, onClose }) => {
+const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setBasketItems, onClose }) => {
   const [cash, setCash] = useState<number>(0);
   const componentRef = useRef(null);
   const pageStyle = `
@@ -27,38 +30,13 @@ const RegisterPayment: React.FC<Props> = ({ open, basketItems, setBasketItems, o
     }  
   `;
 
-  const save = async () => {
-    const sale: Sale = {
-      code: '05',
-      createdAt: Timestamp.fromDate(new Date()),
-      detailsCount: basketItems.length,
-      salesTotal: basketItems.reduce((result, item) => result + Number(item.product.price) * item.quantity, 0),
-      taxTotal: 0,
-      discountTotal: 0,
-      paymentType: 'Cash',
-      cashAmount: cash,
-      salesNormalTotal: 0,
-      salesReductionTotal: 0,
-      taxNormalTotal: 0,
-      taxReductionTotal: 0,
-      status: 'Sales',
-    };
-    const docRef = await addDoc(collection(db, 'sales'), sale);
-    await Promise.all(
-      basketItems.map(async (item, index) => {
-        const detail: SaleDetail = {
-          salesId: docRef.id,
-          index: index,
-          productCode: item.product.code,
-          price: Number(item.product.price),
-          quantity: item.quantity,
-          discount: 0,
-          taxRate: 0,
-          status: 'Sales',
-        };
-        await setDoc(doc(db, 'sales', docRef.id, 'saleDetails', index.toString()), detail);
-      })
-    );
+  const save = () => {
+    const items: Array<Object> = [];
+    basketItems.map((basketItem, index) => {
+      items.push({ code: basketItem.product.code, price: basketItem.product.price, quantity: basketItem.quantity });
+    });
+    const functions = getFunctions(app, 'asia-northeast1');
+    httpsCallable(functions, 'createSale')({ items, cash });
   };
 
   const handlePrint = useReactToPrint({
@@ -72,6 +50,11 @@ const RegisterPayment: React.FC<Props> = ({ open, basketItems, setBasketItems, o
   });
 
   useEffect(() => {
+    setCash(
+      paymentType === 'Cash'
+        ? 0
+        : basketItems.reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
+    );
     document.getElementById('inputCash')?.focus(); //非推奨
   }, [open]);
 
