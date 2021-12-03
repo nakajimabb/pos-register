@@ -16,6 +16,7 @@ import RegisterMain from './RegisterMain';
 import ShortcutEdit from './ShortcutEdit';
 import ShopList from './ShopList';
 import './App.css';
+import ReceiptList from './ReceiptList';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -43,6 +44,7 @@ const App: React.FC = () => {
         <Route exact path="/product_categories" component={ProductCategoryList} />
         <Route exact path="/shops" component={ShopList} />
         <Route exact path="/shortcut_edit" component={ShortcutEdit} />
+        <Route exact path="/receipt_list" component={ReceiptList} />
         <Route exact path="/tailwind" component={Tailwind} />
       </Router>
     </React.StrictMode>

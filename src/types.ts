@@ -29,7 +29,7 @@ export type ProductCategory = {
   name: string;
   level: 1 | 2 | 3;
   parentRef: null | DocumentReference<ProductCategory>;
-  parentId?: string;    // for only cache data, don't save
+  parentId?: string; // for only cache data, don't save
 };
 
 export type Supplier = {
@@ -57,21 +57,22 @@ export type Sale = {
   taxNormalTotal: number;
   taxReductionTotal: number;
   status: 'Sales' | 'Cancel' | 'PartialCancel' | 'Return' | 'PartialReturn';
-}
+};
 
 export type SaleDetail = {
   salesId: string;
   index: number;
   productCode: string;
+  productName: string;
   price: number;
   quantity: number;
   discount: number;
   taxRate: number;
   status: 'Sales' | 'Cancel' | 'Return';
-}
+};
 
 export type Stock = {
   storeCode: string;
   productRef: DocumentReference<Product>;
   quantity: number;
-}
+};

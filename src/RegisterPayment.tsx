@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getFirestore } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getFirestore, doc, collection, setDoc, runTransaction, Timestamp } from 'firebase/firestore';
 import { useReactToPrint } from 'react-to-print';
 import { Button, Form, Modal, Table } from './components';
-import { Product } from './types';
-import app from './firebase';
+import { Product, Sale, SaleDetail } from './types';
 
 type BasketItem = {
   product: Product;
@@ -30,13 +28,42 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
     }  
   `;
 
-  const save = () => {
-    const items: Array<Object> = [];
-    basketItems.map((basketItem, index) => {
-      items.push({ code: basketItem.product.code, price: basketItem.product.price, quantity: basketItem.quantity });
+  const save = async () => {
+    runTransaction(db, async (transaction) => {
+      const sale: Sale = {
+        code: '05',
+        createdAt: Timestamp.fromDate(new Date()),
+        detailsCount: basketItems.length,
+        salesTotal: basketItems.reduce((result, item) => result + Number(item.product.price) * item.quantity, 0),
+        taxTotal: 0,
+        discountTotal: 0,
+        paymentType,
+        cashAmount: cash,
+        salesNormalTotal: 0,
+        salesReductionTotal: 0,
+        taxNormalTotal: 0,
+        taxReductionTotal: 0,
+        status: 'Sales',
+      };
+      const saleRef = doc(collection(db, 'sales'));
+      transaction.set(saleRef, sale);
+
+      basketItems.map((item, index) => {
+        const detail: SaleDetail = {
+          salesId: saleRef.id,
+          index: index,
+          productCode: item.product.code,
+          productName: item.product.name,
+          price: Number(item.product.price),
+          quantity: item.quantity,
+          discount: 0,
+          taxRate: 0,
+          status: 'Sales',
+        };
+        const detailRef = doc(collection(db, 'sales', saleRef.id, 'saleDetails'), index.toString());
+        transaction.set(detailRef, detail);
+      });
     });
-    const functions = getFunctions(app, 'asia-northeast1');
-    httpsCallable(functions, 'createSale')({ items, cash });
   };
 
   const handlePrint = useReactToPrint({
