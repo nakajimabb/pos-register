@@ -20,6 +20,14 @@ const KKB_URL = 'https://ebondkkb.com';
 
 const emailFromUserCode = (userCode: string) => userCode + MAIL_DOMAIN;
 
+const sleep = (msec: number) => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(undefined);
+    }, msec);
+  });
+};
+
 export const getAuthUserByCode = functions.region('asia-northeast1').https.onCall(async (data) => {
   const f = async () => {
     try {
@@ -33,7 +41,7 @@ export const getAuthUserByCode = functions.region('asia-northeast1').https.onCal
   return await f();
 });
 
-const loginKkb = async () => {
+const loginKkb = async (waitTime = 1000) => {
   const snap = await db.collection('configs').doc('KKB_USER').get();
   const kkbUser = snap.data();
   if (kkbUser) {
@@ -43,10 +51,17 @@ const loginKkb = async () => {
       'user[login]': kkbUser.code,
       'user[password]': kkbUser.password,
     });
+    if (waitTime > 0) await sleep(waitTime);
     return result;
   } else {
     throw new functions.https.HttpsError('unknown', `KKBログイン情報が存在しません。`);
   }
+};
+
+const logoutKkb = async () => {
+  const uri = KKB_URL + '/users/sign_out';
+  const result = await client.fetch(uri);
+  return result;
 };
 
 export const updateShopsFromKKb = functions
@@ -63,6 +78,9 @@ export const updateShopsFromKKb = functions
         const params = '?only_login_user=true&except_lunar=true';
         const result = await client.fetch(url + params);
         const shops = JSON.parse(result.body);
+
+        // KKBからログアウト
+        await logoutKkb();
 
         // firesotre 更新
         const BATCH_UNIT = 100;
