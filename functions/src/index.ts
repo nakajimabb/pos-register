@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import * as client from 'cheerio-httpcli';
+import * as crypto from 'crypto';
 
 admin.initializeApp();
 
@@ -28,6 +29,13 @@ const sleep = (msec: number) => {
   });
 };
 
+const getDecryptedString = (encrypted: string, method: string, key: string, iv: string) => {
+  const encryptedText = Buffer.from(encrypted, 'hex');
+  const decipher = crypto.createDecipheriv(method, Buffer.from(key), Buffer.from(iv));
+  const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
+  return decrypted.toString();
+};
+
 export const getAuthUserByCode = functions.region('asia-northeast1').https.onCall(async (data) => {
   const f = async () => {
     try {
@@ -44,12 +52,14 @@ export const getAuthUserByCode = functions.region('asia-northeast1').https.onCal
 const loginKkb = async (waitTime = 1000) => {
   const snap = await db.collection('configs').doc('KKB_USER').get();
   const kkbUser = snap.data();
-  if (kkbUser) {
+  const snapCrypto = await db.collection('configs').doc('CRYPTO_STRING').get();
+  const crypt = snapCrypto.data();
+  if (kkbUser && crypt && crypt.method && crypt.key && crypt.iv) {
     const uri = KKB_URL + '/users/sign_in';
     const result = await client.fetch(uri);
     await result.$('#new_user').submit({
-      'user[login]': kkbUser.code,
-      'user[password]': kkbUser.password,
+      'user[login]': getDecryptedString(kkbUser.code, crypt.method, crypt.key, crypt.iv),
+      'user[password]': getDecryptedString(kkbUser.password, crypt.method, crypt.key, crypt.iv),
     });
     if (waitTime > 0) await sleep(waitTime);
     return result;
