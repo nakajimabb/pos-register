@@ -49,14 +49,6 @@ const loginKkb = async () => {
   }
 };
 
-const sleep = (msec: number) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(undefined);
-    }, msec);
-  });
-};
-
 export const updateShopsFromKKb = functions
   .runWith({ timeoutSeconds: 300 })
   .region('asia-northeast1')
@@ -65,7 +57,6 @@ export const updateShopsFromKKb = functions
       try {
         // KKBにログイン
         await loginKkb();
-        await sleep(5000);
 
         // KKBから店舗情報を取得
         const url = KKB_URL + '/departments/valid_list';
