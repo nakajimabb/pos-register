@@ -219,7 +219,9 @@ const RegisterMain: React.FC = () => {
                       <Table.Cell>{index + 1}</Table.Cell>
                       <Table.Cell>{basketItem.product.code}</Table.Cell>
                       <Table.Cell className="truncate">{basketItem.product.name}</Table.Cell>
-                      <Table.Cell className="text-right">¥{basketItem.product.price?.toLocaleString()}</Table.Cell>
+                      <Table.Cell className="text-right">
+                        ¥{basketItem.product.sellingPrice?.toLocaleString()}
+                      </Table.Cell>
                       <Table.Cell className="text-right">{basketItem.quantity}</Table.Cell>
                       <Table.Cell className="text-center">
                         <Button
@@ -261,7 +263,7 @@ const RegisterMain: React.FC = () => {
                   <Table.Cell className="text-right text-xl pr-4">
                     ¥
                     {basketItems
-                      .reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
+                      .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0)
                       .toLocaleString()}
                   </Table.Cell>
                 </Table.Row>
@@ -368,7 +370,7 @@ const RegisterMain: React.FC = () => {
                     >
                       {shortcut?.product.name}
                       <br />
-                      {shortcut ? `¥${Number(shortcut.product.price).toLocaleString()}` : null}
+                      {shortcut ? `¥${Number(shortcut.product.sellingPrice).toLocaleString()}` : null}
                     </Button>
                   ))}
                 </Grid>

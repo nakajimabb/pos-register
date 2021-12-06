@@ -33,108 +33,98 @@ const MAX_SEARCH = 50;
 const ProductList: React.FC = () => {
   const [search, setSearch] = useState({ text: '', categoryId: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Product> | null>(null);
-  const [productCategories, setProductCategories] = useState<
-    { id: string; productCategory: ProductCategory }[]
-  >([]);
+  const [productCategories, setProductCategories] = useState<{ id: string; productCategory: ProductCategory }[]>([]);
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState(false);
   const [docId, setDocId] = useState<string | null>(null);
   const [productCount, setProductCount] = useState<number | null>(null);
-  const [categoryOptions, setCategoryOptions] = useState<
-    { label: string; value: string }[]
-  >([]);
+  const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, 'productCategories'),
-      (snapshot) => {
-        const categories = sortedProductCategories(
-          snapshot as QuerySnapshot<ProductCategory>
-        );
-        setProductCategories(categories);
-        const options = categories.map(({ id, productCategory }) => ({
-          value: id,
-          label: '　'.repeat(productCategory.level) + productCategory.name,
-        }));
-        options.unshift({ label: '', value: '' });
-        setCategoryOptions(options);
-      }
-    );
+    const unsubscribe = onSnapshot(collection(db, 'productCategories'), (snapshot) => {
+      const categories = sortedProductCategories(snapshot as QuerySnapshot<ProductCategory>);
+      setProductCategories(categories);
+      const options = categories.map(({ id, productCategory }) => ({
+        value: id,
+        label: '　'.repeat(productCategory.level) + productCategory.name,
+      }));
+      options.unshift({ label: '', value: '' });
+      setCategoryOptions(options);
+    });
     return () => unsubscribe();
   }, []);
 
   const existSearch = () => search.text.trim() || search.categoryId.trim();
 
-  const queryProducts =
-    (action: 'head' | 'prev' | 'next' | 'current') => async () => {
-      try {
-        setError('');
-        const conds: QueryConstraint[] = [];
-        if (existSearch()) {
-          const searchText = search.text.trim();
-          const categoryId = search.categoryId.trim();
-          if (searchText) {
-            if (searchText.match(/^\d+$/)) {
-              conds.push(orderBy('code'));
-            } else {
-              conds.push(orderBy('name'));
-            }
-            conds.push(startAt(searchText));
-            conds.push(endAt(searchText + '\uf8ff'));
-          }
-          if (categoryId) {
-            const ref = doc(db, 'productCategories', categoryId);
-            conds.push(where('categoryRef', '==', ref));
-          }
-          conds.push(limit(MAX_SEARCH));
-          setPage(0);
-          setProductCount(null);
-        } else {
-          const snap = await getDoc(doc(db, 'productCounts', 'all'));
-          if (snap.exists()) {
-            setProductCount(snap.data().count);
-          } else {
-            setProductCount(null);
-          }
-
-          if (action === 'head') {
+  const queryProducts = (action: 'head' | 'prev' | 'next' | 'current') => async () => {
+    try {
+      setError('');
+      const conds: QueryConstraint[] = [];
+      if (existSearch()) {
+        const searchText = search.text.trim();
+        const categoryId = search.categoryId.trim();
+        if (searchText) {
+          if (searchText.match(/^\d+$/)) {
             conds.push(orderBy('code'));
+          } else {
+            conds.push(orderBy('name'));
+          }
+          conds.push(startAt(searchText));
+          conds.push(endAt(searchText + '\uf8ff'));
+        }
+        if (categoryId) {
+          const ref = doc(db, 'productCategories', categoryId);
+          conds.push(where('categoryRef', '==', ref));
+        }
+        conds.push(limit(MAX_SEARCH));
+        setPage(0);
+        setProductCount(null);
+      } else {
+        const snap = await getDoc(doc(db, 'productCounts', 'all'));
+        if (snap.exists()) {
+          setProductCount(snap.data().count);
+        } else {
+          setProductCount(null);
+        }
+
+        if (action === 'head') {
+          conds.push(orderBy('code'));
+          conds.push(limit(PER_PAGE));
+          setPage(0);
+        } else if (action === 'next') {
+          if (snapshot) {
+            conds.push(orderBy('code'));
+            const last = snapshot.docs[snapshot.docs.length - 1];
+            conds.push(startAfter(last));
             conds.push(limit(PER_PAGE));
-            setPage(0);
-          } else if (action === 'next') {
-            if (snapshot) {
-              conds.push(orderBy('code'));
-              const last = snapshot.docs[snapshot.docs.length - 1];
-              conds.push(startAfter(last));
-              conds.push(limit(PER_PAGE));
-              setPage(page + 1);
-            }
-          } else if (action === 'prev') {
-            if (snapshot) {
-              conds.push(orderBy('code', 'asc'));
-              const last = snapshot.docs[0];
-              conds.push(endBefore(last));
-              conds.push(limitToLast(PER_PAGE));
-              setPage(page - 1);
-            }
-          } else if (action === 'current') {
-            if (snapshot) {
-              const first = snapshot.docs[0];
-              conds.push(startAt(first));
-              conds.push(limit(PER_PAGE));
-            }
+            setPage(page + 1);
+          }
+        } else if (action === 'prev') {
+          if (snapshot) {
+            conds.push(orderBy('code', 'asc'));
+            const last = snapshot.docs[0];
+            conds.push(endBefore(last));
+            conds.push(limitToLast(PER_PAGE));
+            setPage(page - 1);
+          }
+        } else if (action === 'current') {
+          if (snapshot) {
+            const first = snapshot.docs[0];
+            conds.push(startAt(first));
+            conds.push(limit(PER_PAGE));
           }
         }
-        const q = query(collection(db, 'products'), ...conds);
-        const querySnapshot = await getDocs(q);
-        setSnapshot(querySnapshot as QuerySnapshot<Product>);
-        console.log({ size: querySnapshot.size });
-      } catch (error) {
-        console.log({ error });
-        setError(firebaseError(error));
       }
-    };
+      const q = query(collection(db, 'products'), ...conds);
+      const querySnapshot = await getDocs(q);
+      setSnapshot(querySnapshot as QuerySnapshot<Product>);
+      console.log({ size: querySnapshot.size });
+    } catch (error) {
+      console.log({ error });
+      setError(firebaseError(error));
+    }
+  };
 
   const newProduct = () => {
     setOpen(true);
@@ -167,9 +157,7 @@ const ProductList: React.FC = () => {
         onClose={() => setOpen(false)}
         onUpdate={queryProducts('current')}
       />
-      <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">
-        商品マスタ(共通)
-      </h1>
+      <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">商品マスタ(共通)</h1>
       <Card className="mx-8 mb-4">
         <Flex justify_content="between" align_items="center" className="p-4">
           <Flex>
@@ -185,15 +173,9 @@ const ProductList: React.FC = () => {
               className="mr-2"
               value={search.categoryId}
               options={categoryOptions}
-              onChange={(e) =>
-                setSearch({ ...search, categoryId: e.target.value })
-              }
+              onChange={(e) => setSearch({ ...search, categoryId: e.target.value })}
             />
-            <Button
-              variant="outlined"
-              className="mr-2"
-              onClick={queryProducts('head')}
-            >
+            <Button variant="outlined" className="mr-2" onClick={queryProducts('head')}>
               検索
             </Button>
             <Button variant="outlined" className="mr-2" onClick={newProduct}>
@@ -205,12 +187,7 @@ const ProductList: React.FC = () => {
               <Button
                 color="light"
                 size="xs"
-                disabled={
-                  !!existSearch() ||
-                  page <= 0 ||
-                  !snapshot ||
-                  snapshot.size === 0
-                }
+                disabled={!!existSearch() || page <= 0 || !snapshot || snapshot.size === 0}
                 className="mr-2"
                 onClick={queryProducts('prev')}
               >
@@ -220,10 +197,7 @@ const ProductList: React.FC = () => {
                 color="light"
                 size="xs"
                 disabled={
-                  !!existSearch() ||
-                  PER_PAGE * page + snapshot.size >= productCount ||
-                  !snapshot ||
-                  snapshot.size === 0
+                  !!existSearch() || PER_PAGE * page + snapshot.size >= productCount || !snapshot || snapshot.size === 0
                 }
                 className="mr-2"
                 onClick={queryProducts('next')}
@@ -231,8 +205,7 @@ const ProductList: React.FC = () => {
                 後へ
               </Button>
               <div>
-                {`${PER_PAGE * page + 1}～${PER_PAGE * page + snapshot.size}`}/
-                {`${productCount}`}
+                {`${PER_PAGE * page + 1}～${PER_PAGE * page + snapshot.size}`}/{`${productCount}`}
               </div>
             </Flex>
           )}
@@ -263,10 +236,8 @@ const ProductList: React.FC = () => {
                       <Table.Cell>{product.name}</Table.Cell>
                       <Table.Cell>{product.kana}</Table.Cell>
                       <Table.Cell>{product.abbr}</Table.Cell>
-                      <Table.Cell>{product.price}</Table.Cell>
-                      <Table.Cell className="hidden xl:block">
-                        {product.note}
-                      </Table.Cell>
+                      <Table.Cell>{product.sellingPrice}</Table.Cell>
+                      <Table.Cell className="hidden xl:block">{product.note}</Table.Cell>
                       <Table.Cell>
                         <Button
                           variant="icon"

@@ -153,7 +153,7 @@ const ShortcutEdit: React.FC = () => {
                         <>
                           {index + 1}. {shortcut?.product.name}
                           <br />
-                          {`¥${Number(shortcut.product.price).toLocaleString()}`}
+                          {`¥${Number(shortcut.product.sellingPrice).toLocaleString()}`}
                         </>
                       ) : (
                         index + 1
@@ -199,7 +199,7 @@ const ShortcutEdit: React.FC = () => {
                       <Table.Body>
                         <Table.Row>
                           <Table.Cell className="truncate">{product.name}</Table.Cell>
-                          <Table.Cell className="text-right">¥{product.price?.toLocaleString()}</Table.Cell>
+                          <Table.Cell className="text-right">¥{product.sellingPrice?.toLocaleString()}</Table.Cell>
                           <Table.Cell className="text-center"></Table.Cell>
                         </Table.Row>
                       </Table.Body>

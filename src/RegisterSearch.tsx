@@ -225,7 +225,7 @@ const RegisterSearch: React.FC<Props> = ({ open, basketItems, setBasketItems, on
                         <Table.Row className="hover:bg-gray-300" key={i}>
                           <Table.Cell>{product.code}</Table.Cell>
                           <Table.Cell className="truncate">{product.name}</Table.Cell>
-                          <Table.Cell className="text-right">{product.price?.toLocaleString()}</Table.Cell>
+                          <Table.Cell className="text-right">{product.sellingPrice?.toLocaleString()}</Table.Cell>
                           <Table.Cell>
                             <Button
                               color="primary"

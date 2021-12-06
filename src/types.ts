@@ -21,7 +21,12 @@ export type Product = {
   kana: string;
   name: string;
   note: string;
-  price: number | null; // 売価(税抜)
+  hidden: boolean;
+  costPrice: number | null; // 下代（原価）
+  sellingPrice: number | null; // 売価(税抜)
+  productGroup: 'general' | 'self-med' | null; // 商品設定グループ
+  supplierCode?: string;
+  supplierRef: DocumentReference<Supplier> | null;
   categoryRef: DocumentReference<ProductCategory> | null;
 };
 

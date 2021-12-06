@@ -34,7 +34,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
         code: '05',
         createdAt: Timestamp.fromDate(new Date()),
         detailsCount: basketItems.length,
-        salesTotal: basketItems.reduce((result, item) => result + Number(item.product.price) * item.quantity, 0),
+        salesTotal: basketItems.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0),
         taxTotal: 0,
         discountTotal: 0,
         paymentType,
@@ -54,7 +54,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
           index: index,
           productCode: item.product.code,
           productName: item.product.name,
-          price: Number(item.product.price),
+          price: Number(item.product.sellingPrice),
           quantity: item.quantity,
           discount: 0,
           taxRate: 0,
@@ -80,7 +80,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
     setCash(
       paymentType === 'Cash'
         ? 0
-        : basketItems.reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
+        : basketItems.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0)
     );
     document.getElementById('inputCash')?.focus(); //非推奨
   }, [open]);
@@ -100,7 +100,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
               <Table.Cell className="text-right text-xl pr-4">
                 ¥
                 {basketItems
-                  .reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
+                  .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0)
                   .toLocaleString()}
               </Table.Cell>
             </Table.Row>
@@ -129,7 +129,8 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
               <Table.Cell className="text-right pr-4">
                 ¥
                 {(
-                  cash - basketItems.reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
+                  cash -
+                  basketItems.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0)
                 ).toLocaleString()}
               </Table.Cell>
             </Table.Row>
@@ -164,9 +165,9 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
                     <Table.Cell></Table.Cell>
                     <Table.Cell>{basketItem.product.name}</Table.Cell>
                     <Table.Cell className="text-right">{basketItem.quantity}</Table.Cell>
-                    <Table.Cell className="text-right">¥{basketItem.product.price?.toLocaleString()}</Table.Cell>
+                    <Table.Cell className="text-right">¥{basketItem.product.sellingPrice?.toLocaleString()}</Table.Cell>
                     <Table.Cell className="text-center">
-                      ¥{(Number(basketItem.product.price) * basketItem.quantity)?.toLocaleString()}
+                      ¥{(Number(basketItem.product.sellingPrice) * basketItem.quantity)?.toLocaleString()}
                     </Table.Cell>
                   </Table.Row>
                 ))}
@@ -182,7 +183,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
                   <Table.Cell className="text-right text-xl pr-4">
                     ¥
                     {basketItems
-                      .reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
+                      .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0)
                       .toLocaleString()}
                   </Table.Cell>
                 </Table.Row>
@@ -196,7 +197,10 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
                     ¥
                     {(
                       cash -
-                      basketItems.reduce((result, item) => result + Number(item.product.price) * item.quantity, 0)
+                      basketItems.reduce(
+                        (result, item) => result + Number(item.product.sellingPrice) * item.quantity,
+                        0
+                      )
                     ).toLocaleString()}
                   </Table.Cell>
                 </Table.Row>

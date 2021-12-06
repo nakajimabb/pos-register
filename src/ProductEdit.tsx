@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  doc,
-  getDoc,
-  setDoc,
-  getFirestore,
-  DocumentReference,
-} from 'firebase/firestore';
+import { doc, getDoc, setDoc, getFirestore, DocumentReference } from 'firebase/firestore';
 
 import { Alert, Button, Form, Grid, Modal } from './components';
 import firebaseError from './firebaseError';
@@ -21,27 +15,23 @@ type Props = {
   onUpdate: (product: Product) => void;
 };
 
-const ProductEdit: React.FC<Props> = ({
-  open,
-  docId,
-  productCategories,
-  onClose,
-  onUpdate,
-}) => {
+const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, onClose, onUpdate }) => {
   const [product, setProduct] = useState<Product>({
     code: '',
     name: '',
     kana: '',
     abbr: '',
-    price: null,
+    hidden: false,
+    costPrice: null,
+    sellingPrice: null,
+    productGroup: null,
+    supplierRef: null,
     categoryRef: null,
     note: '',
   });
   const [productCategoryId, setProductCategoryId] = useState('');
   const [error, setError] = useState('');
-  const [categoryOptions, setCategoryOptions] = useState<
-    { label: string; value: string }[]
-  >([]);
+  const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
 
   useEffect(() => {
     const options = productCategories.map(({ id, productCategory }) => ({
@@ -78,7 +68,11 @@ const ProductEdit: React.FC<Props> = ({
       name: '',
       kana: '',
       abbr: '',
-      price: null,
+      hidden: false,
+      costPrice: null,
+      sellingPrice: null,
+      productGroup: null,
+      supplierRef: null,
       categoryRef: null,
       note: '',
     });
@@ -124,13 +118,7 @@ const ProductEdit: React.FC<Props> = ({
               {error}
             </Alert>
           )}
-          <Grid
-            cols="1 sm:2"
-            gap="0 sm:3"
-            auto_cols="fr"
-            template_cols="1fr 2fr"
-            className="row-end-2"
-          >
+          <Grid cols="1 sm:2" gap="0 sm:3" auto_cols="fr" template_cols="1fr 2fr" className="row-end-2">
             <Form.Label>PLUコード</Form.Label>
             <Form.Text
               placeholder="PLUコード"
@@ -160,10 +148,8 @@ const ProductEdit: React.FC<Props> = ({
             <Form.Label>売価税抜</Form.Label>
             <Form.Number
               placeholder="売価税抜"
-              value={String(product.price)}
-              onChange={(e) =>
-                setProduct({ ...product, price: +e.target.value })
-              }
+              value={String(product.sellingPrice)}
+              onChange={(e) => setProduct({ ...product, sellingPrice: +e.target.value })}
             />
             <Form.Label>カテゴリ</Form.Label>
             <Form.Select
@@ -183,12 +169,7 @@ const ProductEdit: React.FC<Props> = ({
           </Grid>
         </Modal.Body>
         <Modal.Footer className="flex justify-end">
-          <Button
-            color="secondary"
-            variant="outlined"
-            className="mr-3"
-            onClick={onClose}
-          >
+          <Button color="secondary" variant="outlined" className="mr-3" onClick={onClose}>
             Cancel
           </Button>
           <Button color="primary">保存</Button>

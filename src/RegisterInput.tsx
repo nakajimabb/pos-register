@@ -31,7 +31,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
     if (registerItem && price > 0) {
       const existingIndex = basketItems.findIndex((item) => item.product.code === registerItem.code);
       if (existingIndex >= 0) {
-        basketItems[existingIndex].product.price = price;
+        basketItems[existingIndex].product.sellingPrice = price;
         setBasketItems([...basketItems]);
       } else {
         const basketItem = {
@@ -40,7 +40,11 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
             code: registerItem.code,
             kana: '',
             name: registerItem.name,
-            price: price,
+            hidden: false,
+            costPrice: null,
+            sellingPrice: price,
+            productGroup: null,
+            supplierRef: null,
             categoryRef: null,
             note: '',
           },

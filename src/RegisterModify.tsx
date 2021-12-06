@@ -40,7 +40,7 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
             discountPrice = -discount;
           } else {
             discountName += `(${rate}%)`;
-            discountPrice = -Math.floor((Number(basketItem.product.price) * rate) / 100.0);
+            discountPrice = -Math.floor((Number(basketItem.product.sellingPrice) * rate) / 100.0);
           }
           const discountItem = {
             product: {
@@ -48,7 +48,11 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
               code: '',
               kana: '',
               name: discountName,
-              price: discountPrice,
+              hidden: false,
+              costPrice: null,
+              sellingPrice: discountPrice,
+              productGroup: null,
+              supplierRef: null,
               categoryRef: null,
               note: '',
             },
@@ -78,7 +82,7 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
             </Table.Row>
             <Table.Row>
               <Table.Cell type="th">単価</Table.Cell>
-              <Table.Cell>{basketItem?.product.price?.toLocaleString()}</Table.Cell>
+              <Table.Cell>{basketItem?.product.sellingPrice?.toLocaleString()}</Table.Cell>
             </Table.Row>
             <Table.Row>
               <Table.Cell type="th">数量</Table.Cell>
