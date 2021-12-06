@@ -24,9 +24,9 @@ const ImportConstPrices: React.FC = () => {
       setLoading(true);
       try {
         const headerInfo: HeaderInfo = [
-          { label: '店コード', name: 'shop_code', zero_padding: 2 },
+          { label: '店コード', name: 'shop_code', zeroPadding: 2 },
           { label: 'PLUコード', name: 'code' },
-          { label: '原価', name: 'price', string_as_number: true },
+          { label: '原価', name: 'price', asNumber: true },
         ];
         const data = await readExcelAsOjects(blob, headerInfo);
         console.log({ data });
@@ -34,16 +34,7 @@ const ImportConstPrices: React.FC = () => {
         const tasks = data.map(async (item) => {
           try {
             if (item.code && item.shop_code) {
-              await setDoc(
-                doc(
-                  db,
-                  'shops',
-                  String(item.shop_code),
-                  'costPrices',
-                  String(item.code)
-                ),
-                item
-              );
+              await setDoc(doc(db, 'shops', String(item.shop_code), 'costPrices', String(item.code)), item);
               return { result: true };
             } else {
               throw Error('店コードまたはPLUコードが存在しません。');
@@ -53,9 +44,7 @@ const ImportConstPrices: React.FC = () => {
           }
         });
         const results = await Promise.all(tasks);
-        const errors = results
-          .filter((res) => !res.result)
-          .map((res) => firebaseError(res.error));
+        const errors = results.filter((res) => !res.result).map((res) => firebaseError(res.error));
 
         const count = results.length - errors.length;
         console.log({ count, errors });
@@ -72,23 +61,11 @@ const ImportConstPrices: React.FC = () => {
   };
 
   return (
-    <Flex
-      direction="col"
-      justify_content="center"
-      align_items="center"
-      className="h-screen"
-    >
+    <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
       <h1 className="text-xl font-bold mb-2">店舗原価マスタ取込</h1>
       <Card className="p-5 w-96">
         <Form onSubmit={importExcel} className="p-3">
-          <input
-            type="file"
-            name="ref"
-            ref={ref}
-            accept=".xlsx"
-            disabled={loading}
-            required
-          />
+          <input type="file" name="ref" ref={ref} accept=".xlsx" disabled={loading} required />
           <Button disabled={loading} className="w-full mt-4">
             取込実行
           </Button>

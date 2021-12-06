@@ -1,12 +1,22 @@
 import * as xlsx from 'xlsx';
 
+export type FieldType = string | Date | number | boolean;
+export type ColumnConverter = { [key: string]: FieldType };
+export type HeaderInfo = {
+  label: string;
+  name: string;
+  asNumber?: boolean;
+  zeroPadding?: number;
+  converter?: ColumnConverter;
+}[];
+
 const readExcel = async (blob: File, number_as_string: boolean = false) => {
   return new Promise<{
     header: string[];
-    data: (string | Date | number)[][];
+    data: FieldType[][];
   }>((resolve, reject) => {
     let header: string[] = [];
-    const data: (string | Date | number)[][] = [];
+    const data: FieldType[][] = [];
     const reader = new FileReader();
     reader.onload = async (e: any) => {
       try {
@@ -21,7 +31,7 @@ const readExcel = async (blob: File, number_as_string: boolean = false) => {
         if (range_a1) {
           const range = xlsx.utils.decode_range(range_a1);
           for (let r = range.s.r; r <= range.e.r; r++) {
-            const row: (string | Date | number)[] = [];
+            const row: FieldType[] = [];
             for (let c = range.s.c; c <= range.e.c; c++) {
               const p = xlsx.utils.encode_cell({ c, r });
               const cell = sheet[p];
@@ -54,40 +64,47 @@ const readExcel = async (blob: File, number_as_string: boolean = false) => {
   });
 };
 
-export type HeaderInfo = {
-  label: string;
-  name: string;
-  string_as_number?: boolean;
-  zero_padding?: number;
-}[];
-
 export const readExcelAsOjects = async (blob: File, headerInfo: HeaderInfo) => {
   const { header, data } = await readExcel(blob, true);
 
-  const fieldMap = new Map(headerInfo.map((col) => [col.label, col.name]));
-  const fields = header.map((label) => fieldMap.get(String(label)));
-
-  const string_as_numbers = new Map(
-    headerInfo.map((col) => [col.name, col.string_as_number])
-  );
-  const zero_paddings = new Map(
-    headerInfo.map((col) => [col.name, col.zero_padding])
-  );
-  console.log({ fields, string_as_numbers, zero_paddings });
+  const names = new Map<number, string>();
+  const asNumbers = new Set<number>();
+  const zeroPaddings = new Map<number, number>();
+  const converters = new Map<number, ColumnConverter>();
+  headerInfo.forEach((col) => {
+    const index = header.indexOf(col.label);
+    if (index >= 0) {
+      names.set(index, col.name);
+    } else {
+      console.log(`error: not found column ${col.label}`);
+    }
+    if (col.asNumber) {
+      asNumbers.add(index);
+    }
+    if (col.zeroPadding) {
+      zeroPaddings.set(index, col.zeroPadding);
+    }
+    if (col.converter) {
+      converters.set(index, col.converter);
+    }
+  });
 
   return data.map((row) => {
-    const item: { [key: string]: string | Date | number } = {};
-    fields.forEach((name, i) => {
-      if (name) {
-        item[name] =
-          typeof row[i] == 'string' && string_as_numbers.get(name)
-            ? +row[i]
-            : row[i];
-        const padding = zero_paddings.get(name);
-        if (padding) {
-          item[name] = String(item[name]).padStart(padding, '0');
-        }
-      }
+    // 前処理
+    converters.forEach((converter, index) => {
+      const col = String(row[index]);
+      row[index] = converter[col];
+    });
+    zeroPaddings.forEach((padding, index) => {
+      row[index] = String(row[index]).padStart(padding, '0');
+    });
+    asNumbers.forEach((index) => {
+      row[index] = Number(row[index]);
+    });
+
+    const item: { [key: string]: FieldType } = {};
+    names.forEach((name, key) => {
+      item[name] = row[key];
     });
     return item;
   });
