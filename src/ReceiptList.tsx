@@ -1,8 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
-import { getFirestore, getDocs, collection, query, where, QuerySnapshot } from 'firebase/firestore';
-import { Alert, Button, Card, Flex, Table } from './components';
+import {
+  getFirestore,
+  getDocs,
+  collection,
+  query,
+  where,
+  orderBy,
+  QuerySnapshot,
+  QueryConstraint,
+} from 'firebase/firestore';
+import { format } from 'date-fns';
+import { Alert, Button, Card, Flex, Form, Table } from './components';
 import { Sale, SaleDetail } from './types';
 import firebaseError from './firebaseError';
 
@@ -12,19 +22,35 @@ const ReceiptList: React.FC = () => {
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Sale> | null>(null);
   const [sale, setSale] = useState<Sale>();
   const [saleDetails, setSaleDetails] = useState<SaleDetail[]>([]);
+  const [dateTimeFrom, setDateTimeFrom] = useState<Date>();
+  const [dateTimeTo, setDateTimeTo] = useState<Date>();
   const [error, setError] = useState<string>('');
   const componentRef = useRef(null);
 
   const querySales = async () => {
     try {
       setError('');
-      const q = query(collection(db, 'sales'), where('code', '==', '05'));
+      const conds: QueryConstraint[] = [];
+      conds.push(where('code', '==', '05'));
+      if (dateTimeFrom) {
+        conds.push(where('createdAt', '>=', dateTimeFrom));
+      }
+      if (dateTimeTo) {
+        conds.push(where('createdAt', '<=', dateTimeTo));
+      }
+      conds.push(orderBy('createdAt'));
+      const q = query(collection(db, 'sales'), ...conds);
       const querySnapshot = await getDocs(q);
       setSnapshot(querySnapshot as QuerySnapshot<Sale>);
     } catch (error) {
       console.log({ error });
       setError(firebaseError(error));
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    querySales();
   };
 
   const handlePrint = useReactToPrint({
@@ -39,16 +65,37 @@ const ReceiptList: React.FC = () => {
     <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
       <Flex justify_content="between" align_items="center" className="p-4">
         <Flex>
-          <Button
-            variant="outlined"
-            size="sm"
-            className="mr-2"
-            onClick={async () => {
-              await querySales();
-            }}
-          >
-            検索
-          </Button>
+          <Form onSubmit={handleSubmit}>
+            <Form.DateTime
+              className="mr-2 inline"
+              id="DateTimeFrom"
+              size="sm"
+              value={dateTimeFrom ? format(dateTimeFrom, "yyyy-MM-dd'T'HH:mm") : ''}
+              onChange={(e) => {
+                setDateTimeFrom(new Date(e.target.value));
+              }}
+            />
+            〜
+            <Form.DateTime
+              className="ml-2 mr-2 inline"
+              id="DateTimeTo"
+              size="sm"
+              value={dateTimeTo ? format(dateTimeTo, "yyyy-MM-dd'T'HH:mm") : ''}
+              onChange={(e) => {
+                setDateTimeTo(new Date(e.target.value));
+              }}
+            />
+            <Button
+              variant="outlined"
+              size="sm"
+              className="mr-2"
+              onClick={async () => {
+                await querySales();
+              }}
+            >
+              検索
+            </Button>
+          </Form>
         </Flex>
       </Flex>
       <Card className="mx-8 mb-4">
@@ -88,7 +135,7 @@ const ReceiptList: React.FC = () => {
                           .toLocaleDateString()} ${saleData.createdAt?.toDate().toLocaleTimeString()}`}</Table.Cell>
                         <Table.Cell className="text-right">{saleData.salesTotal?.toLocaleString()}</Table.Cell>
                         <Table.Cell className="text-right">{saleData.detailsCount?.toLocaleString()}</Table.Cell>
-                        <Table.Cell className="text-right">{}</Table.Cell>
+                        <Table.Cell className="text-right"></Table.Cell>
                         <Table.Cell>
                           <Button
                             color="primary"

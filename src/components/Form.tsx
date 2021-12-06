@@ -15,7 +15,7 @@ const Label: React.FC<LabelProps> = ({ htmlFor, className, children, style }) =>
   );
 };
 
-type InputType = 'text' | 'password' | 'number' | 'date' | 'checkbox' | 'radio';
+type InputType = 'text' | 'password' | 'number' | 'date' | 'datetime-local' | 'time' | 'checkbox' | 'radio';
 
 type InputProps = {
   id?: string;
@@ -188,6 +188,8 @@ const InputText = Input('text');
 const InputPassword = Input('password');
 const InputNumber = Input('number');
 const InputDate = Input('date');
+const InputDateTime = Input('datetime-local');
+const InputTime = Input('time');
 const InputCheckbox = Input('checkbox');
 const InputRadio = Input('radio');
 
@@ -203,6 +205,8 @@ type FormType = React.FC<FormProps> & {
   Password: typeof InputPassword;
   Number: typeof InputNumber;
   Date: typeof InputDate;
+  DateTime: typeof InputDateTime;
+  Time: typeof InputTime;
   Checkbox: typeof InputCheckbox;
   Radio: typeof InputRadio;
   Select: typeof Select;
@@ -222,6 +226,8 @@ Form.Password = InputPassword;
 Form.Number = InputNumber;
 Form.Label = Label;
 Form.Date = InputDate;
+Form.DateTime = InputDateTime;
+Form.Time = InputTime;
 Form.Checkbox = InputCheckbox;
 Form.Radio = InputRadio;
 Form.Select = Select;
