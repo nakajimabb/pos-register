@@ -44,14 +44,19 @@ const ImportProducts: React.FC = () => {
         const sequential = [...Array(taskSize)].map((_, i) => i);
         const tasks = sequential.map(async (_, i) => {
           try {
+            let count = 0;
             const batch = writeBatch(db);
             const sliced = data.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
             sliced.forEach((item) => {
-              const code = String(item.code);
-              batch.set(doc(db, 'products', code), item, { merge: true });
+              if (item.valid) {
+                const code = String(item.code);
+                delete item.valid;
+                batch.set(doc(db, 'products', code), item, { merge: true });
+                count += 1;
+              }
             });
             await batch.commit();
-            return { count: sliced.length, error: '' };
+            return { count, error: '' };
           } catch (error) {
             return { count: 0, error: firebaseError(error) };
           }
