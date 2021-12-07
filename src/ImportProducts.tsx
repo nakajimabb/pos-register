@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { getFirestore, doc, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, getDocs, collection, writeBatch, DocumentReference } from 'firebase/firestore';
 
 import { Alert, Button, Card, Flex, Form } from './components';
 import { readExcelAsOjects, HeaderInfo } from './readExcel';
 import firebaseError from './firebaseError';
+import { Supplier } from './types';
 
 const db = getFirestore();
 
@@ -38,6 +39,11 @@ const ImportProducts: React.FC = () => {
         ];
         const data = await readExcelAsOjects(blob, headerInfo);
 
+        // 仕入れ先情報取得
+        const suppliersRef = collection(db, 'suppliers');
+        const suppliersSnap = await getDocs(suppliersRef);
+        const supplierCodes = suppliersSnap.docs.map((item) => item.id);
+
         // db 書き込み
         const BATCH_UNIT = 300;
         const taskSize = Math.ceil(data.length / BATCH_UNIT);
@@ -45,18 +51,34 @@ const ImportProducts: React.FC = () => {
         const tasks = sequential.map(async (_, i) => {
           try {
             let count = 0;
+            let error = '';
+            const unknownSuppliers: string[] = [];
             const batch = writeBatch(db);
             const sliced = data.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
             sliced.forEach((item) => {
               if (item.valid) {
-                const code = String(item.code);
                 delete item.valid;
-                batch.set(doc(db, 'products', code), item, { merge: true });
+                const code = String(item.code);
+                let supplierRef: DocumentReference<Supplier> | null = null;
+                // 仕入先情報
+                if (item.supplierCode) {
+                  const supCode = String(item.supplierCode);
+                  if (supplierCodes.includes(supCode)) {
+                    supplierRef = doc(db, 'suppliers', supCode) as DocumentReference<Supplier>;
+                  } else {
+                    unknownSuppliers.push(supCode);
+                  }
+                }
+                batch.set(doc(db, 'products', code), { ...item, supplierRef }, { merge: true });
                 count += 1;
               }
             });
             await batch.commit();
-            return { count, error: '' };
+            if (unknownSuppliers.length > 0) {
+              const codes = Array.from(new Set(unknownSuppliers));
+              error = `仕入先がみつかりません(仕入先コード: ${codes.join(',')})`;
+            }
+            return { count, error };
           } catch (error) {
             return { count: 0, error: firebaseError(error) };
           }
