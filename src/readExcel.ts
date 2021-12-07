@@ -101,7 +101,7 @@ export const readExcelAsOjects = async (blob: File, headerInfo: HeaderInfo) => {
     asNumbers.forEach((index) => {
       row[index] = Number(row[index]);
     });
-
+    // オブジェクトに変換
     const item: { [key: string]: FieldType } = {};
     names.forEach((name, key) => {
       item[name] = row[key];

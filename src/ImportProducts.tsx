@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, writeBatch } from 'firebase/firestore';
 
 import { Alert, Button, Card, Flex, Form } from './components';
 import { readExcelAsOjects, HeaderInfo } from './readExcel';
@@ -23,6 +23,7 @@ const ImportProducts: React.FC = () => {
     if (blob && blob.name) {
       setLoading(true);
       try {
+        // EXCEL 読み込み
         const headerInfo: HeaderInfo = [
           { label: 'PLUコード', name: 'code' },
           { label: '商品名称', name: 'name' },
@@ -37,23 +38,27 @@ const ImportProducts: React.FC = () => {
         ];
         const data = await readExcelAsOjects(blob, headerInfo);
 
-        const tasks = data.map(async (item) => {
+        // db 書き込み
+        const BATCH_UNIT = 300;
+        const taskSize = Math.ceil(data.length / BATCH_UNIT);
+        const sequential = [...Array(taskSize)].map((_, i) => i);
+        const tasks = sequential.map(async (_, i) => {
           try {
-            if (item.code) {
-              await setDoc(doc(db, 'products', String(item.code)), item);
-              return { result: true };
-            } else {
-              throw Error(`PLUコードが存在しません: ${item.name}。`);
-            }
+            const batch = writeBatch(db);
+            const sliced = data.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+            sliced.forEach((item) => {
+              const code = String(item.code);
+              batch.set(doc(db, 'products', code), item, { merge: true });
+            });
+            await batch.commit();
+            return { count: sliced.length, error: '' };
           } catch (error) {
-            return { result: false, error };
+            return { count: 0, error: firebaseError(error) };
           }
         });
         const results = await Promise.all(tasks);
-        const errors = results.filter((res) => !res.result).map((res) => firebaseError(res.error));
-
-        const count = results.length - errors.length;
-        console.log({ count, errors });
+        const count = results.reduce((cnt, res) => cnt + res.count, 0);
+        const errors = results.filter((res) => !!res.error).map((res) => res.error);
         setMessage(`${count}件のデータを読み込みました。`);
         if (errors.length > 0) setErrors(errors);
 
