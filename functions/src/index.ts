@@ -98,10 +98,11 @@ export const updateShopsFromKKb = functions
         const sequential = [...Array(taskSize).keys()];
         const tasks = sequential.map(async (i) => {
           const batch = db.batch();
-          for await (const shop of shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT)) {
-            const snap = await db.collection('shops').doc(shop.code).get();
-            batch.set(snap.ref, { ...shop, hidden: false });
-          }
+          const sliced = shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+          sliced.forEach((shop: any) => {
+            const ref = db.collection('shops').doc(shop.code);
+            batch.set(ref, { ...shop, hidden: false }, { merge: true });
+          });
           return await batch.commit();
         });
         await Promise.all(tasks);
