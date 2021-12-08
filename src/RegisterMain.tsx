@@ -74,6 +74,25 @@ const RegisterMain: React.FC = () => {
     }
   };
 
+  const calcTotal = (items: BasketItem[]) => {
+    return (
+      items.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) + calcTax(items)
+    );
+  };
+
+  const calcTax = (items: BasketItem[]) => {
+    let normalTaxTotal = 0;
+    let reducedTaxTotal = 0;
+    items.forEach((item) => {
+      if (item.product.sellingTax === 10) {
+        normalTaxTotal += Number(item.product.sellingPrice) * item.quantity;
+      } else {
+        reducedTaxTotal += Number(item.product.sellingPrice) * item.quantity;
+      }
+    });
+    return Math.floor(normalTaxTotal * 0.1 + reducedTaxTotal * 0.08);
+  };
+
   useEffect(() => {
     const unsubRegisterItems = onSnapshot(collection(db, 'registerItems'), async (snapshot) => {
       const items = new Array<RegisterItem>();
@@ -254,52 +273,56 @@ const RegisterMain: React.FC = () => {
               </Table>
             </div>
 
-            <Table border="row" className="table-fixed w-2/3 mt-8">
-              <Table.Body>
-                <Table.Row>
-                  <Table.Cell type="th" className="text-xl bg-red-100">
-                    合計
-                  </Table.Cell>
-                  <Table.Cell className="text-right text-xl pr-4">
-                    ¥
-                    {basketItems
-                      .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0)
-                      .toLocaleString()}
-                  </Table.Cell>
-                </Table.Row>
-              </Table.Body>
-            </Table>
-            <div className="mt-4">
-              <Grid cols="4" gap="2">
-                <Button
-                  color="info"
-                  size="xs"
-                  disabled={basketItems.length === 0}
-                  className="h-14"
-                  onClick={() => {
-                    setPaymentType('Cash');
-                    setOpenPayment(true);
-                  }}
-                >
-                  現金会計
-                </Button>
-                <Button
-                  color="info"
-                  size="xs"
-                  disabled={basketItems.length === 0}
-                  className="h-14"
-                  onClick={() => {
-                    setPaymentType('Credit');
-                    setOpenPayment(true);
-                  }}
-                >
-                  クレジット会計
-                </Button>
-              </Grid>
-            </div>
+            <Flex className="mt-4">
+              <Table border="row" className="table-fixed w-3/5">
+                <Table.Body>
+                  <Table.Row>
+                    <Table.Cell type="th" className="text-xl bg-red-100">
+                      合計
+                    </Table.Cell>
+                    <Table.Cell className="text-right text-xl pr-4">
+                      ¥{calcTotal(basketItems).toLocaleString()}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell type="th" className="bg-red-100">
+                      消費税
+                    </Table.Cell>
+                    <Table.Cell className="text-right pr-4">¥{calcTax(basketItems).toLocaleString()}</Table.Cell>
+                  </Table.Row>
+                </Table.Body>
+              </Table>
+              <div className="mt-1 ml-4">
+                <Grid cols="2" gap="2">
+                  <Button
+                    color="info"
+                    size="xs"
+                    disabled={basketItems.length === 0}
+                    className="h-20"
+                    onClick={() => {
+                      setPaymentType('Cash');
+                      setOpenPayment(true);
+                    }}
+                  >
+                    現金会計
+                  </Button>
+                  <Button
+                    color="info"
+                    size="xs"
+                    disabled={basketItems.length === 0}
+                    className="h-20"
+                    onClick={() => {
+                      setPaymentType('Credit');
+                      setOpenPayment(true);
+                    }}
+                  >
+                    クレジット会計
+                  </Button>
+                </Grid>
+              </div>
+            </Flex>
           </Card.Body>
         </Card>
-
         {registerItems.length > 0 && shortcuts.length > 0 && (
           <Card className="m-2">
             <Card.Body>

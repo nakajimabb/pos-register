@@ -72,12 +72,9 @@ export type Sale = {
 export type SaleDetail = {
   salesId: string;
   index: number;
-  productCode: string;
-  productName: string;
-  price: number;
+  product: Product;
   quantity: number;
   discount: number;
-  taxRate: number;
   status: 'Sales' | 'Cancel' | 'Return';
 };
 

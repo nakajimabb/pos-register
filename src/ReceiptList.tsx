@@ -173,7 +173,7 @@ const ReceiptList: React.FC = () => {
       <div className="hidden">
         <div ref={componentRef} className="p-10">
           <p className="text-center text-lg m-2">領収書</p>
-          <Table border="row" className="table-fixed w-full text-sm ">
+          <Table border="cell" className="table-fixed w-full text-sm">
             <Table.Head>
               <Table.Row>
                 <Table.Cell type="th" className="w-1/12" />
@@ -194,35 +194,58 @@ const ReceiptList: React.FC = () => {
             <Table.Body>
               {saleDetails?.map((saleDetail, index) => (
                 <Table.Row key={index}>
-                  <Table.Cell></Table.Cell>
-                  <Table.Cell>{saleDetail.productName}</Table.Cell>
+                  <Table.Cell>
+                    {saleDetail.product.selfMedication ? '★' : ''}
+                    {saleDetail.product.sellingTax === 8 ? '軽' : ''}
+                  </Table.Cell>
+                  <Table.Cell>{saleDetail.product.name}</Table.Cell>
                   <Table.Cell className="text-right">{saleDetail.quantity}</Table.Cell>
-                  <Table.Cell className="text-right">¥{saleDetail.price?.toLocaleString()}</Table.Cell>
-                  <Table.Cell className="text-center">
-                    ¥{(Number(saleDetail.price) * saleDetail.quantity)?.toLocaleString()}
+                  <Table.Cell className="text-right">¥{saleDetail.product.sellingPrice?.toLocaleString()}</Table.Cell>
+                  <Table.Cell className="text-right">
+                    ¥{(Number(saleDetail.product.sellingPrice) * saleDetail.quantity)?.toLocaleString()}
                   </Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>
           </Table>
 
-          <Table border="row" className="table-fixed w-full">
+          <Table border="none" className="table-fixed w-2/3 mt-4 shadow-none ml-72">
+            <Table.Head>
+              <Table.Row>
+                <Table.Cell type="th" className="w-3/12" />
+                <Table.Cell type="th" className="w-3/12" />
+                <Table.Cell type="th" className="w-6/12" />
+              </Table.Row>
+            </Table.Head>
             <Table.Body>
               <Table.Row>
                 <Table.Cell type="th" className="text-xl">
                   合計
                 </Table.Cell>
                 <Table.Cell className="text-right text-xl pr-4">¥{sale?.salesTotal.toLocaleString()}</Table.Cell>
+                <Table.Cell></Table.Cell>
+              </Table.Row>
+              <Table.Row>
+                <Table.Cell type="th">8%対象</Table.Cell>
+                <Table.Cell className="text-right pr-4">¥{sale?.salesReductionTotal.toLocaleString()}</Table.Cell>
+                <Table.Cell>（内消費税等　¥{sale?.taxReductionTotal.toLocaleString()}）</Table.Cell>
+              </Table.Row>
+              <Table.Row>
+                <Table.Cell type="th">10%対象</Table.Cell>
+                <Table.Cell className="text-right pr-4">¥{sale?.salesNormalTotal.toLocaleString()}</Table.Cell>
+                <Table.Cell>（内消費税等　¥{sale?.taxNormalTotal.toLocaleString()}）</Table.Cell>
               </Table.Row>
               <Table.Row>
                 <Table.Cell type="th">お預かり</Table.Cell>
                 <Table.Cell className="text-right pr-4">¥{sale?.cashAmount.toLocaleString()}</Table.Cell>
+                <Table.Cell></Table.Cell>
               </Table.Row>
               <Table.Row>
                 <Table.Cell type="th">お釣り</Table.Cell>
                 <Table.Cell className="text-right pr-4">
                   ¥{(Number(sale?.cashAmount) - Number(sale?.salesTotal)).toLocaleString()}
                 </Table.Cell>
+                <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Body>
           </Table>

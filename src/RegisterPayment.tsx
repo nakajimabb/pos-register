@@ -34,15 +34,15 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
         code: '05',
         createdAt: Timestamp.fromDate(new Date()),
         detailsCount: basketItems.length,
-        salesTotal: basketItems.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0),
-        taxTotal: 0,
+        salesTotal: calcTotal(basketItems),
+        taxTotal: calcNormalTax(basketItems) + calcReducedTax(basketItems),
         discountTotal: 0,
         paymentType,
         cashAmount: cash,
-        salesNormalTotal: 0,
-        salesReductionTotal: 0,
-        taxNormalTotal: 0,
-        taxReductionTotal: 0,
+        salesNormalTotal: calcNormalTotal(basketItems) + calcNormalTax(basketItems),
+        salesReductionTotal: calcReducedTotal(basketItems) + calcReducedTax(basketItems),
+        taxNormalTotal: calcNormalTax(basketItems),
+        taxReductionTotal: calcReducedTax(basketItems),
         status: 'Sales',
       };
       const saleRef = doc(collection(db, 'sales'));
@@ -52,12 +52,9 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
         const detail: SaleDetail = {
           salesId: saleRef.id,
           index: index,
-          productCode: item.product.code,
-          productName: item.product.name,
-          price: Number(item.product.sellingPrice),
+          product: item.product,
           quantity: item.quantity,
           discount: 0,
-          taxRate: 0,
           status: 'Sales',
         };
         const detailRef = doc(collection(db, 'sales', saleRef.id, 'saleDetails'), index.toString());
@@ -76,12 +73,36 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
     },
   });
 
-  useEffect(() => {
-    setCash(
-      paymentType === 'Cash'
-        ? 0
-        : basketItems.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0)
+  const calcTotal = (items: BasketItem[]) => {
+    return (
+      items.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) +
+      calcReducedTax(items) +
+      calcNormalTax(items)
     );
+  };
+
+  const calcNormalTotal = (items: BasketItem[]) => {
+    return items
+      .filter((item) => item.product.sellingTax === 10)
+      .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0);
+  };
+
+  const calcReducedTotal = (items: BasketItem[]) => {
+    return items
+      .filter((item) => item.product.sellingTax === 8)
+      .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0);
+  };
+
+  const calcNormalTax = (items: BasketItem[]) => {
+    return Math.floor(calcNormalTotal(items) * 0.1);
+  };
+
+  const calcReducedTax = (items: BasketItem[]) => {
+    return Math.floor(calcReducedTotal(items) * 0.08);
+  };
+
+  useEffect(() => {
+    setCash(paymentType === 'Cash' ? 0 : calcTotal(basketItems));
     document.getElementById('inputCash')?.focus(); //非推奨
   }, [open]);
 
@@ -97,12 +118,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
               <Table.Cell type="th" className="text-xl bg-red-100">
                 合計
               </Table.Cell>
-              <Table.Cell className="text-right text-xl pr-4">
-                ¥
-                {basketItems
-                  .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0)
-                  .toLocaleString()}
-              </Table.Cell>
+              <Table.Cell className="text-right text-xl pr-4">¥{calcTotal(basketItems).toLocaleString()}</Table.Cell>
             </Table.Row>
             <Table.Row>
               <Table.Cell type="th">お預かり</Table.Cell>
@@ -126,13 +142,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
             </Table.Row>
             <Table.Row>
               <Table.Cell type="th">お釣り</Table.Cell>
-              <Table.Cell className="text-right pr-4">
-                ¥
-                {(
-                  cash -
-                  basketItems.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0)
-                ).toLocaleString()}
-              </Table.Cell>
+              <Table.Cell className="text-right pr-4">¥{(cash - calcTotal(basketItems)).toLocaleString()}</Table.Cell>
             </Table.Row>
           </Table.Body>
         </Table>
@@ -141,7 +151,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
         <div className="hidden">
           <div ref={componentRef} className="p-10">
             <p className="text-center text-lg m-2">領収書</p>
-            <Table border="row" className="table-fixed w-full text-sm ">
+            <Table border="cell" className="table-fixed w-full text-sm">
               <Table.Head>
                 <Table.Row>
                   <Table.Cell type="th" className="w-1/12" />
@@ -162,11 +172,14 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
               <Table.Body>
                 {basketItems?.map((basketItem, index) => (
                   <Table.Row key={index}>
-                    <Table.Cell></Table.Cell>
+                    <Table.Cell>
+                      {basketItem.product.selfMedication ? '★' : ''}
+                      {basketItem.product.sellingTax === 8 ? '軽' : ''}
+                    </Table.Cell>
                     <Table.Cell>{basketItem.product.name}</Table.Cell>
                     <Table.Cell className="text-right">{basketItem.quantity}</Table.Cell>
                     <Table.Cell className="text-right">¥{basketItem.product.sellingPrice?.toLocaleString()}</Table.Cell>
-                    <Table.Cell className="text-center">
+                    <Table.Cell className="text-right">
                       ¥{(Number(basketItem.product.sellingPrice) * basketItem.quantity)?.toLocaleString()}
                     </Table.Cell>
                   </Table.Row>
@@ -174,35 +187,49 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
               </Table.Body>
             </Table>
 
-            <Table border="row" className="table-fixed w-full">
+            <Table border="none" className="table-fixed w-2/3 mt-4 shadow-none ml-72">
+              <Table.Head>
+                <Table.Row>
+                  <Table.Cell type="th" className="w-3/12" />
+                  <Table.Cell type="th" className="w-3/12" />
+                  <Table.Cell type="th" className="w-6/12" />
+                </Table.Row>
+              </Table.Head>
               <Table.Body>
                 <Table.Row>
                   <Table.Cell type="th" className="text-xl">
                     合計
                   </Table.Cell>
                   <Table.Cell className="text-right text-xl pr-4">
-                    ¥
-                    {basketItems
-                      .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0)
-                      .toLocaleString()}
+                    ¥{calcTotal(basketItems).toLocaleString()}
                   </Table.Cell>
+                  <Table.Cell></Table.Cell>
+                </Table.Row>
+                <Table.Row>
+                  <Table.Cell type="th">8%対象</Table.Cell>
+                  <Table.Cell className="text-right pr-4">
+                    ¥{(calcReducedTotal(basketItems) + calcReducedTax(basketItems)).toLocaleString()}
+                  </Table.Cell>
+                  <Table.Cell>（内消費税等　¥{calcReducedTax(basketItems).toLocaleString()}）</Table.Cell>
+                </Table.Row>
+                <Table.Row>
+                  <Table.Cell type="th">10%対象</Table.Cell>
+                  <Table.Cell className="text-right pr-4">
+                    ¥{(calcNormalTotal(basketItems) + calcNormalTax(basketItems)).toLocaleString()}
+                  </Table.Cell>
+                  <Table.Cell>（内消費税等　¥{calcNormalTax(basketItems).toLocaleString()}）</Table.Cell>
                 </Table.Row>
                 <Table.Row>
                   <Table.Cell type="th">お預かり</Table.Cell>
                   <Table.Cell className="text-right pr-4">¥{cash.toLocaleString()}</Table.Cell>
+                  <Table.Cell></Table.Cell>
                 </Table.Row>
                 <Table.Row>
                   <Table.Cell type="th">お釣り</Table.Cell>
                   <Table.Cell className="text-right pr-4">
-                    ¥
-                    {(
-                      cash -
-                      basketItems.reduce(
-                        (result, item) => result + Number(item.product.sellingPrice) * item.quantity,
-                        0
-                      )
-                    ).toLocaleString()}
+                    ¥{(cash - calcTotal(basketItems)).toLocaleString()}
                   </Table.Cell>
+                  <Table.Cell></Table.Cell>
                 </Table.Row>
               </Table.Body>
             </Table>
