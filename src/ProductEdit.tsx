@@ -3,19 +3,34 @@ import { doc, getDoc, setDoc, getFirestore, DocumentReference } from 'firebase/f
 
 import { Alert, Button, Form, Grid, Modal } from './components';
 import firebaseError from './firebaseError';
-import { Product, ProductCategory } from './types';
+import { Product, ProductCategory, Supplier, TaxClass } from './types';
+import Select, { SingleValue } from 'react-select';
 
 const db = getFirestore();
+
+const TAX_CLASS_OPTIONS = [
+  { value: '', label: '' },
+  { value: 'exclusive', label: '外税' },
+  { value: 'inclusive', label: '内税' },
+  { value: 'free', label: '非課税' },
+];
+
+const TAX_OPTIONS = [
+  { value: '', label: '' },
+  { value: '8', label: '8%' },
+  { value: '10', label: '10%' },
+];
 
 type Props = {
   open: boolean;
   docId: string | null;
   productCategories: { id: string; productCategory: ProductCategory }[];
+  suppliers: { id: string; supplier: Supplier }[];
   onClose: () => void;
   onUpdate: (product: Product) => void;
 };
 
-const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, onClose, onUpdate }) => {
+const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, suppliers, onClose, onUpdate }) => {
   const [product, setProduct] = useState<Product>({
     code: '',
     name: '',
@@ -24,14 +39,18 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, onClose,
     hidden: false,
     costPrice: null,
     sellingPrice: null,
-    productGroup: null,
+    stockTaxClass: null,
+    sellingTaxClass: null,
+    stockTax: null,
+    sellingTax: null,
+    selfMedication: false,
     supplierRef: null,
     categoryRef: null,
     note: '',
   });
-  const [productCategoryId, setProductCategoryId] = useState('');
   const [error, setError] = useState('');
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
+  const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
 
   useEffect(() => {
     const options = productCategories.map(({ id, productCategory }) => ({
@@ -43,6 +62,29 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, onClose,
   }, [productCategories]);
 
   useEffect(() => {
+    const options = suppliers.map(({ id, supplier }) => ({
+      value: id,
+      label: `${supplier.name}(${supplier.code})`,
+    }));
+    options.unshift({ label: '', value: '' });
+    setSuppliersOptions(options);
+  }, [suppliers]);
+
+  const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
+    return value ? options.find((option) => option.value === value) : { label: '', value: '' };
+  };
+
+  const setSupplierRef = (e: SingleValue<{ label: string; value: string }>) => {
+    const ref = e?.value ? doc(db, 'suppliers', e.value) : null;
+    setProduct({ ...product, supplierRef: ref as DocumentReference<Supplier> | null });
+  };
+
+  const setCategoryRef = (e: SingleValue<{ label: string; value: string }>) => {
+    const ref = e?.value ? doc(db, 'productCategories', e.value) : null;
+    setProduct({ ...product, categoryRef: ref as DocumentReference<ProductCategory> | null });
+  };
+
+  useEffect(() => {
     const f = async () => {
       if (docId) {
         const ref = doc(db, 'products', docId);
@@ -50,7 +92,6 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, onClose,
         if (snap.exists()) {
           const prdct = snap.data() as Product;
           setProduct(prdct);
-          setProductCategoryId(prdct.categoryRef ? prdct.categoryRef.id : '');
         } else {
           resetProduct();
         }
@@ -71,7 +112,11 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, onClose,
       hidden: false,
       costPrice: null,
       sellingPrice: null,
-      productGroup: null,
+      stockTaxClass: null,
+      sellingTaxClass: null,
+      stockTax: null,
+      sellingTax: null,
+      selfMedication: false,
       supplierRef: null,
       categoryRef: null,
       note: '',
@@ -82,13 +127,6 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, onClose,
     e.preventDefault();
     setError('');
     try {
-      if (productCategoryId) {
-        const categoryRef = doc(db, 'productCategories', productCategoryId);
-        product.categoryRef = categoryRef as DocumentReference<ProductCategory>;
-      } else {
-        product.categoryRef = null;
-      }
-
       if (docId) {
         await setDoc(doc(db, 'products', docId), product);
       } else {
@@ -145,26 +183,77 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, onClose,
               value={product.abbr}
               onChange={(e) => setProduct({ ...product, abbr: e.target.value })}
             />
+            <Form.Label>カテゴリ</Form.Label>
+            <Select
+              className="mb-3 sm:mb-0 select2"
+              value={selectValue(product.categoryRef?.id, categoryOptions)}
+              options={categoryOptions}
+              onChange={setCategoryRef}
+            />
             <Form.Label>売価税抜</Form.Label>
             <Form.Number
-              placeholder="売価税抜"
+              placeholder="売価"
               value={String(product.sellingPrice)}
               onChange={(e) => setProduct({ ...product, sellingPrice: +e.target.value })}
             />
-            <Form.Label>カテゴリ</Form.Label>
+            <Form.Label>原価税抜</Form.Label>
+            <Form.Number
+              placeholder="原価"
+              value={String(product.costPrice)}
+              onChange={(e) => setProduct({ ...product, costPrice: +e.target.value })}
+            />
+            <Form.Label>税区分(売価)</Form.Label>
             <Form.Select
-              id="select"
-              size="md"
               className="mb-3 sm:mb-0"
-              value={productCategoryId}
-              options={categoryOptions}
-              onChange={(e) => setProductCategoryId(e.target.value)}
+              value={String(product.sellingTaxClass)}
+              options={TAX_CLASS_OPTIONS}
+              onChange={(e) => setProduct({ ...product, sellingTaxClass: e.target.value as TaxClass })}
+            />
+            <Form.Label>税区分(仕入)</Form.Label>
+            <Form.Select
+              className="mb-3 sm:mb-0"
+              value={String(product.stockTaxClass)}
+              options={TAX_CLASS_OPTIONS}
+              onChange={(e) => setProduct({ ...product, stockTaxClass: e.target.value as TaxClass })}
+            />
+            <Form.Label>売価消費税</Form.Label>
+            <Form.Select
+              className="mb-3 sm:mb-0"
+              value={String(product.sellingTax)}
+              options={TAX_OPTIONS}
+              onChange={(e) => setProduct({ ...product, sellingTax: e.target.value ? +e.target.value : null })}
+            />
+            <Form.Label>仕入消費税</Form.Label>
+            <Form.Select
+              className="mb-3 sm:mb-0"
+              value={String(product.stockTax)}
+              options={TAX_OPTIONS}
+              onChange={(e) => setProduct({ ...product, stockTax: e.target.value ? +e.target.value : null })}
+            />
+            <Form.Label></Form.Label>
+            <Form.Checkbox
+              label="セルフメディケーション"
+              checked={product.selfMedication}
+              onChange={(e) => setProduct({ ...product, selfMedication: e.target.checked })}
+            />
+            <Form.Label>仕入先</Form.Label>
+            <Select
+              className="mb-3 sm:mb-0"
+              value={selectValue(product.supplierRef?.id, supplierOptions)}
+              options={supplierOptions}
+              onChange={setSupplierRef}
             />
             <Form.Label>備考</Form.Label>
             <Form.Text
               placeholder="備考"
               value={product.note}
               onChange={(e) => setProduct({ ...product, note: e.target.value })}
+            />
+            <Form.Label></Form.Label>
+            <Form.Checkbox
+              label="非稼働"
+              checked={product.hidden}
+              onChange={(e) => setProduct({ ...product, hidden: e.target.checked })}
             />
           </Grid>
         </Modal.Body>

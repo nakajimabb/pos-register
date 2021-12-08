@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { truncate } from 'lodash';
 import {
   collection,
   doc,
@@ -24,7 +25,7 @@ import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import ProductEdit from './ProductEdit';
 import { sortedProductCategories } from './tools';
-import { Product, ProductCategory } from './types';
+import { Product, ProductCategory, Supplier } from './types';
 
 const db = getFirestore();
 const PER_PAGE = 25;
@@ -34,6 +35,7 @@ const ProductList: React.FC = () => {
   const [search, setSearch] = useState({ text: '', categoryId: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Product> | null>(null);
   const [productCategories, setProductCategories] = useState<{ id: string; productCategory: ProductCategory }[]>([]);
+  const [suppliers, setSuppliers] = useState<{ id: string; supplier: Supplier }[]>([]);
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState(false);
   const [docId, setDocId] = useState<string | null>(null);
@@ -51,6 +53,14 @@ const ProductList: React.FC = () => {
       }));
       options.unshift({ label: '', value: '' });
       setCategoryOptions(options);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
+      const newSuppliers = snapshot.docs.map((item) => ({ id: item.id, supplier: item.data() as Supplier }));
+      setSuppliers(newSuppliers);
     });
     return () => unsubscribe();
   }, []);
@@ -148,12 +158,27 @@ const ProductList: React.FC = () => {
     }
   };
 
+  const categoryName = (product: Product) => {
+    if (product.supplierRef) {
+      const category = productCategories.find((s) => s.id === product.categoryRef?.id);
+      return category?.productCategory?.name;
+    }
+  };
+
+  const supplierName = (product: Product) => {
+    if (product.supplierRef) {
+      const supplier = suppliers.find((s) => s.id === product.supplierRef?.id);
+      return supplier?.supplier?.name;
+    }
+  };
+
   return (
     <div className="pt-12">
       <ProductEdit
         open={open}
         docId={docId}
         productCategories={productCategories}
+        suppliers={suppliers}
         onClose={() => setOpen(false)}
         onUpdate={queryProducts('current')}
       />
@@ -217,12 +242,11 @@ const ProductList: React.FC = () => {
               <Table.Row>
                 <Table.Cell type="th">PLUコード</Table.Cell>
                 <Table.Cell type="th">商品名称</Table.Cell>
-                <Table.Cell type="th">商品名カナ</Table.Cell>
-                <Table.Cell type="th">商品名略</Table.Cell>
-                <Table.Cell type="th">売価税抜</Table.Cell>
-                <Table.Cell type="th" className="hidden xl:block">
-                  備考
-                </Table.Cell>
+                <Table.Cell type="th">カテゴリ</Table.Cell>
+                <Table.Cell type="th">売価</Table.Cell>
+                <Table.Cell type="th">原価</Table.Cell>
+                <Table.Cell type="th">ｾﾙﾒ</Table.Cell>
+                <Table.Cell type="th">仕入先</Table.Cell>
                 <Table.Cell type="th"></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -234,10 +258,11 @@ const ProductList: React.FC = () => {
                     <Table.Row key={i}>
                       <Table.Cell>{product.code}</Table.Cell>
                       <Table.Cell>{product.name}</Table.Cell>
-                      <Table.Cell>{product.kana}</Table.Cell>
-                      <Table.Cell>{product.abbr}</Table.Cell>
-                      <Table.Cell>{product.sellingPrice}</Table.Cell>
-                      <Table.Cell className="hidden xl:block">{product.note}</Table.Cell>
+                      <Table.Cell>{truncate(categoryName(product), { length: 10 })}</Table.Cell>
+                      <Table.Cell className="text-right">{product.sellingPrice?.toLocaleString()}</Table.Cell>
+                      <Table.Cell className="text-right">{product.costPrice?.toLocaleString()}</Table.Cell>
+                      <Table.Cell className="text-center">{product.selfMedication && '○'}</Table.Cell>
+                      <Table.Cell>{truncate(supplierName(product), { length: 10 })}</Table.Cell>
                       <Table.Cell>
                         <Button
                           variant="icon"

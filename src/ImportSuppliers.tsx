@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { getFirestore, doc, setDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, writeBatch } from 'firebase/firestore';
 
 import { Alert, Button, Card, Flex, Form } from './components';
 import { readExcelAsOjects, HeaderInfo } from './readExcel';
