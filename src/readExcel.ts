@@ -1,13 +1,13 @@
 import * as xlsx from 'xlsx';
 
 export type FieldType = string | Date | number | boolean;
-export type ColumnConverter = { [key: string]: FieldType };
+export type ValueMapping = { [key: string]: FieldType };
 export type HeaderInfo = {
   label: string;
   name: string;
   asNumber?: boolean;
   zeroPadding?: number;
-  converter?: ColumnConverter;
+  mapping?: ValueMapping;
 }[];
 
 const readExcel = async (blob: File, number_as_string: boolean = false) => {
@@ -70,7 +70,7 @@ export const readExcelAsOjects = async (blob: File, headerInfo: HeaderInfo) => {
   const names = new Map<number, string>();
   const asNumbers = new Set<number>();
   const zeroPaddings = new Map<number, number>();
-  const converters = new Map<number, ColumnConverter>();
+  const mappings = new Map<number, ValueMapping>();
   headerInfo.forEach((col) => {
     const index = header.indexOf(col.label);
     if (index >= 0) {
@@ -84,16 +84,16 @@ export const readExcelAsOjects = async (blob: File, headerInfo: HeaderInfo) => {
     if (col.zeroPadding) {
       zeroPaddings.set(index, col.zeroPadding);
     }
-    if (col.converter) {
-      converters.set(index, col.converter);
+    if (col.mapping) {
+      mappings.set(index, col.mapping);
     }
   });
 
   return data.map((row) => {
     // 前処理
-    converters.forEach((converter, index) => {
+    mappings.forEach((mapping, index) => {
       const col = String(row[index]);
-      row[index] = converter[col];
+      row[index] = mapping[col];
     });
     zeroPaddings.forEach((padding, index) => {
       row[index] = String(row[index]).padStart(padding, '0');

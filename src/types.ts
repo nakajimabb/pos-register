@@ -15,6 +15,8 @@ export type Shop = {
   fax: string;
 };
 
+export type TaxClass = 'exclusive' | 'inclusive' | 'free'; // 外税、内税、非課税
+
 export type Product = {
   abbr: string;
   code: string;
@@ -22,10 +24,13 @@ export type Product = {
   name: string;
   note: string;
   hidden: boolean;
-  costPrice: number | null; // 下代（原価）
   sellingPrice: number | null; // 売価(税抜)
-  productGroup: 'general' | 'self-med' | null; // 商品設定グループ
-  supplierCode?: string;
+  costPrice: number | null; // 下代（原価）
+  sellingTaxClass: TaxClass | null; // 税区分(売価)
+  stockTaxClass: TaxClass | null; // 税区分(仕入)
+  sellingTax: number | null; // 売価消費税
+  stockTax: number | null; // 仕入消費税
+  selfMedication: boolean;
   supplierRef: DocumentReference<Supplier> | null;
   categoryRef: DocumentReference<ProductCategory> | null;
 };

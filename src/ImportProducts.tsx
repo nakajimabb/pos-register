@@ -29,13 +29,25 @@ const ImportProducts: React.FC = () => {
           { label: 'PLUコード', name: 'code' },
           { label: '商品名称', name: 'name' },
           { label: '商品かな名称', name: 'kana' },
-          { label: '商品設定グループ', name: 'productGroup', converter: { '99': 'general', '3': 'self-med' } },
+          { label: '商品設定グループ', name: 'selfMedication', mapping: { '99': false, '3': true } },
           { label: '下代（原価）', name: 'costPrice', asNumber: true },
           { label: '売価', name: 'sellingPrice', asNumber: true },
-          { label: '稼動フラグ（0:稼動、1:非稼動）', name: 'hidden', converter: { '0': false, '1': true } },
+          {
+            label: '売価消費税タイプ（0：外税、1：内税、2：非課税）',
+            name: 'sellingTaxClass',
+            mapping: { '0': 'exclusive', '1': 'inclusive', '2': 'free' },
+          },
+          {
+            label: '仕入消費税タイプ（0：外税、1：内税、2：非課税）',
+            name: 'stockTaxClass',
+            mapping: { '0': 'exclusive', '1': 'inclusive', '2': 'free' },
+          },
+          { label: '売価消費税パターン', name: 'sellingTax', mapping: { '1': 10, '2': 8 } },
+          { label: '仕入消費税パターン', name: 'stockTax', mapping: { '1': 10, '2': 8 } },
+          { label: '稼動フラグ（0:稼動、1:非稼動）', name: 'hidden', mapping: { '0': false, '1': true } },
           { label: '仕入先コード', name: 'supplierCode' },
           { label: '備考', name: 'note' },
-          { label: '有効', name: 'valid', converter: { '0': false, '1': false, '2': true } },
+          { label: '有効', name: 'valid', mapping: { '0': false, '1': false, '2': true } },
         ];
         const data = await readExcelAsOjects(blob, headerInfo);
 
@@ -43,6 +55,14 @@ const ImportProducts: React.FC = () => {
         const suppliersRef = collection(db, 'suppliers');
         const suppliersSnap = await getDocs(suppliersRef);
         const supplierCodes = suppliersSnap.docs.map((item) => item.id);
+
+        // 不明な仕入先コード
+        const unknownSupplierCodes: string[] = [];
+        data.forEach((item) => {
+          const supCode = String(item.supplierCode);
+          if (!supplierCodes.includes(supCode)) unknownSupplierCodes.push(supCode);
+        });
+        unknownSupplierCodes.sort((a, b) => +a - +b);
 
         // db 書き込み
         const BATCH_UNIT = 300;
@@ -52,32 +72,26 @@ const ImportProducts: React.FC = () => {
           try {
             let count = 0;
             let error = '';
-            const unknownSuppliers: string[] = [];
             const batch = writeBatch(db);
             const sliced = data.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+
             sliced.forEach((item) => {
               if (item.valid) {
-                delete item.valid;
                 const code = String(item.code);
                 let supplierRef: DocumentReference<Supplier> | null = null;
                 // 仕入先情報
+                const supCode = String(item.supplierCode);
                 if (item.supplierCode) {
-                  const supCode = String(item.supplierCode);
-                  if (supplierCodes.includes(supCode)) {
-                    supplierRef = doc(db, 'suppliers', supCode) as DocumentReference<Supplier>;
-                  } else {
-                    unknownSuppliers.push(supCode);
-                  }
+                  const supCode2 = supplierCodes.includes(supCode) ? supCode : '0'; // 存在しなければ その他(0)
+                  supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
                 }
+                delete item.valid;
+                delete item.supplierCode;
                 batch.set(doc(db, 'products', code), { ...item, supplierRef }, { merge: true });
                 count += 1;
               }
             });
             await batch.commit();
-            if (unknownSuppliers.length > 0) {
-              const codes = Array.from(new Set(unknownSuppliers));
-              error = `仕入先がみつかりません(仕入先コード: ${codes.join(',')})`;
-            }
             return { count, error };
           } catch (error) {
             return { count: 0, error: firebaseError(error) };
@@ -86,6 +100,12 @@ const ImportProducts: React.FC = () => {
         const results = await Promise.all(tasks);
         const count = results.reduce((cnt, res) => cnt + res.count, 0);
         const errors = results.filter((res) => !!res.error).map((res) => res.error);
+
+        if (unknownSupplierCodes.length > 0) {
+          const codes = Array.from(new Set(unknownSupplierCodes));
+          errors.push(`仕入先がみつかりません(仕入先コード: ${codes.join(' ')})`);
+        }
+
         setMessage(`${count}件のデータを読み込みました。`);
         if (errors.length > 0) setErrors(errors);
 
