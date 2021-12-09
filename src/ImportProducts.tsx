@@ -5,6 +5,7 @@ import { Alert, Button, Card, Flex, Form } from './components';
 import { readExcelAsOjects, HeaderInfo } from './readExcel';
 import firebaseError from './firebaseError';
 import { Supplier } from './types';
+import { checkDigit } from './tools';
 
 const db = getFirestore();
 
@@ -64,6 +65,16 @@ const ImportProducts: React.FC = () => {
         });
         unknownSupplierCodes.sort((a, b) => +a - +b);
 
+        // 不正なJANコード
+        const ngJanCodes = new Set<string>();
+        data.slice(0, 1000).forEach((item) => {
+          const code = String(item.code);
+          if (code.match(/^\d{8}$|^\d{13}$/)) {
+            if (!checkDigit(code)) ngJanCodes.add(code);
+          }
+        });
+        console.log({ ngJanCodes: Array.from(ngJanCodes).join(',') });
+
         // db 書き込み
         const BATCH_UNIT = 300;
         const taskSize = Math.ceil(data.length / BATCH_UNIT);
@@ -76,8 +87,8 @@ const ImportProducts: React.FC = () => {
             const sliced = data.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
 
             sliced.forEach((item) => {
-              if (item.valid) {
-                const code = String(item.code);
+              const code = String(item.code);
+              if (item.valid && checkDigit(code)) {
                 let supplierRef: DocumentReference<Supplier> | null = null;
                 // 仕入先情報
                 const supCode = String(item.supplierCode);
@@ -104,6 +115,10 @@ const ImportProducts: React.FC = () => {
         if (unknownSupplierCodes.length > 0) {
           const codes = Array.from(new Set(unknownSupplierCodes));
           errors.push(`仕入先がみつかりません(仕入先コード: ${codes.join(' ')})`);
+        }
+        if (ngJanCodes.size > 0) {
+          const codes = Array.from(ngJanCodes);
+          errors.push(`不正なJANコード: ${codes.join(' ')}`);
         }
 
         setMessage(`${count}件のデータを読み込みました。`);
