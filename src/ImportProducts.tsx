@@ -9,14 +9,18 @@ import { checkDigit } from './tools';
 
 const db = getFirestore();
 
-const ImportProducts: React.FC = () => {
+type Props = {
+  common: boolean;
+};
+
+const ImportProducts: React.FC<Props> = ({ common }) => {
   const [loading, setLoading] = useState<boolean>(false);
-  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const ref = useRef<HTMLInputElement>(null);
 
   const importExcel = async (e: React.FormEvent) => {
-    setMessage('');
+    setMessages([]);
     setErrors([]);
     e.preventDefault();
 
@@ -27,6 +31,7 @@ const ImportProducts: React.FC = () => {
       try {
         // EXCEL 読み込み
         const headerInfo: HeaderInfo = [
+          { label: '店舗コード', name: 'shopCode', zeroPadding: 2 },
           { label: 'PLUコード', name: 'code' },
           { label: '商品名称', name: 'name' },
           { label: '商品かな名称', name: 'kana' },
@@ -51,6 +56,11 @@ const ImportProducts: React.FC = () => {
           { label: '有効', name: 'valid', mapping: { '0': false, '1': false, '2': true } },
         ];
         const data = await readExcelAsOjects(blob, headerInfo);
+        console.log({ data });
+
+        // 共通データと店舗用データに分割
+        const commonData = data.filter((item) => item.shopCode === '00');
+        const shopData = data.filter((item) => item.shopCode !== '00');
 
         // 仕入れ先情報取得
         const suppliersRef = collection(db, 'suppliers');
@@ -61,13 +71,31 @@ const ImportProducts: React.FC = () => {
         const unknownSupplierCodes: string[] = [];
         data.forEach((item) => {
           const supCode = String(item.supplierCode);
-          if (!supplierCodes.includes(supCode)) unknownSupplierCodes.push(supCode);
+          if (!supplierCodes.includes(supCode) && !unknownSupplierCodes.includes(supCode)) {
+            unknownSupplierCodes.push(supCode);
+          }
         });
         unknownSupplierCodes.sort((a, b) => +a - +b);
 
+        // 店舗情報取得
+        const shopsRef = collection(db, 'shops');
+        const shopsSnap = await getDocs(shopsRef);
+        const shopCodes = shopsSnap.docs.map((item) => item.id);
+
+        // 不明な店舗コード
+        const unknownShopCodes: string[] = [];
+        shopData.forEach((item) => {
+          const shopCode = String(item.shopCode);
+          if (!shopCodes.includes(shopCode) && !unknownShopCodes.includes(shopCode)) {
+            unknownShopCodes.push(shopCode);
+          }
+        });
+        unknownShopCodes.sort((a, b) => +a - +b);
+        console.log({ unknownShopCodes });
+
         // 不正なJANコード
         const ngJanCodes = new Set<string>();
-        data.slice(0, 1000).forEach((item) => {
+        data.forEach((item) => {
           const code = String(item.code);
           if (code.match(/^\d{8}$|^\d{13}$/)) {
             if (!checkDigit(code)) ngJanCodes.add(code);
@@ -77,52 +105,145 @@ const ImportProducts: React.FC = () => {
 
         // db 書き込み
         const BATCH_UNIT = 300;
-        const taskSize = Math.ceil(data.length / BATCH_UNIT);
-        const sequential = [...Array(taskSize)].map((_, i) => i);
-        const tasks = sequential.map(async (_, i) => {
-          try {
-            let count = 0;
-            let error = '';
-            const batch = writeBatch(db);
-            const sliced = data.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+        const counter = { products: 0, productCostPrices: 0, productSellingPrices: 0 };
+        const errors: {
+          products: string[];
+          productCostPrices: string[];
+          productSellingPrices: string[];
+        } = { products: [], productCostPrices: [], productSellingPrices: [] };
+        if (common) {
+          // 商品マスタ(共通)
+          const taskSize = Math.ceil(commonData.length / BATCH_UNIT);
+          const sequential = [...Array(taskSize)].map((_, i) => i);
+          const tasks = sequential.map(async (_, i) => {
+            try {
+              let count = 0;
+              let error = '';
+              const batch = writeBatch(db);
+              const sliced = commonData.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
 
-            sliced.forEach((item) => {
-              const code = String(item.code);
-              if (item.valid && checkDigit(code)) {
-                let supplierRef: DocumentReference<Supplier> | null = null;
-                // 仕入先情報
-                const supCode = String(item.supplierCode);
-                if (item.supplierCode) {
-                  const supCode2 = supplierCodes.includes(supCode) ? supCode : '0'; // 存在しなければ その他(0)
-                  supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
+              sliced.forEach((item) => {
+                const code = String(item.code);
+                if (item.valid && checkDigit(code)) {
+                  let supplierRef: DocumentReference<Supplier> | null = null;
+                  // 仕入先情報
+                  const supCode = String(item.supplierCode);
+                  if (item.supplierCode) {
+                    const supCode2 = supplierCodes.includes(supCode) ? supCode : '0'; // 存在しなければ その他(0)
+                    supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
+                  }
+                  delete item.shopCode;
+                  delete item.valid;
+                  delete item.supplierCode;
+                  batch.set(doc(db, 'products', code), { ...item, supplierRef }, { merge: true });
+                  count += 1;
                 }
-                delete item.valid;
-                delete item.supplierCode;
-                batch.set(doc(db, 'products', code), { ...item, supplierRef }, { merge: true });
-                count += 1;
-              }
-            });
-            await batch.commit();
-            return { count, error };
-          } catch (error) {
-            return { count: 0, error: firebaseError(error) };
-          }
-        });
-        const results = await Promise.all(tasks);
-        const count = results.reduce((cnt, res) => cnt + res.count, 0);
-        const errors = results.filter((res) => !!res.error).map((res) => res.error);
+              });
+              await batch.commit();
+              return { count, error };
+            } catch (error) {
+              return { count: 0, error: firebaseError(error) };
+            }
+          });
+          const results = await Promise.all(tasks);
+          counter.products = results.reduce((cnt, res) => cnt + res.count, 0);
+          errors.products = results.filter((res) => !!res.error).map((res) => res.error);
+        } else {
+          const taskSize = Math.ceil(shopData.length / BATCH_UNIT);
+          const sequential = [...Array(taskSize)].map((_, i) => i);
+          // 店舗原価
+          const tasks = sequential.map(async (_, i) => {
+            try {
+              let count = 0;
+              let error = '';
+              const batch = writeBatch(db);
+              const sliced = shopData.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
 
-        if (unknownSupplierCodes.length > 0) {
-          const codes = Array.from(new Set(unknownSupplierCodes));
-          errors.push(`仕入先がみつかりません(仕入先コード: ${codes.join(' ')})`);
+              sliced.forEach((item) => {
+                const code = String(item.code);
+                const shopCode = String(item.shopCode);
+                if (item.valid && checkDigit(code) && shopCodes.includes(shopCode)) {
+                  let supplierRef: DocumentReference<Supplier> | null = null;
+                  // 仕入先情報
+                  const supCode = String(item.supplierCode);
+                  if (item.supplierCode) {
+                    const supCode2 = supplierCodes.includes(supCode) ? supCode : '0'; // 存在しなければ その他(0)
+                    supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
+                  }
+                  batch.set(
+                    doc(db, 'shops', shopCode, 'costPrices', code),
+                    { code, shopCode, supplierRef, costPrice: item.costPrice },
+                    { merge: true }
+                  );
+                  count += 1;
+                }
+              });
+              await batch.commit();
+              return { count, error };
+            } catch (error) {
+              return { count: 0, error: firebaseError(error) };
+            }
+          });
+          const results = await Promise.all(tasks);
+          counter.productCostPrices = results.reduce((cnt, res) => cnt + res.count, 0);
+          errors.productCostPrices = results.filter((res) => !!res.error).map((res) => res.error);
+
+          // 店舗売価
+          const tasks2 = sequential.map(async (_, i) => {
+            try {
+              let count = 0;
+              let error = '';
+              const batch = writeBatch(db);
+              const sliced = shopData.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+
+              sliced.forEach((item) => {
+                const code = String(item.code);
+                const shopCode = String(item.shopCode);
+                if (item.valid && checkDigit(code) && shopCodes.includes(shopCode)) {
+                  batch.set(
+                    doc(db, 'shops', shopCode, 'sellingPrices', code),
+                    { code, shopCode, sellingPrice: item.sellingPrice },
+                    { merge: true }
+                  );
+                  count += 1;
+                }
+              });
+              await batch.commit();
+              return { count, error };
+            } catch (error) {
+              return { count: 0, error: firebaseError(error) };
+            }
+          });
+          const results2 = await Promise.all(tasks2);
+          counter.productSellingPrices = results2.reduce((cnt, res) => cnt + res.count, 0);
+          errors.productSellingPrices = results2.filter((res) => !!res.error).map((res) => res.error);
+        }
+
+        setMessages([
+          'データを読み込みました。',
+          `商品マスタ:${counter.products}件`,
+          `店舗原価マスタ:${counter.productCostPrices}件`,
+          `店舗売価マスタ:${counter.productSellingPrices}件`,
+        ]);
+
+        const errs: string[] = [];
+        if (unknownShopCodes.length > 0) {
+          const codes = Array.from(unknownShopCodes);
+          errs.push(`店舗コードが見つかりません: ${codes.join(' ')}`);
         }
         if (ngJanCodes.size > 0) {
           const codes = Array.from(ngJanCodes);
-          errors.push(`不正なJANコード: ${codes.join(' ')}`);
+          errs.push(`不正なJANコード: ${codes.join(' ')}`);
         }
+        if (unknownSupplierCodes.length > 0) {
+          const codes = Array.from(new Set(unknownSupplierCodes));
+          errs.push(`仕入先がみつかりません(仕入先コード: ${codes.join(' ')})`);
+        }
+        if (errors.products.length > 0) errs.push(...errors.products);
+        if (errors.productCostPrices.length > 0) errs.push(...errors.productCostPrices);
+        if (errors.productSellingPrices.length > 0) errs.push(...errors.productSellingPrices);
 
-        setMessage(`${count}件のデータを読み込みました。`);
-        if (errors.length > 0) setErrors(errors);
+        if (errs.length > 0) setErrors(errs);
 
         setLoading(false);
       } catch (error) {
@@ -135,16 +256,18 @@ const ImportProducts: React.FC = () => {
 
   return (
     <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
-      <h1 className="text-xl font-bold mb-2">商品マスタ(共通)取込</h1>
+      <h1 className="text-xl font-bold mb-2">商品マスタ({common ? '共通' : '店舗'})取込</h1>
       <Card className="p-5 w-96">
         <Form onSubmit={importExcel} className="p-3">
           <input type="file" name="ref" ref={ref} accept=".xlsx" disabled={loading} required />
           <Button disabled={loading} className="w-full mt-4">
             取込実行
           </Button>
-          {message && (
+          {messages.length > 0 && (
             <Alert severity="success" className="mt-4">
-              {message}
+              {messages.map((msg) => (
+                <p>{msg}</p>
+              ))}
             </Alert>
           )}
           {errors.length > 0 && (

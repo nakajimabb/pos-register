@@ -35,6 +35,19 @@ export type Product = {
   categoryRef: DocumentReference<ProductCategory> | null;
 };
 
+export type productCostPrice = {
+  code: string; // JANコード
+  shopCode: string; // 店舗コード
+  costPrice: number | null; // 売価(税抜)
+  supplierRef: DocumentReference<Supplier> | null;
+};
+
+export type productSellingPrice = {
+  code: string; // JANコード
+  shopCode: string; // 店舗コード
+  sellingPrice: number | null; // 売価(税抜)
+};
+
 export type ProductCategory = {
   name: string;
   level: 1 | 2 | 3;

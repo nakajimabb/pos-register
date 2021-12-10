@@ -36,9 +36,8 @@ const App: React.FC = () => {
         <Route path="/" component={AppBar} />
         <Route exact path="/" component={RegisterMain} />
         <Route exact path="/products" component={ProductList} />
-        <Route exact path="/import_products" component={ImportProducts} />
-        <Route exact path="/import_cost_prices" component={ImportCostPrices} />
-        <Route exact path="/import_selling_prices" component={ImportSellingPrices} />
+        <Route exact path="/import_products" component={() => <ImportProducts common={true} />} />
+        <Route exact path="/import_shop_products" component={() => <ImportProducts common={false} />} />
         <Route exact path="/import_suppliers" component={ImportSuppliers} />
         <Route exact path="/suppliers" component={SupplierList} />
         <Route exact path="/product_categories" component={ProductCategoryList} />
