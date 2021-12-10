@@ -61,9 +61,9 @@ const ShopList: React.FC = () => {
         setPage(0);
         setShopCount(null);
       } else {
-        const snap = await getDoc(doc(db, 'shopCounts', 'all'));
+        const snap = await getDoc(doc(db, 'counters', 'shops'));
         if (snap.exists()) {
-          setShopCount(snap.data().count);
+          setShopCount(snap.data().all);
         } else {
           setShopCount(null);
         }

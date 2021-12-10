@@ -91,9 +91,9 @@ const ProductList: React.FC = () => {
         setPage(0);
         setProductCount(null);
       } else {
-        const snap = await getDoc(doc(db, 'productCounts', 'all'));
+        const snap = await getDoc(doc(db, 'counters', 'products'));
         if (snap.exists()) {
-          setProductCount(snap.data().count);
+          setProductCount(snap.data().all);
         } else {
           setProductCount(null);
         }

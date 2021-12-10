@@ -29,77 +29,74 @@ const MAX_SEARCH = 50;
 
 const SupplierList: React.FC = () => {
   const [search, setSearch] = useState('');
-  const [snapshot, setSnapshot] = useState<QuerySnapshot<Supplier> | null>(
-    null
-  );
+  const [snapshot, setSnapshot] = useState<QuerySnapshot<Supplier> | null>(null);
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState(false);
   const [docId, setDocId] = useState<string | null>(null);
   const [supplierCount, setSupplierCount] = useState<number | null>(null);
   const [error, setError] = useState<string>('');
 
-  const querySuppliers =
-    (action: 'head' | 'prev' | 'next' | 'current') => async () => {
-      try {
-        setError('');
-        const conds: QueryConstraint[] = [];
-        const searchText = search.trim();
-        if (searchText) {
-          if (searchText.match(/^\d+$/)) {
-            conds.push(orderBy('code'));
-          } else {
-            conds.push(orderBy('name'));
-          }
-          conds.push(startAt(searchText));
-          conds.push(endAt(searchText + '\uf8ff'));
-          conds.push(limit(MAX_SEARCH));
-          setPage(0);
-          setSupplierCount(null);
+  const querySuppliers = (action: 'head' | 'prev' | 'next' | 'current') => async () => {
+    try {
+      setError('');
+      const conds: QueryConstraint[] = [];
+      const searchText = search.trim();
+      if (searchText) {
+        if (searchText.match(/^\d+$/)) {
+          conds.push(orderBy('code'));
         } else {
-          const snap = await getDoc(doc(db, 'supplierCounts', 'all'));
-          if (snap.exists()) {
-            setSupplierCount(snap.data().count);
-          } else {
-            setSupplierCount(null);
-          }
+          conds.push(orderBy('name'));
+        }
+        conds.push(startAt(searchText));
+        conds.push(endAt(searchText + '\uf8ff'));
+        conds.push(limit(MAX_SEARCH));
+        setPage(0);
+        setSupplierCount(null);
+      } else {
+        const snap = await getDoc(doc(db, 'counters', 'suppliers'));
+        if (snap.exists()) {
+          setSupplierCount(snap.data().all);
+        } else {
+          setSupplierCount(null);
+        }
 
-          if (action === 'head') {
+        if (action === 'head') {
+          conds.push(orderBy('code'));
+          conds.push(limit(PER_PAGE));
+          setPage(0);
+        } else if (action === 'next') {
+          if (snapshot) {
             conds.push(orderBy('code'));
+            const last = snapshot.docs[snapshot.docs.length - 1];
+            conds.push(startAfter(last));
             conds.push(limit(PER_PAGE));
-            setPage(0);
-          } else if (action === 'next') {
-            if (snapshot) {
-              conds.push(orderBy('code'));
-              const last = snapshot.docs[snapshot.docs.length - 1];
-              conds.push(startAfter(last));
-              conds.push(limit(PER_PAGE));
-              setPage(page + 1);
-            }
-          } else if (action === 'prev') {
-            if (snapshot) {
-              conds.push(orderBy('code', 'asc'));
-              const last = snapshot.docs[0];
-              conds.push(endBefore(last));
-              conds.push(limitToLast(PER_PAGE));
-              setPage(page - 1);
-            }
-          } else if (action === 'current') {
-            if (snapshot) {
-              const first = snapshot.docs[0];
-              conds.push(startAt(first));
-              conds.push(limit(PER_PAGE));
-            }
+            setPage(page + 1);
+          }
+        } else if (action === 'prev') {
+          if (snapshot) {
+            conds.push(orderBy('code', 'asc'));
+            const last = snapshot.docs[0];
+            conds.push(endBefore(last));
+            conds.push(limitToLast(PER_PAGE));
+            setPage(page - 1);
+          }
+        } else if (action === 'current') {
+          if (snapshot) {
+            const first = snapshot.docs[0];
+            conds.push(startAt(first));
+            conds.push(limit(PER_PAGE));
           }
         }
-        const q = query(collection(db, 'suppliers'), ...conds);
-        const querySnapshot = await getDocs(q);
-        setSnapshot(querySnapshot as QuerySnapshot<Supplier>);
-        console.log({ size: querySnapshot.size });
-      } catch (error) {
-        console.log({ error });
-        setError(firebaseError(error));
       }
-    };
+      const q = query(collection(db, 'suppliers'), ...conds);
+      const querySnapshot = await getDocs(q);
+      setSnapshot(querySnapshot as QuerySnapshot<Supplier>);
+      console.log({ size: querySnapshot.size });
+    } catch (error) {
+      console.log({ error });
+      setError(firebaseError(error));
+    }
+  };
 
   const newSupplier = () => {
     setOpen(true);
@@ -125,15 +122,8 @@ const SupplierList: React.FC = () => {
 
   return (
     <div className="pt-12 mx-auto max-w-4xl">
-      <SupplierEdit
-        open={open}
-        docId={docId}
-        onClose={() => setOpen(false)}
-        onUpdate={querySuppliers('current')}
-      />
-      <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">
-        仕入先マスタ
-      </h1>
+      <SupplierEdit open={open} docId={docId} onClose={() => setOpen(false)} onUpdate={querySuppliers('current')} />
+      <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">仕入先マスタ</h1>
       <Card className="mx-8 mb-4">
         <Flex justify_content="between" align_items="center" className="p-4">
           <Flex>
@@ -143,11 +133,7 @@ const SupplierList: React.FC = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <Button
-              variant="outlined"
-              className="mr-2"
-              onClick={querySuppliers('head')}
-            >
+            <Button variant="outlined" className="mr-2" onClick={querySuppliers('head')}>
               検索
             </Button>
             <Button variant="outlined" className="mr-2" onClick={newSupplier}>
@@ -159,9 +145,7 @@ const SupplierList: React.FC = () => {
               <Button
                 color="light"
                 size="xs"
-                disabled={
-                  !!search || page <= 0 || !snapshot || snapshot.size === 0
-                }
+                disabled={!!search || page <= 0 || !snapshot || snapshot.size === 0}
                 className="mr-2"
                 onClick={querySuppliers('prev')}
               >
@@ -171,10 +155,7 @@ const SupplierList: React.FC = () => {
                 color="light"
                 size="xs"
                 disabled={
-                  !!search ||
-                  PER_PAGE * page + snapshot.size >= supplierCount ||
-                  !snapshot ||
-                  snapshot.size === 0
+                  !!search || PER_PAGE * page + snapshot.size >= supplierCount || !snapshot || snapshot.size === 0
                 }
                 className="mr-2"
                 onClick={querySuppliers('next')}
@@ -182,8 +163,7 @@ const SupplierList: React.FC = () => {
                 後へ
               </Button>
               <div>
-                {`${PER_PAGE * page + 1}～${PER_PAGE * page + snapshot.size}`}/
-                {`${supplierCount}`}
+                {`${PER_PAGE * page + 1}～${PER_PAGE * page + snapshot.size}`}/{`${supplierCount}`}
               </div>
             </Flex>
           )}

@@ -120,14 +120,14 @@ export const updateShopCounts = functions
   .firestore.document('shops/{docId}')
   .onWrite((change) => {
     const FieldValue = admin.firestore.FieldValue;
-    const countsRef = db.collection('shopCounts').doc('all');
+    const countsRef = db.collection('counters').doc('shops');
 
     if (!change.before.exists) {
       // 登録時に件数をインクリメント
-      return countsRef.update({ count: FieldValue.increment(1) });
+      return countsRef.update({ all: FieldValue.increment(1) });
     } else if (change.before.exists && !change.after.exists) {
       // 削除時に件数をデクリメント
-      return countsRef.update({ count: FieldValue.increment(-1) });
+      return countsRef.update({ all: FieldValue.increment(-1) });
     }
     return;
   });
@@ -137,14 +137,14 @@ export const updateProductCounts = functions
   .firestore.document('products/{docId}')
   .onWrite((change) => {
     const FieldValue = admin.firestore.FieldValue;
-    const countsRef = db.collection('productCounts').doc('all');
+    const countsRef = db.collection('counters').doc('products');
 
     if (!change.before.exists) {
       // 登録時に件数をインクリメント
-      return countsRef.update({ count: FieldValue.increment(1) });
+      return countsRef.update({ all: FieldValue.increment(1) });
     } else if (change.before.exists && !change.after.exists) {
       // 削除時に件数をデクリメント
-      return countsRef.update({ count: FieldValue.increment(-1) });
+      return countsRef.update({ all: FieldValue.increment(-1) });
     }
     return;
   });
@@ -154,14 +154,14 @@ export const updateSupplierCounts = functions
   .firestore.document('suppliers/{docId}')
   .onWrite((change) => {
     const FieldValue = admin.firestore.FieldValue;
-    const countsRef = db.collection('supplierCounts').doc('all');
+    const countsRef = db.collection('counters').doc('suppliers');
 
     if (!change.before.exists) {
       // 登録時に件数をインクリメント
-      return countsRef.update({ count: FieldValue.increment(1) });
+      return countsRef.update({ all: FieldValue.increment(1) });
     } else if (change.before.exists && !change.after.exists) {
       // 削除時に件数をデクリメント
-      return countsRef.update({ count: FieldValue.increment(-1) });
+      return countsRef.update({ all: FieldValue.increment(-1) });
     }
     return;
   });
