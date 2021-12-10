@@ -33,7 +33,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
       const sale: Sale = {
         code: '05',
         createdAt: Timestamp.fromDate(new Date()),
-        detailsCount: basketItems.length,
+        detailsCount: basketItems.filter((item) => !!item.product.code).length,
         salesTotal: calcTotal(basketItems),
         taxTotal: calcNormalTax(basketItems) + calcReducedTax(basketItems),
         discountTotal: 0,
@@ -177,8 +177,12 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
                       {basketItem.product.sellingTax === 8 ? '軽' : ''}
                     </Table.Cell>
                     <Table.Cell>{basketItem.product.name}</Table.Cell>
-                    <Table.Cell className="text-right">{basketItem.quantity}</Table.Cell>
-                    <Table.Cell className="text-right">¥{basketItem.product.sellingPrice?.toLocaleString()}</Table.Cell>
+                    <Table.Cell className="text-right">
+                      {basketItem.product.code ? basketItem.quantity : null}
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      {basketItem.product.code ? `¥${basketItem.product.sellingPrice?.toLocaleString()}` : null}
+                    </Table.Cell>
                     <Table.Cell className="text-right">
                       ¥{(Number(basketItem.product.sellingPrice) * basketItem.quantity)?.toLocaleString()}
                     </Table.Cell>

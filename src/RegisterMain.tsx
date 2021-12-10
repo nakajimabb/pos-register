@@ -86,7 +86,7 @@ const RegisterMain: React.FC = () => {
     items.forEach((item) => {
       if (item.product.sellingTax === 10) {
         normalTaxTotal += Number(item.product.sellingPrice) * item.quantity;
-      } else {
+      } else if (item.product.sellingTax === 8) {
         reducedTaxTotal += Number(item.product.sellingPrice) * item.quantity;
       }
     });
@@ -243,18 +243,20 @@ const RegisterMain: React.FC = () => {
                       </Table.Cell>
                       <Table.Cell className="text-right">{basketItem.quantity}</Table.Cell>
                       <Table.Cell className="text-center">
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300"
-                          onClick={(e) => {
-                            setBasketItem(basketItem);
-                            setOpenModify(true);
-                          }}
-                        >
-                          <Icon name="pencil-alt" />
-                        </Button>
+                        {basketItem.product.code ? (
+                          <Button
+                            variant="icon"
+                            size="xs"
+                            color="none"
+                            className="hover:bg-gray-300"
+                            onClick={(e) => {
+                              setBasketItem(basketItem);
+                              setOpenModify(true);
+                            }}
+                          >
+                            <Icon name="pencil-alt" />
+                          </Button>
+                        ) : null}
                         <Button
                           variant="icon"
                           size="xs"

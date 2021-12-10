@@ -52,9 +52,9 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
               costPrice: null,
               sellingPrice: discountPrice,
               stockTaxClass: null,
-              sellingTaxClass: null,
+              sellingTaxClass: basketItem.product.sellingTaxClass,
               stockTax: null,
-              sellingTax: null,
+              sellingTax: basketItem.product.sellingTax,
               selfMedication: false,
               supplierRef: null,
               categoryRef: null,
@@ -62,7 +62,12 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
             },
             quantity: 1,
           };
-          basketItems.splice(existingIndex + 1, 0, discountItem);
+
+          if (basketItems[existingIndex + 1] && !basketItems[existingIndex + 1].product.code) {
+            basketItems.splice(existingIndex + 1, 1, discountItem);
+          } else {
+            basketItems.splice(existingIndex + 1, 0, discountItem);
+          }
         }
         setBasketItems([...basketItems]);
       }

@@ -199,8 +199,10 @@ const ReceiptList: React.FC = () => {
                     {saleDetail.product.sellingTax === 8 ? '軽' : ''}
                   </Table.Cell>
                   <Table.Cell>{saleDetail.product.name}</Table.Cell>
-                  <Table.Cell className="text-right">{saleDetail.quantity}</Table.Cell>
-                  <Table.Cell className="text-right">¥{saleDetail.product.sellingPrice?.toLocaleString()}</Table.Cell>
+                  <Table.Cell className="text-right">{saleDetail.product.code ? saleDetail.quantity : null}</Table.Cell>
+                  <Table.Cell className="text-right">
+                    {saleDetail.product.code ? `¥${saleDetail.product.sellingPrice?.toLocaleString()}` : null}
+                  </Table.Cell>
                   <Table.Cell className="text-right">
                     ¥{(Number(saleDetail.product.sellingPrice) * saleDetail.quantity)?.toLocaleString()}
                   </Table.Cell>
