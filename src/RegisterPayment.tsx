@@ -48,6 +48,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
       const saleRef = doc(collection(db, 'sales'));
       transaction.set(saleRef, sale);
 
+      let discountTotal = 0;
       basketItems.map((item, index) => {
         const detail: SaleDetail = {
           salesId: saleRef.id,
@@ -59,6 +60,12 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
         };
         const detailRef = doc(collection(db, 'sales', saleRef.id, 'saleDetails'), index.toString());
         transaction.set(detailRef, detail);
+        if (!item.product.code && item.product.sellingPrice) {
+          const prevDetailRef = doc(collection(db, 'sales', saleRef.id, 'saleDetails'), (index - 1).toString());
+          transaction.update(prevDetailRef, { discount: -item.product.sellingPrice });
+          discountTotal += -item.product.sellingPrice;
+        }
+        transaction.update(saleRef, { discountTotal });
       });
     });
   };
@@ -128,7 +135,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
                     id="inputCash"
                     placeholder="金額"
                     value={cash.toString()}
-                    onChange={(e) => setCash(Number(e.target.value.replace(/\D/, '')))}
+                    onChange={(e) => setCash(Number(e.target.value.replace(/\D/, '')) || 0)}
                     onKeyPress={(e) => {
                       if (e.key === 'Enter' && handlePrint) {
                         e.preventDefault();

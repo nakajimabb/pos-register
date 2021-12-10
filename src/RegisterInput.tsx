@@ -77,7 +77,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
                     id="inputPrice"
                     placeholder="金額"
                     value={price.toString()}
-                    onChange={(e) => setPrice(Number(e.target.value.replace(/\D/, '')))}
+                    onChange={(e) => setPrice(Number(e.target.value.replace(/\D/, '')) || 0)}
                     className="text-right w-full"
                   />
                 </Form>

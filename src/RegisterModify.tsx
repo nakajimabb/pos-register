@@ -101,7 +101,7 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
                     id="inputQuantity"
                     placeholder="数量"
                     value={quantity.toString()}
-                    onChange={(e) => setQuantity(Number(e.target.value.replace(/\D/, '')))}
+                    onChange={(e) => setQuantity(Number(e.target.value.replace(/\D/, '')) || 0)}
                     className="text-right w-full"
                   />
                 </Form>
@@ -115,7 +115,7 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
                     id="inputDiscount"
                     placeholder="値引き(金額)"
                     value={discount.toString()}
-                    onChange={(e) => setDiscount(Number(e.target.value.replace(/\D/, '')))}
+                    onChange={(e) => setDiscount(Number(e.target.value.replace(/\D/, '')) || 0)}
                     className="text-right w-full"
                   />
                 </Form>
@@ -129,7 +129,7 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
                     id="inputRate"
                     placeholder="値引き(%)"
                     value={rate.toString()}
-                    onChange={(e) => setRate(Number(e.target.value.replace(/\D/, '')))}
+                    onChange={(e) => setRate(Number(e.target.value.replace(/\D/, '')) || 0)}
                     className="text-right w-full"
                   />
                 </Form>

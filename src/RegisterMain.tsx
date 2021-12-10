@@ -374,6 +374,7 @@ const RegisterMain: React.FC = () => {
                       size="xs"
                       color={shortcut ? (shortcut.color as Brand) : 'info'}
                       className="h-14 truncate"
+                      disabled={!shortcut}
                       onClick={(e) => {
                         if (shortcut) {
                           const existingIndex = basketItems.findIndex(
