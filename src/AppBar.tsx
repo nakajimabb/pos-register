@@ -57,6 +57,7 @@ const AppBar: React.FC = () => {
           className="mx-2"
         >
           <Dropdown.Item title="商品マスタ(共通)" to="/products" />
+          <Dropdown.Item title="店舗原価マスタ" to="/product_cost_prices" />
           <Dropdown.Item title="商品マスタ(共通)取込" to="/import_products" />
           <Dropdown.Item title="商品マスタ(店舗)取込" to="/import_shop_products" />
           <Dropdown.Item title="商品カテゴリ" to="/product_categories" />

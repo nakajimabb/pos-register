@@ -35,7 +35,7 @@ export type Product = {
   categoryRef: DocumentReference<ProductCategory> | null;
 };
 
-export type productCostPrice = {
+export type ProductCostPrice = {
   code: string; // JANコード
   name: string;
   shopCode: string; // 店舗コード
@@ -43,7 +43,7 @@ export type productCostPrice = {
   supplierRef: DocumentReference<Supplier> | null;
 };
 
-export type productSellingPrice = {
+export type ProductSellingPrice = {
   code: string; // JANコード
   name: string;
   shopCode: string; // 店舗コード

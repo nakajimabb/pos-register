@@ -111,7 +111,7 @@ export const hiraToKana = (str: string) => {
 export const checkDigit = (str: string) => {
   if (str.match(/^\d{8}$|^\d{13}$/)) {
     const jan = str.padStart(13, '0'); // 13桁
-    const nums = Array.from(str)
+    const nums = Array.from(jan)
       .reverse()
       .map((i) => +i); // 逆順にして、数値の配列に変換
     const sum_evens = nums.filter((_, i) => i % 2 === 1).reduce((sum, i) => sum + i); // 偶数の桁の数字の和
