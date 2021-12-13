@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Form, Modal, Table } from './components';
-import { Product } from './types';
+import { Product, RegisterItem } from './types';
 
 type BasketItem = {
   product: Product;
   quantity: number;
-};
-
-type RegisterItem = {
-  code: string;
-  name: string;
 };
 
 type Props = {
@@ -44,9 +39,9 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
             costPrice: null,
             sellingPrice: price,
             stockTaxClass: null,
-            sellingTaxClass: null,
+            sellingTaxClass: registerItem.taxClass,
             stockTax: null,
-            sellingTax: null,
+            sellingTax: registerItem.tax,
             selfMedication: false,
             supplierRef: null,
             categoryRef: null,
@@ -64,7 +59,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
   return (
     <Modal open={open && !!registerItem} size="none" onClose={onClose} className="w-1/3">
       <Modal.Header centered={false} onClose={onClose}>
-        {`${registerItem?.code}. ${registerItem?.name}`}
+        {`${registerItem?.index}. ${registerItem?.name}`}
       </Modal.Header>
       <Modal.Body>
         <Table border="row" className="table-fixed w-full">

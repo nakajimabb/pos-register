@@ -8,7 +8,7 @@ import RegisterPayment from './RegisterPayment';
 import RegisterInput from './RegisterInput';
 import RegisterModify from './RegisterModify';
 import RegisterSearch from './RegisterSearch';
-import { Product, ShortcutItem } from './types';
+import { Product, RegisterItem, ShortcutItem } from './types';
 
 const db = getFirestore();
 
@@ -22,11 +22,6 @@ const RegisterMain: React.FC = () => {
     index: number;
     color: String;
     product: Product;
-  };
-
-  type RegisterItem = {
-    code: string;
-    name: string;
   };
 
   const [productCode, setProductCode] = useState<string>('');
@@ -74,13 +69,7 @@ const RegisterMain: React.FC = () => {
     }
   };
 
-  const calcTotal = (items: BasketItem[]) => {
-    return (
-      items.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) + calcTax(items)
-    );
-  };
-
-  const calcTax = (items: BasketItem[]) => {
+  const taxTotal = ((items: BasketItem[]) => {
     let normalTaxTotal = 0;
     let reducedTaxTotal = 0;
     items.forEach((item) => {
@@ -91,7 +80,10 @@ const RegisterMain: React.FC = () => {
       }
     });
     return Math.floor(normalTaxTotal * 0.1 + reducedTaxTotal * 0.08);
-  };
+  })(basketItems);
+
+  const salesTotal =
+    basketItems.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) + taxTotal;
 
   useEffect(() => {
     const unsubRegisterItems = onSnapshot(collection(db, 'registerItems'), async (snapshot) => {
@@ -282,15 +274,13 @@ const RegisterMain: React.FC = () => {
                     <Table.Cell type="th" className="text-xl bg-red-100">
                       合計
                     </Table.Cell>
-                    <Table.Cell className="text-right text-xl pr-4">
-                      ¥{calcTotal(basketItems).toLocaleString()}
-                    </Table.Cell>
+                    <Table.Cell className="text-right text-xl pr-4">¥{salesTotal.toLocaleString()}</Table.Cell>
                   </Table.Row>
                   <Table.Row>
                     <Table.Cell type="th" className="bg-red-100">
                       消費税
                     </Table.Cell>
-                    <Table.Cell className="text-right pr-4">¥{calcTax(basketItems).toLocaleString()}</Table.Cell>
+                    <Table.Cell className="text-right pr-4">¥{taxTotal.toLocaleString()}</Table.Cell>
                   </Table.Row>
                 </Table.Body>
               </Table>
@@ -342,7 +332,7 @@ const RegisterMain: React.FC = () => {
                       }}
                       key={index}
                     >
-                      {`${registerItem.code}. ${registerItem.name}`}
+                      {`${registerItem.index}. ${registerItem.name}`}
                     </Button>
                   ))}
                 </Grid>

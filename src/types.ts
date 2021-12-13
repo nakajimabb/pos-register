@@ -62,6 +62,14 @@ export type Supplier = {
   name: string;
 };
 
+export type RegisterItem = {
+  index: number;
+  code: string;
+  name: string;
+  taxClass: TaxClass | null;
+  tax: number | null;
+};
+
 export type ShortcutItem = {
   index: number;
   color: String;
@@ -78,9 +86,9 @@ export type Sale = {
   paymentType: 'Cash' | 'Credit';
   cashAmount: number;
   salesNormalTotal: number;
-  salesReductionTotal: number;
+  salesReducedTotal: number;
   taxNormalTotal: number;
-  taxReductionTotal: number;
+  taxReducedTotal: number;
   status: 'Sales' | 'Cancel' | 'PartialCancel' | 'Return' | 'PartialReturn';
 };
 
