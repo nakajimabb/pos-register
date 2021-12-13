@@ -229,8 +229,8 @@ const ReceiptList: React.FC = () => {
               </Table.Row>
               <Table.Row>
                 <Table.Cell type="th">8%対象</Table.Cell>
-                <Table.Cell className="text-right pr-4">¥{sale?.salesReductionTotal.toLocaleString()}</Table.Cell>
-                <Table.Cell>（内消費税等　¥{sale?.taxReductionTotal.toLocaleString()}）</Table.Cell>
+                <Table.Cell className="text-right pr-4">¥{sale?.salesReducedTotal.toLocaleString()}</Table.Cell>
+                <Table.Cell>（内消費税等　¥{sale?.taxReducedTotal.toLocaleString()}）</Table.Cell>
               </Table.Row>
               <Table.Row>
                 <Table.Cell type="th">10%対象</Table.Cell>
