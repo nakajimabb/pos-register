@@ -37,6 +37,7 @@ export type Product = {
 
 export type productCostPrice = {
   code: string; // JANコード
+  name: string;
   shopCode: string; // 店舗コード
   costPrice: number | null; // 売価(税抜)
   supplierRef: DocumentReference<Supplier> | null;
@@ -44,6 +45,7 @@ export type productCostPrice = {
 
 export type productSellingPrice = {
   code: string; // JANコード
+  name: string;
   shopCode: string; // 店舗コード
   sellingPrice: number | null; // 売価(税抜)
 };

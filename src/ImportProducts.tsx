@@ -172,7 +172,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
                   }
                   batch.set(
                     doc(db, 'shops', shopCode, 'costPrices', code),
-                    { code, shopCode, supplierRef, costPrice: item.costPrice },
+                    { shopCode, code, name: item.name, supplierRef, costPrice: item.costPrice },
                     { merge: true }
                   );
                   count += 1;
@@ -202,7 +202,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
                 if (item.valid && checkDigit(code) && shopCodes.includes(shopCode)) {
                   batch.set(
                     doc(db, 'shops', shopCode, 'sellingPrices', code),
-                    { code, shopCode, sellingPrice: item.sellingPrice },
+                    { shopCode, code, name: item.name, sellingPrice: item.sellingPrice },
                     { merge: true }
                   );
                   count += 1;
