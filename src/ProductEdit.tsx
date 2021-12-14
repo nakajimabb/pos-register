@@ -147,7 +147,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
   };
 
   return (
-    <Modal open={open} size="none" onClose={onClose} className="w-2/3">
+    <Modal open={open} size="none" onClose={onClose} className="w-2/3 overflow-visible">
       <Form onSubmit={save} className="space-y-2">
         <Modal.Header centered={false} onClose={onClose}>
           商品編集

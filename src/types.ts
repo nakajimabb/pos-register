@@ -36,17 +36,17 @@ export type Product = {
 };
 
 export type ProductCostPrice = {
-  code: string; // JANコード
-  name: string;
   shopCode: string; // 店舗コード
+  productCode: string; // JANコード
+  productName: string;
   costPrice: number | null; // 売価(税抜)
   supplierRef: DocumentReference<Supplier> | null;
 };
 
 export type ProductSellingPrice = {
-  code: string; // JANコード
-  name: string;
   shopCode: string; // 店舗コード
+  productCode: string; // JANコード
+  productName: string;
   sellingPrice: number | null; // 売価(税抜)
 };
 

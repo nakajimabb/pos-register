@@ -123,3 +123,10 @@ export const checkDigit = (str: string) => {
     return (10 - (sum % 10)) % 10 === nums[0]; // 合計数の下1桁の数字の補数（10から引いた数）がチェックデジット
   }
 };
+
+export const nameWithCode = (obj: { [key: string]: any }) => {
+  let result = '';
+  if ('name' in obj) result += obj['name'];
+  if ('code' in obj) result += '(' + obj['code'] + ')';
+  return result;
+};

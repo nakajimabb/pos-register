@@ -20,6 +20,7 @@ import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import ProductCostPriceEdit from './ProductCostPriceEdit';
 import { ProductCostPrice, Shop, Supplier } from './types';
+import { nameWithCode } from './tools';
 
 const db = getFirestore();
 
@@ -28,7 +29,10 @@ const ProductCostPriceList: React.FC = () => {
   const [snapshot, setSnapshot] = useState<QuerySnapshot<ProductCostPrice> | null>(null);
   const [suppliers, setSuppliers] = useState<{ id: string; supplier: Supplier }[]>([]);
   const [open, setOpen] = useState(false);
-  const [productCode, setProductCode] = useState<string | null>(null);
+  const [target, setTarget] = useState<{ shopCode: string | null; productCode: string | null }>({
+    shopCode: null,
+    productCode: null,
+  });
   const [shopOptions, setShopOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
 
@@ -44,7 +48,7 @@ const ProductCostPriceList: React.FC = () => {
     const unsubscribe = onSnapshot(collection(db, 'shops'), (snapshot) => {
       const options = snapshot.docs.map((item) => {
         const shop = item.data() as Shop;
-        return { value: item.id, label: shop.name + '(' + shop.code + ')' };
+        return { value: item.id, label: nameWithCode(shop) };
       });
       options.unshift({ label: '', value: '' });
       setShopOptions(options);
@@ -73,7 +77,7 @@ const ProductCostPriceList: React.FC = () => {
           conds.push(endAt(searchText + '\uf8ff'));
         }
       }
-      const q = query(collection(db, 'shops', search.shopCode, 'costPrices'), ...conds);
+      const q = query(collection(db, 'shops', search.shopCode, 'productCostPrices'), ...conds);
       const querySnapshot = await getDocs(q);
       setSnapshot(querySnapshot as QuerySnapshot<ProductCostPrice>);
     } catch (error) {
@@ -82,21 +86,23 @@ const ProductCostPriceList: React.FC = () => {
     }
   };
 
-  const newProduct = () => {
-    setOpen(true);
-    setProductCode(null);
+  const newProductCostPrice = (shopCode: string) => () => {
+    if (shopCode) {
+      setOpen(true);
+      setTarget({ shopCode, productCode: null });
+    }
   };
 
-  const editProduct = (code: string) => () => {
+  const editProductCostPrice = (shopCode: string, productCode: string) => () => {
     setOpen(true);
-    setProductCode(code);
+    setTarget({ shopCode, productCode });
   };
 
-  const deleteCostPrice = (productCode: string) => async () => {
+  const deleteProductCostPrice = (shopCode: string, productCode: string) => async () => {
     if (window.confirm('削除してもよろしいですか？')) {
       try {
-        if (search.shopCode) {
-          await deleteDoc(doc(db, 'shops', search.shopCode, 'costPrices', productCode));
+        if (shopCode && productCode) {
+          await deleteDoc(doc(db, 'shops', shopCode, 'productCostPrices', productCode));
           queryResults();
         }
       } catch (error) {
@@ -119,16 +125,18 @@ const ProductCostPriceList: React.FC = () => {
 
   return (
     <div className="pt-12">
-      <ProductCostPriceEdit
-        open={open}
-        productCode={productCode}
-        shopCode={search.shopCode}
-        suppliers={suppliers}
-        onClose={() => setOpen(false)}
-        onUpdate={queryResults}
-      />
+      {target.shopCode && (
+        <ProductCostPriceEdit
+          open={open}
+          shopCode={target.shopCode}
+          productCode={target.productCode}
+          suppliers={suppliers}
+          onClose={() => setOpen(false)}
+          onUpdate={queryResults}
+        />
+      )}
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">店舗原価マスタ</h1>
-      <Card className="mx-8 mb-4">
+      <Card className="mx-8 mb-4 overflow-visible">
         <Flex justify_content="between" align_items="center" className="p-4">
           <Flex>
             <Form.Text
@@ -146,7 +154,7 @@ const ProductCostPriceList: React.FC = () => {
             <Button variant="outlined" onClick={queryResults} className="mr-2">
               検索
             </Button>
-            <Button variant="outlined" className="mr-2" onClick={newProduct}>
+            <Button variant="outlined" className="mr-2" onClick={newProductCostPrice(search.shopCode)}>
               新規
             </Button>
           </Flex>
@@ -167,10 +175,14 @@ const ProductCostPriceList: React.FC = () => {
               {snapshot &&
                 snapshot.docs.map((doc, i) => {
                   const item = doc.data();
+                  const ref = doc.ref;
+                  const id = ref.id; // productCode
+                  const shopId = String(ref.parent.parent?.id); // shopCode
+
                   return (
                     <Table.Row key={i}>
-                      <Table.Cell>{item.code}</Table.Cell>
-                      <Table.Cell>{item.name}</Table.Cell>
+                      <Table.Cell>{item.productCode}</Table.Cell>
+                      <Table.Cell>{item.productName}</Table.Cell>
                       <Table.Cell className="text-right">{item.costPrice?.toLocaleString()}</Table.Cell>
                       <Table.Cell>{truncate(supplierName(item), { length: 10 })}</Table.Cell>
                       <Table.Cell>
@@ -179,7 +191,7 @@ const ProductCostPriceList: React.FC = () => {
                           size="xs"
                           color="none"
                           className="hover:bg-gray-300 "
-                          onClick={editProduct(item.code)}
+                          onClick={editProductCostPrice(shopId, id)}
                         >
                           <Icon name="pencil-alt" />
                         </Button>
@@ -188,7 +200,7 @@ const ProductCostPriceList: React.FC = () => {
                           size="xs"
                           color="none"
                           className="hover:bg-gray-300"
-                          onClick={deleteCostPrice(item.code)}
+                          onClick={deleteProductCostPrice(shopId, id)}
                         >
                           <Icon name="trash" />
                         </Button>

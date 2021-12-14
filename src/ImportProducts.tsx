@@ -171,8 +171,8 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
                     supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
                   }
                   batch.set(
-                    doc(db, 'shops', shopCode, 'costPrices', code),
-                    { shopCode, code, name: item.name, supplierRef, costPrice: item.costPrice },
+                    doc(db, 'shops', shopCode, 'productCostPrices', code),
+                    { shopCode, productCode: code, productName: item.name, supplierRef, costPrice: item.costPrice },
                     { merge: true }
                   );
                   count += 1;
@@ -201,8 +201,8 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
                 const shopCode = String(item.shopCode);
                 if (item.valid && checkDigit(code) && shopCodes.includes(shopCode)) {
                   batch.set(
-                    doc(db, 'shops', shopCode, 'sellingPrices', code),
-                    { shopCode, code, name: item.name, sellingPrice: item.sellingPrice },
+                    doc(db, 'shops', shopCode, 'productSellingPrices', code),
+                    { shopCode, productCode: code, productName: item.name, sellingPrice: item.sellingPrice },
                     { merge: true }
                   );
                   count += 1;
