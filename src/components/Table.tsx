@@ -55,7 +55,7 @@ const TableRow: React.FC<Props> = ({
       className={clsx(
         'bg-white',
         hover && 'hover:bg-opacity-10',
-        border === 'row' && 'border',
+        border === 'row' && 'border-b',
         className
       )}
     >
@@ -122,8 +122,7 @@ const Table: TableType = ({
   return (
     <table
       className={clsx(
-        'shadow-md',
-        border !== 'none' && 'border border-gray-200',
+        border === 'cell' && 'border border-gray-200 shadow-md',
         border === 'none' && 'border-none',
         className
       )}

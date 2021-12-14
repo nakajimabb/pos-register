@@ -7,6 +7,7 @@ import SignIn from './SignIn';
 import Tailwind from './Tailwind';
 import ProductList from './ProductList';
 import ProductCostPriceList from './ProductCostPriceList';
+import ProductSellingPriceList from './ProductSellingPriceList';
 import ImportProducts from './ImportProducts';
 import ImportSuppliers from './ImportSuppliers';
 import ProductCategoryList from './ProductCategoryList';
@@ -36,6 +37,7 @@ const App: React.FC = () => {
         <Route exact path="/" component={RegisterMain} />
         <Route exact path="/products" component={ProductList} />
         <Route exact path="/product_cost_prices" component={ProductCostPriceList} />
+        <Route exact path="/product_selling_prices" component={ProductSellingPriceList} />
         <Route exact path="/import_products" component={() => <ImportProducts common={true} />} />
         <Route exact path="/import_shop_products" component={() => <ImportProducts common={false} />} />
         <Route exact path="/import_suppliers" component={ImportSuppliers} />
