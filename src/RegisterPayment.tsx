@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getFirestore, doc, collection, setDoc, runTransaction, Timestamp } from 'firebase/firestore';
+import { getFirestore, doc, collection, runTransaction, Timestamp } from 'firebase/firestore';
 import { useReactToPrint } from 'react-to-print';
 import { Button, Form, Modal, Table } from './components';
-import { Product, Sale, SaleDetail } from './types';
+import { Product, Sale, SaleDetail, Stock } from './types';
 
 type BasketItem = {
   product: Product;
@@ -30,6 +30,27 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
 
   const save = async () => {
     runTransaction(db, async (transaction) => {
+      const stocks: Stock[] = [];
+      await Promise.all(
+        basketItems.map(async (item, index) => {
+          if (item.product.code) {
+            const stockRef = doc(collection(db, 'shops', '05', 'stocks'), item.product.code);
+            const stockDoc = await transaction.get(stockRef);
+            if (stockDoc.exists()) {
+              stocks[index] = stockDoc.data() as Stock;
+            } else {
+              stocks[index] = {
+                shopCode: '05',
+                productCode: item.product.code,
+                productName: item.product.name,
+                quantity: 0,
+                updatedAt: Timestamp.fromDate(new Date()),
+              };
+            }
+          }
+        })
+      );
+
       const sale: Sale = {
         code: '05',
         createdAt: Timestamp.fromDate(new Date()),
@@ -65,8 +86,10 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
           transaction.update(prevDetailRef, { discount: -item.product.sellingPrice });
           discountTotal += -item.product.sellingPrice;
         }
-        transaction.update(saleRef, { discountTotal });
+        const stockRef = doc(collection(db, 'shops', '05', 'stocks'), item.product.code);
+        transaction.set(stockRef, { ...stocks[index], quantity: stocks[index].quantity - item.quantity });
       });
+      transaction.update(saleRef, { discountTotal });
     });
   };
 

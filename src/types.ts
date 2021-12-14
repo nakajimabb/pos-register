@@ -102,7 +102,9 @@ export type SaleDetail = {
 };
 
 export type Stock = {
-  storeCode: string;
-  productRef: DocumentReference<Product>;
+  shopCode: string;
+  productCode: string;
+  productName: string;
   quantity: number;
+  updatedAt: Timestamp;
 };
