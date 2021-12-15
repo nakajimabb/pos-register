@@ -11,6 +11,7 @@ type BasketItem = {
 
 type Props = {
   open: boolean;
+  registerMode: 'Sales' | 'Return';
   paymentType: 'Cash' | 'Credit';
   basketItems: BasketItem[];
   setBasketItems: React.Dispatch<React.SetStateAction<BasketItem[]>>;
@@ -19,9 +20,17 @@ type Props = {
 
 const db = getFirestore();
 
-const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setBasketItems, onClose }) => {
+const RegisterPayment: React.FC<Props> = ({
+  open,
+  registerMode,
+  paymentType,
+  basketItems,
+  setBasketItems,
+  onClose,
+}) => {
   const [cash, setCash] = useState<number>(0);
   const componentRef = useRef(null);
+  const registerSign = registerMode === 'Return' ? -1 : 1;
   const pageStyle = `
     @media print {
       @page { size: JIS-B5 portrait; }
@@ -30,6 +39,8 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
 
   const save = async () => {
     runTransaction(db, async (transaction) => {
+      const countDoc = await transaction.get(doc(db, 'counters', 'sales'));
+      const receiptNumber = countDoc.exists() ? Number(countDoc.data().next) : 0;
       const stocks: Stock[] = [];
       await Promise.all(
         basketItems.map(async (item, index) => {
@@ -52,6 +63,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
       );
 
       const sale: Sale = {
+        receiptNumber,
         code: '05',
         createdAt: Timestamp.fromDate(new Date()),
         detailsCount: basketItems.filter((item) => !!item.product.code).length,
@@ -64,7 +76,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
         salesReducedTotal: priceReducedTotal + taxReducedTotal,
         taxNormalTotal,
         taxReducedTotal,
-        status: 'Sales',
+        status: registerMode,
       };
       const saleRef = doc(collection(db, 'sales'));
       transaction.set(saleRef, sale);
@@ -77,7 +89,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
           product: item.product,
           quantity: item.quantity,
           discount: 0,
-          status: 'Sales',
+          status: registerMode,
         };
         const detailRef = doc(collection(db, 'sales', saleRef.id, 'saleDetails'), index.toString());
         transaction.set(detailRef, detail);
@@ -87,7 +99,10 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
           discountTotal += -item.product.sellingPrice;
         }
         const stockRef = doc(collection(db, 'shops', '05', 'stocks'), item.product.code);
-        transaction.set(stockRef, { ...stocks[index], quantity: stocks[index].quantity - item.quantity });
+        transaction.set(stockRef, {
+          ...stocks[index],
+          quantity: stocks[index].quantity - item.quantity * registerSign,
+        });
       });
       transaction.update(saleRef, { discountTotal });
     });
@@ -104,15 +119,19 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
   });
 
   const priceNormalTotal = ((items: BasketItem[]) => {
-    return items
-      .filter((item) => item.product.sellingTax === 10)
-      .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0);
+    return (
+      items
+        .filter((item) => item.product.sellingTax === 10)
+        .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign
+    );
   })(basketItems);
 
   const priceReducedTotal = ((items: BasketItem[]) => {
-    return items
-      .filter((item) => item.product.sellingTax === 8)
-      .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0);
+    return (
+      items
+        .filter((item) => item.product.sellingTax === 8)
+        .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign
+    );
   })(basketItems);
 
   const taxNormalTotal = Math.floor(priceNormalTotal * 0.1);
@@ -120,32 +139,38 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
 
   const salesTotal = ((items: BasketItem[]) => {
     return (
-      items.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) +
+      items.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign +
       taxReducedTotal +
       taxNormalTotal
     );
   })(basketItems);
 
   useEffect(() => {
-    setCash(paymentType === 'Cash' ? 0 : salesTotal);
-    document.getElementById('inputCash')?.focus(); //非推奨
+    if (registerMode === 'Return') {
+      setCash(-salesTotal);
+    } else {
+      setCash(paymentType === 'Cash' ? 0 : salesTotal);
+    }
+    const inputCash = document.getElementById('inputCash') as HTMLInputElement;
+    inputCash?.focus();
+    inputCash?.select();
   }, [open]);
 
   return (
     <Modal open={open} size="none" onClose={onClose} className="w-1/3">
       <Modal.Header centered={false} onClose={onClose}>
-        お会計
+        {registerMode === 'Return' ? '返品' : 'お会計'}
       </Modal.Header>
       <Modal.Body>
         <Table border="row" className="table-fixed w-full">
           <Table.Body>
             <Table.Row>
               <Table.Cell type="th" className="text-xl bg-red-100">
-                合計
+                {registerMode === 'Return' ? 'ご返金' : '合計'}
               </Table.Cell>
               <Table.Cell className="text-right text-xl pr-4">¥{salesTotal.toLocaleString()}</Table.Cell>
             </Table.Row>
-            <Table.Row>
+            <Table.Row className={registerMode === 'Return' ? 'hidden' : ''}>
               <Table.Cell type="th">お預かり</Table.Cell>
               <Table.Cell>
                 <Form onSubmit={handlePrint} className="space-y-2">
@@ -165,9 +190,11 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
                 </Form>
               </Table.Cell>
             </Table.Row>
-            <Table.Row>
+            <Table.Row className={registerMode === 'Return' ? 'hidden' : ''}>
               <Table.Cell type="th">お釣り</Table.Cell>
-              <Table.Cell className="text-right pr-4">¥{(cash - salesTotal).toLocaleString()}</Table.Cell>
+              <Table.Cell className="text-right pr-4">
+                ¥{cash < salesTotal ? '0' : (cash - salesTotal).toLocaleString()}
+              </Table.Cell>
             </Table.Row>
           </Table.Body>
         </Table>
@@ -175,8 +202,8 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
         {/* 領収書 */}
         <div className="hidden">
           <div ref={componentRef} className="p-10">
-            <p className="text-center text-lg m-2">領収書</p>
-            <Table border="cell" className="table-fixed w-full text-sm">
+            <p className="text-center text-xl font-bold m-2">{registerMode === 'Return' ? '返品' : '領収書'}</p>
+            <Table border="cell" className="table-fixed w-full text-sm shadow-none">
               <Table.Head>
                 <Table.Row>
                   <Table.Cell type="th" className="w-1/12" />
@@ -216,7 +243,7 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
               </Table.Body>
             </Table>
 
-            <Table border="none" className="table-fixed w-2/3 mt-4 shadow-none ml-72">
+            <Table border="none" size="sm" className="table-fixed w-1/2 mt-4 shadow-none ml-96">
               <Table.Head>
                 <Table.Row>
                   <Table.Cell type="th" className="w-3/12" />
@@ -226,8 +253,8 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
               </Table.Head>
               <Table.Body>
                 <Table.Row>
-                  <Table.Cell type="th" className="text-xl">
-                    合計
+                  <Table.Cell type="th" className="text-lg">
+                    {registerMode === 'Return' ? 'ご返金' : '合計'}
                   </Table.Cell>
                   <Table.Cell className="text-right text-xl pr-4">¥{salesTotal.toLocaleString()}</Table.Cell>
                   <Table.Cell></Table.Cell>
@@ -235,27 +262,33 @@ const RegisterPayment: React.FC<Props> = ({ open, paymentType, basketItems, setB
                 <Table.Row>
                   <Table.Cell type="th">8%対象</Table.Cell>
                   <Table.Cell className="text-right pr-4">
-                    ¥{(priceReducedTotal + taxReducedTotal).toLocaleString()}
+                    ¥{(priceReducedTotal + taxReducedTotal + 0).toLocaleString()}
                   </Table.Cell>
-                  <Table.Cell>（内消費税等　¥{taxReducedTotal.toLocaleString()}）</Table.Cell>
+                  <Table.Cell>（内消費税等　¥{(taxReducedTotal + 0).toLocaleString()}）</Table.Cell>
                 </Table.Row>
                 <Table.Row>
                   <Table.Cell type="th">10%対象</Table.Cell>
                   <Table.Cell className="text-right pr-4">
-                    ¥{(priceNormalTotal + taxNormalTotal).toLocaleString()}
+                    ¥{(priceNormalTotal + taxNormalTotal + 0).toLocaleString()}
                   </Table.Cell>
-                  <Table.Cell>（内消費税等　¥{taxNormalTotal.toLocaleString()}）</Table.Cell>
+                  <Table.Cell>（内消費税等　¥{(taxNormalTotal + 0).toLocaleString()}）</Table.Cell>
                 </Table.Row>
-                <Table.Row>
-                  <Table.Cell type="th">お預かり</Table.Cell>
-                  <Table.Cell className="text-right pr-4">¥{cash.toLocaleString()}</Table.Cell>
-                  <Table.Cell></Table.Cell>
-                </Table.Row>
-                <Table.Row>
-                  <Table.Cell type="th">お釣り</Table.Cell>
-                  <Table.Cell className="text-right pr-4">¥{(cash - salesTotal).toLocaleString()}</Table.Cell>
-                  <Table.Cell></Table.Cell>
-                </Table.Row>
+                {registerMode === 'Return' ? null : (
+                  <Table.Row>
+                    <Table.Cell type="th">お預かり</Table.Cell>
+                    <Table.Cell className="text-right pr-4">¥{cash.toLocaleString()}</Table.Cell>
+                    <Table.Cell></Table.Cell>
+                  </Table.Row>
+                )}
+                {registerMode === 'Return' ? null : (
+                  <Table.Row>
+                    <Table.Cell type="th">お釣り</Table.Cell>
+                    <Table.Cell className="text-right pr-4">
+                      ¥{cash < salesTotal ? '0' : (cash - salesTotal).toLocaleString()}
+                    </Table.Cell>
+                    <Table.Cell></Table.Cell>
+                  </Table.Row>
+                )}
               </Table.Body>
             </Table>
           </div>

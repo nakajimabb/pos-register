@@ -165,3 +165,17 @@ export const updateSupplierCounts = functions
     }
     return;
   });
+
+export const updateSaleCounts = functions
+  .region('asia-northeast1')
+  .firestore.document('sales/{docId}')
+  .onWrite((change) => {
+    const FieldValue = admin.firestore.FieldValue;
+    const countsRef = db.collection('counters').doc('sales');
+
+    if (!change.before.exists) {
+      // 登録時に件数をインクリメント
+      return countsRef.update({ next: FieldValue.increment(1) });
+    }
+    return;
+  });

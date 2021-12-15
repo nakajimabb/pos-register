@@ -36,6 +36,7 @@ const RegisterMain: React.FC = () => {
   const [openSearch, setOpenSearch] = useState<boolean>(false);
   const [registerMode, setRegisterMode] = useState<'Sales' | 'Return'>('Sales');
   const [paymentType, setPaymentType] = useState<'Cash' | 'Credit'>('Cash');
+  const registerSign = registerMode === 'Return' ? -1 : 1;
 
   const findProduct = async (code: string) => {
     try {
@@ -79,11 +80,12 @@ const RegisterMain: React.FC = () => {
         reducedTaxTotal += Number(item.product.sellingPrice) * item.quantity;
       }
     });
-    return Math.floor(normalTaxTotal * 0.1 + reducedTaxTotal * 0.08);
+    return Math.floor(normalTaxTotal * 0.1 + reducedTaxTotal * 0.08) * registerSign;
   })(basketItems);
 
   const salesTotal =
-    basketItems.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) + taxTotal;
+    basketItems.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign +
+    taxTotal;
 
   useEffect(() => {
     const unsubRegisterItems = onSnapshot(collection(db, 'registerItems'), async (snapshot) => {
@@ -128,6 +130,7 @@ const RegisterMain: React.FC = () => {
     <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
       <RegisterPayment
         open={openPayment}
+        registerMode={registerMode}
         paymentType={paymentType}
         basketItems={basketItems}
         setBasketItems={setBasketItems}
@@ -268,19 +271,19 @@ const RegisterMain: React.FC = () => {
             </div>
 
             <Flex className="mt-4">
-              <Table border="row" className="table-fixed w-3/5">
+              <Table border="cell" className="table-fixed w-3/5">
                 <Table.Body>
                   <Table.Row>
                     <Table.Cell type="th" className="text-xl bg-red-100">
-                      合計
+                      {registerMode === 'Return' ? '返品合計' : '合計'}
                     </Table.Cell>
-                    <Table.Cell className="text-right text-xl pr-4">¥{salesTotal.toLocaleString()}</Table.Cell>
+                    <Table.Cell className="text-right text-xl pr-4">¥{(salesTotal + 0).toLocaleString()}</Table.Cell>
                   </Table.Row>
                   <Table.Row>
                     <Table.Cell type="th" className="bg-red-100">
                       消費税
                     </Table.Cell>
-                    <Table.Cell className="text-right pr-4">¥{taxTotal.toLocaleString()}</Table.Cell>
+                    <Table.Cell className="text-right pr-4">¥{(taxTotal + 0).toLocaleString()}</Table.Cell>
                   </Table.Row>
                 </Table.Body>
               </Table>

@@ -77,6 +77,7 @@ export type ShortcutItem = {
 };
 
 export type Sale = {
+  receiptNumber: number;
   code: string;
   createdAt: Timestamp;
   detailsCount: number;

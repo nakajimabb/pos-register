@@ -18,7 +18,9 @@ type Props = {
 const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBasketItems, onClose }) => {
   const [price, setPrice] = useState<number>(0);
   useEffect(() => {
-    document.getElementById('inputPrice')?.focus(); //非推奨
+    const inputPrice = document.getElementById('inputPrice') as HTMLInputElement;
+    inputPrice?.focus();
+    inputPrice?.select();
   }, [open]);
 
   const save = (e: React.FormEvent) => {

@@ -23,8 +23,8 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
   useEffect(() => {
     setQuantity(Number(basketItem?.quantity));
     const inputQuantity = document.getElementById('inputQuantity') as HTMLInputElement;
-    inputQuantity?.focus(); //非推奨
-    inputQuantity?.select(); //非推奨
+    inputQuantity?.focus();
+    inputQuantity?.select();
   }, [open, basketItem]);
 
   const save = (e: React.FormEvent) => {

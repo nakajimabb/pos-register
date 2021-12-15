@@ -108,7 +108,8 @@ const ReceiptList: React.FC = () => {
                   <Table.Cell type="th" className="w-1/12">
                     No.
                   </Table.Cell>
-                  <Table.Cell type="th" className="w-3/12">
+                  <Table.Cell type="th" className="w-1/12" />
+                  <Table.Cell type="th" className="w-2/12">
                     時間
                   </Table.Cell>
                   <Table.Cell type="th" className="w-2/12">
@@ -130,6 +131,7 @@ const ReceiptList: React.FC = () => {
                     return (
                       <Table.Row className="hover:bg-gray-300" key={index}>
                         <Table.Cell>{index + 1}</Table.Cell>
+                        <Table.Cell>{saleData?.status === 'Return' ? '返品' : ''}</Table.Cell>
                         <Table.Cell className="truncate">{`${saleData.createdAt
                           ?.toDate()
                           .toLocaleDateString()} ${saleData.createdAt?.toDate().toLocaleTimeString()}`}</Table.Cell>
@@ -172,8 +174,8 @@ const ReceiptList: React.FC = () => {
       {/* 領収書 */}
       <div className="hidden">
         <div ref={componentRef} className="p-10">
-          <p className="text-center text-lg m-2">領収書</p>
-          <Table border="cell" className="table-fixed w-full text-sm">
+          <p className="text-center text-xl font-bold m-2">{sale?.status === 'Return' ? '返品' : '領収書'}</p>
+          <Table border="cell" className="table-fixed w-full text-sm shadow-none">
             <Table.Head>
               <Table.Row>
                 <Table.Cell type="th" className="w-1/12" />
@@ -211,7 +213,7 @@ const ReceiptList: React.FC = () => {
             </Table.Body>
           </Table>
 
-          <Table border="none" className="table-fixed w-2/3 mt-4 shadow-none ml-72">
+          <Table border="none" size="sm" className="table-fixed w-1/2 mt-4 shadow-none ml-96">
             <Table.Head>
               <Table.Row>
                 <Table.Cell type="th" className="w-3/12" />
@@ -221,34 +223,42 @@ const ReceiptList: React.FC = () => {
             </Table.Head>
             <Table.Body>
               <Table.Row>
-                <Table.Cell type="th" className="text-xl">
-                  合計
+                <Table.Cell type="th" className="text-lg">
+                  {sale?.status === 'Return' ? 'ご返金' : '合計'}
                 </Table.Cell>
                 <Table.Cell className="text-right text-xl pr-4">¥{sale?.salesTotal.toLocaleString()}</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
               <Table.Row>
                 <Table.Cell type="th">8%対象</Table.Cell>
-                <Table.Cell className="text-right pr-4">¥{sale?.salesReducedTotal.toLocaleString()}</Table.Cell>
-                <Table.Cell>（内消費税等　¥{sale?.taxReducedTotal.toLocaleString()}）</Table.Cell>
+                <Table.Cell className="text-right pr-4">
+                  ¥{(Number(sale?.salesReducedTotal) + 0).toLocaleString()}
+                </Table.Cell>
+                <Table.Cell>（内消費税等　¥{(Number(sale?.taxReducedTotal) + 0).toLocaleString()}）</Table.Cell>
               </Table.Row>
               <Table.Row>
                 <Table.Cell type="th">10%対象</Table.Cell>
-                <Table.Cell className="text-right pr-4">¥{sale?.salesNormalTotal.toLocaleString()}</Table.Cell>
-                <Table.Cell>（内消費税等　¥{sale?.taxNormalTotal.toLocaleString()}）</Table.Cell>
-              </Table.Row>
-              <Table.Row>
-                <Table.Cell type="th">お預かり</Table.Cell>
-                <Table.Cell className="text-right pr-4">¥{sale?.cashAmount.toLocaleString()}</Table.Cell>
-                <Table.Cell></Table.Cell>
-              </Table.Row>
-              <Table.Row>
-                <Table.Cell type="th">お釣り</Table.Cell>
                 <Table.Cell className="text-right pr-4">
-                  ¥{(Number(sale?.cashAmount) - Number(sale?.salesTotal)).toLocaleString()}
+                  ¥{(Number(sale?.salesNormalTotal) + 0).toLocaleString()}
                 </Table.Cell>
-                <Table.Cell></Table.Cell>
+                <Table.Cell>（内消費税等　¥{(Number(sale?.taxNormalTotal) + 0).toLocaleString()}）</Table.Cell>
               </Table.Row>
+              {sale?.status === 'Return' ? null : (
+                <Table.Row>
+                  <Table.Cell type="th">お預かり</Table.Cell>
+                  <Table.Cell className="text-right pr-4">¥{sale?.cashAmount.toLocaleString()}</Table.Cell>
+                  <Table.Cell></Table.Cell>
+                </Table.Row>
+              )}
+              {sale?.status === 'Return' ? null : (
+                <Table.Row>
+                  <Table.Cell type="th">お釣り</Table.Cell>
+                  <Table.Cell className="text-right pr-4">
+                    ¥{(Number(sale?.cashAmount) - Number(sale?.salesTotal)).toLocaleString()}
+                  </Table.Cell>
+                  <Table.Cell></Table.Cell>
+                </Table.Row>
+              )}
             </Table.Body>
           </Table>
         </div>
