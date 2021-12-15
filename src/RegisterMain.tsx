@@ -20,7 +20,7 @@ const RegisterMain: React.FC = () => {
 
   type Shortcut = {
     index: number;
-    color: String;
+    color: string;
     product: Product;
   };
 

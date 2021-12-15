@@ -72,7 +72,7 @@ export type RegisterItem = {
 
 export type ShortcutItem = {
   index: number;
-  color: String;
+  color: string;
   productRef: DocumentReference<Product>;
 };
 
