@@ -124,12 +124,13 @@ export const updateShopCounts = functions
 
     if (!change.before.exists) {
       // 登録時に件数をインクリメント
-      return countsRef.update({ all: FieldValue.increment(1) });
+      return countsRef.update({ all: FieldValue.increment(1), lastUpdatedAt: FieldValue.serverTimestamp() });
     } else if (change.before.exists && !change.after.exists) {
       // 削除時に件数をデクリメント
-      return countsRef.update({ all: FieldValue.increment(-1) });
+      return countsRef.update({ all: FieldValue.increment(-1), lastUpdatedAt: FieldValue.serverTimestamp() });
+    } else {
+      return countsRef.update({ lastUpdatedAt: FieldValue.serverTimestamp() });
     }
-    return;
   });
 
 export const updateProductCounts = functions
@@ -141,12 +142,13 @@ export const updateProductCounts = functions
 
     if (!change.before.exists) {
       // 登録時に件数をインクリメント
-      return countsRef.update({ all: FieldValue.increment(1) });
+      return countsRef.update({ all: FieldValue.increment(1), lastUpdatedAt: FieldValue.serverTimestamp() });
     } else if (change.before.exists && !change.after.exists) {
       // 削除時に件数をデクリメント
-      return countsRef.update({ all: FieldValue.increment(-1) });
+      return countsRef.update({ all: FieldValue.increment(-1), lastUpdatedAt: FieldValue.serverTimestamp() });
+    } else {
+      return countsRef.update({ lastUpdatedAt: FieldValue.serverTimestamp() });
     }
-    return;
   });
 
 export const updateSupplierCounts = functions
@@ -158,12 +160,13 @@ export const updateSupplierCounts = functions
 
     if (!change.before.exists) {
       // 登録時に件数をインクリメント
-      return countsRef.update({ all: FieldValue.increment(1) });
+      return countsRef.update({ all: FieldValue.increment(1), lastUpdatedAt: FieldValue.serverTimestamp() });
     } else if (change.before.exists && !change.after.exists) {
       // 削除時に件数をデクリメント
-      return countsRef.update({ all: FieldValue.increment(-1) });
+      return countsRef.update({ all: FieldValue.increment(-1), lastUpdatedAt: FieldValue.serverTimestamp() });
+    } else {
+      return countsRef.update({ lastUpdatedAt: FieldValue.serverTimestamp() });
     }
-    return;
   });
 
 export const updateSaleCounts = functions
