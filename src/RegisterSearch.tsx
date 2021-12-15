@@ -34,12 +34,12 @@ type BasketItem = {
 
 type Props = {
   open: boolean;
-  basketItems: BasketItem[];
-  setBasketItems: React.Dispatch<React.SetStateAction<BasketItem[]>>;
+  setProductCode: React.Dispatch<React.SetStateAction<string>>;
+  findProduct: (code: string) => Promise<void>;
   onClose: () => void;
 };
 
-const RegisterSearch: React.FC<Props> = ({ open, basketItems, setBasketItems, onClose }) => {
+const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, onClose }) => {
   const [search, setSearch] = useState({ text: '', categoryId: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Product> | null>(null);
   const [page, setPage] = useState(0);
@@ -136,6 +136,7 @@ const RegisterSearch: React.FC<Props> = ({ open, basketItems, setBasketItems, on
       setCategoryOptions(options);
     });
     document.getElementById('searchText')?.focus();
+    queryProducts('head')();
     return () => unsubscribe();
   }, [open]);
 
@@ -145,7 +146,7 @@ const RegisterSearch: React.FC<Props> = ({ open, basketItems, setBasketItems, on
         商品検索
       </Modal.Header>
       <Modal.Body>
-        <Card className="mx-8 mb-4">
+        <Card className="mx-8 mb-2">
           <Flex justify_content="between" align_items="center" className="p-4">
             <Flex>
               <Form onSubmit={handleSubmit}>
@@ -201,10 +202,10 @@ const RegisterSearch: React.FC<Props> = ({ open, basketItems, setBasketItems, on
           </Flex>
           <Card.Body className="p-4">
             {error && <Alert severity="error">{error}</Alert>}
-            <div className="overflow-y-scroll">
-              <Table border="row" className="table-fixed w-full text-sm">
+            <div className="overflow-y-scroll" style={{ height: '32rem' }}>
+              <Table border="row" className="table-fixed w-full text-xs">
                 <Table.Head>
-                  <Table.Row>
+                  <Table.Row size="sm">
                     <Table.Cell type="th" className="w-2/12">
                       コード
                     </Table.Cell>
@@ -222,7 +223,7 @@ const RegisterSearch: React.FC<Props> = ({ open, basketItems, setBasketItems, on
                     snapshot.docs.map((doc, i) => {
                       const product = doc.data();
                       return (
-                        <Table.Row className="hover:bg-gray-300" key={i}>
+                        <Table.Row size="sm" className="hover:bg-gray-300" key={i}>
                           <Table.Cell>{product.code}</Table.Cell>
                           <Table.Cell className="truncate">{product.name}</Table.Cell>
                           <Table.Cell className="text-right">{product.sellingPrice?.toLocaleString()}</Table.Cell>
@@ -231,19 +232,8 @@ const RegisterSearch: React.FC<Props> = ({ open, basketItems, setBasketItems, on
                               color="primary"
                               size="xs"
                               onClick={() => {
-                                const existingIndex = basketItems.findIndex(
-                                  (basketItem) => basketItem.product.code === product.code
-                                );
-                                if (existingIndex >= 0) {
-                                  basketItems[existingIndex].quantity += 1;
-                                  setBasketItems([...basketItems]);
-                                } else {
-                                  const basketItem = {
-                                    product,
-                                    quantity: 1,
-                                  };
-                                  setBasketItems([...basketItems, basketItem]);
-                                }
+                                setProductCode(product.code);
+                                findProduct(product.code);
                                 onClose();
                               }}
                             >

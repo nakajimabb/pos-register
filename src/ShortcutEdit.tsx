@@ -15,6 +15,7 @@ import {
 import { Button, Card, Flex, Form, Grid, Table } from './components';
 import { Brand, Brands } from './components/type';
 import { Product, ShortcutItem } from './types';
+import RegisterSearch from './RegisterSearch';
 
 const db = getFirestore();
 
@@ -31,6 +32,7 @@ const ShortcutEdit: React.FC = () => {
   const [productRef, setProductRef] = useState<DocumentReference<DocumentData> | null>(null);
   const [product, setProduct] = useState<Product | null>();
   const [shortcuts, setShortcuts] = useState<(Shortcut | null)[]>([]);
+  const [openSearch, setOpenSearch] = useState<boolean>(false);
 
   const { theme } = useTheme();
 
@@ -117,6 +119,15 @@ const ShortcutEdit: React.FC = () => {
     <>
       {shortcuts.length > 0 && (
         <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
+          <RegisterSearch
+            open={openSearch}
+            setProductCode={setProductCode}
+            findProduct={findProduct}
+            onClose={() => {
+              setOpenSearch(false);
+              document.getElementById('productCode')?.focus();
+            }}
+          ></RegisterSearch>
           <Card className="m-2 w-1/2">
             <Card.Header className="p-2">商品を登録する枠を選択してください。</Card.Header>
             <Card.Body className="p-2">
@@ -170,16 +181,21 @@ const ShortcutEdit: React.FC = () => {
                 <Flex className="items-center h-12">
                   <div>No. {itemIndex + 1}</div>
                   {shortcuts[itemIndex] ? null : (
-                    <Form className="m-2" onSubmit={handleSubmit}>
-                      <Form.Text
-                        id="productCode"
-                        size="md"
-                        placeholder="商品コード"
-                        className="mb-3 sm:mb-0"
-                        value={productCode}
-                        onChange={(e) => setProductCode(e.target.value.trim())}
-                      />
-                    </Form>
+                    <>
+                      <Form className="m-2" onSubmit={handleSubmit}>
+                        <Form.Text
+                          id="productCode"
+                          size="md"
+                          placeholder="商品コード"
+                          className="mb-3 sm:mb-0"
+                          value={productCode}
+                          onChange={(e) => setProductCode(e.target.value.trim())}
+                        />
+                      </Form>
+                      <Button color="light" size="xs" className="ml-4" onClick={() => setOpenSearch(true)}>
+                        商品検索
+                      </Button>
+                    </>
                   )}
                 </Flex>
                 {product ? (

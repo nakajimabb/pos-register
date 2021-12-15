@@ -158,8 +158,8 @@ const RegisterMain: React.FC = () => {
       />
       <RegisterSearch
         open={openSearch}
-        basketItems={basketItems}
-        setBasketItems={setBasketItems}
+        setProductCode={setProductCode}
+        findProduct={findProduct}
         onClose={() => {
           setOpenSearch(false);
           document.getElementById('productCode')?.focus();
