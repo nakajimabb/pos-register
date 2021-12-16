@@ -123,7 +123,7 @@ export const getSequence = functions.region('asia-northeast1').https.onCall(asyn
         const sequenceDoc = await transaction.get(sequenceRef);
         let currentNumber = 0;
         if (sequenceDoc.exists) {
-          currentNumber = sequenceDoc.data()?.next as number;
+          currentNumber = sequenceDoc.data()?.current as number;
         }
         const newNumber = currentNumber + 1;
         transaction.set(sequenceRef, { current: newNumber });

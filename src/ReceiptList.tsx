@@ -8,6 +8,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   QuerySnapshot,
   QueryConstraint,
 } from 'firebase/firestore';
@@ -17,11 +18,14 @@ import { Sale, SaleDetail } from './types';
 import firebaseError from './firebaseError';
 
 const db = getFirestore();
+const MAX_SEARCH = 50;
 
 const ReceiptList: React.FC = () => {
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Sale> | null>(null);
+  const [sales, setSales] = useState<[Sale, string][]>();
   const [sale, setSale] = useState<Sale>();
   const [saleDetails, setSaleDetails] = useState<SaleDetail[]>([]);
+  const [productNames, setProductNames] = useState<string[]>([]);
   const [dateTimeFrom, setDateTimeFrom] = useState<Date>();
   const [dateTimeTo, setDateTimeTo] = useState<Date>();
   const [error, setError] = useState<string>('');
@@ -39,9 +43,26 @@ const ReceiptList: React.FC = () => {
         conds.push(where('createdAt', '<=', dateTimeTo));
       }
       conds.push(orderBy('createdAt'));
+      conds.push(limit(MAX_SEARCH));
       const q = query(collection(db, 'sales'), ...conds);
       const querySnapshot = await getDocs(q);
       setSnapshot(querySnapshot as QuerySnapshot<Sale>);
+      const salesData = new Array<[Sale, string]>();
+      await Promise.all(
+        querySnapshot.docs.map(async (doc) => {
+          const detailsSnapshot = await getDocs(collection(db, 'sales', doc.id, 'saleDetails'));
+          salesData.push([
+            doc.data() as Sale,
+            detailsSnapshot.docs
+              .map((detailDoc) => {
+                const detail = detailDoc.data() as SaleDetail;
+                return detail.product.name;
+              })
+              .join('、'),
+          ]);
+        })
+      );
+      setSales(salesData);
     } catch (error) {
       console.log({ error });
       setError(firebaseError(error));
@@ -125,9 +146,10 @@ const ReceiptList: React.FC = () => {
                 </Table.Row>
               </Table.Head>
               <Table.Body>
-                {snapshot &&
-                  snapshot.docs.map((doc, index) => {
-                    const saleData = doc.data();
+                {sales &&
+                  sales.map((data, index) => {
+                    const [saleData, productName] = data;
+                    console.log(productName);
                     return (
                       <Table.Row className="hover:bg-gray-300" key={index}>
                         <Table.Cell>{index + 1}</Table.Cell>
@@ -137,16 +159,18 @@ const ReceiptList: React.FC = () => {
                           .toLocaleDateString()} ${saleData.createdAt?.toDate().toLocaleTimeString()}`}</Table.Cell>
                         <Table.Cell className="text-right">{saleData.salesTotal?.toLocaleString()}</Table.Cell>
                         <Table.Cell className="text-right">{saleData.detailsCount?.toLocaleString()}</Table.Cell>
-                        <Table.Cell className="text-right"></Table.Cell>
+                        <Table.Cell className="truncate">{productName}</Table.Cell>
                         <Table.Cell>
                           <Button
                             color="primary"
                             size="xs"
                             onClick={async () => {
                               setSale(saleData);
-                              const querySnapshot = await getDocs(collection(db, 'sales', doc.id, 'saleDetails'));
+                              const querySnapshot = await getDocs(
+                                collection(db, 'sales', saleData.receiptNumber.toString(), 'saleDetails')
+                              );
                               const details: Array<SaleDetail> = [];
-                              querySnapshot.docs.map((doc, index) => {
+                              querySnapshot.docs.map((doc) => {
                                 details.push(doc.data() as SaleDetail);
                               });
                               setSaleDetails(details);
