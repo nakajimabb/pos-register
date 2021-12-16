@@ -115,6 +115,28 @@ export const updateShopsFromKKb = functions
     return await f();
   });
 
+export const getSequence = functions.region('asia-northeast1').https.onCall(async (data) => {
+  const f = async () => {
+    try {
+      const nextNumber = await db.runTransaction(async (transaction) => {
+        const sequenceRef = db.collection('sequences').doc(data.docId);
+        const sequenceDoc = await transaction.get(sequenceRef);
+        let currentNumber = 0;
+        if (sequenceDoc.exists) {
+          currentNumber = sequenceDoc.data()?.next as number;
+        }
+        const newNumber = currentNumber + 1;
+        transaction.set(sequenceRef, { current: newNumber });
+        return newNumber;
+      });
+      return nextNumber;
+    } catch (error) {
+      throw new functions.https.HttpsError('unknown', 'error in getSequence', error);
+    }
+  };
+  return await f();
+});
+
 export const updateShopCounts = functions
   .region('asia-northeast1')
   .firestore.document('shops/{docId}')
@@ -167,18 +189,4 @@ export const updateSupplierCounts = functions
     } else {
       return countsRef.update({ lastUpdatedAt: FieldValue.serverTimestamp() });
     }
-  });
-
-export const updateSaleCounts = functions
-  .region('asia-northeast1')
-  .firestore.document('sales/{docId}')
-  .onWrite((change) => {
-    const FieldValue = admin.firestore.FieldValue;
-    const countsRef = db.collection('counters').doc('sales');
-
-    if (!change.before.exists) {
-      // 登録時に件数をインクリメント
-      return countsRef.update({ next: FieldValue.increment(1) });
-    }
-    return;
   });

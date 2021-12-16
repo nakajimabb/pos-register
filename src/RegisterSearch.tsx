@@ -111,7 +111,6 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
       const q = query(collection(db, 'products'), ...conds);
       const querySnapshot = await getDocs(q);
       setSnapshot(querySnapshot as QuerySnapshot<Product>);
-      console.log({ size: querySnapshot.size });
     } catch (error) {
       console.log({ error });
       setError(firebaseError(error));

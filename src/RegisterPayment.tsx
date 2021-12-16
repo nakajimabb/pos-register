@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getFirestore, doc, collection, runTransaction, Timestamp } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useReactToPrint } from 'react-to-print';
+import app from './firebase';
 import { Button, Form, Modal, Table } from './components';
 import { Product, Sale, SaleDetail, Stock } from './types';
 
@@ -39,8 +41,9 @@ const RegisterPayment: React.FC<Props> = ({
 
   const save = async () => {
     runTransaction(db, async (transaction) => {
-      const countDoc = await transaction.get(doc(db, 'counters', 'sales'));
-      const receiptNumber = countDoc.exists() ? Number(countDoc.data().next) : 0;
+      const functions = getFunctions(app, 'asia-northeast1');
+      const result = await httpsCallable(functions, 'getSequence')({ docId: 'sales' });
+      const receiptNumber = Number(result.data);
       const stocks: Stock[] = [];
       await Promise.all(
         basketItems.map(async (item, index) => {
@@ -78,7 +81,7 @@ const RegisterPayment: React.FC<Props> = ({
         taxReducedTotal,
         status: registerMode,
       };
-      const saleRef = doc(collection(db, 'sales'));
+      const saleRef = doc(collection(db, 'sales'), receiptNumber.toString());
       transaction.set(saleRef, sale);
 
       let discountTotal = 0;
