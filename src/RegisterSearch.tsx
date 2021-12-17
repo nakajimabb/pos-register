@@ -18,6 +18,8 @@ import {
   QuerySnapshot,
   onSnapshot,
 } from 'firebase/firestore';
+import AsyncSelect from 'react-select/async';
+import { useAppContext } from './AppContext';
 import { Alert, Button, Card, Flex, Form, Modal, Table } from './components';
 import firebaseError from './firebaseError';
 import { sortedProductCategories } from './tools';
@@ -26,11 +28,6 @@ import { Product, ProductCategory } from './types';
 const db = getFirestore();
 const PER_PAGE = 10;
 const MAX_SEARCH = 50;
-
-type BasketItem = {
-  product: Product;
-  quantity: number;
-};
 
 type Props = {
   open: boolean;
@@ -46,6 +43,7 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
   const [productCount, setProductCount] = useState<number | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
+  const { loadProductOptions } = useAppContext();
 
   const existSearch = () => search.text.trim() || search.categoryId.trim();
 
@@ -147,14 +145,16 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
       <Modal.Body>
         <Card className="mx-8 mb-2">
           <Flex justify_content="between" align_items="center" className="p-4">
-            <Flex>
-              <Form onSubmit={handleSubmit}>
-                <Form.Text
-                  placeholder="検索文字"
-                  className="mr-2 inline"
-                  id="searchText"
-                  value={search.text}
-                  onChange={(e) => setSearch({ ...search, text: e.target.value })}
+            <Form onSubmit={handleSubmit}>
+              <Flex>
+                <AsyncSelect
+                  className="w-80 mr-2"
+                  value={{ label: search.text, value: search.text }}
+                  isClearable={true}
+                  loadOptions={loadProductOptions}
+                  onChange={(e) => {
+                    setSearch({ ...search, text: e?.label ?? '' });
+                  }}
                 />
                 <Form.Select
                   id="select"
@@ -166,8 +166,8 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
                 <Button variant="outlined" size="sm" className="mr-2" onClick={queryProducts('head')}>
                   検索
                 </Button>
-              </Form>
-            </Flex>
+              </Flex>
+            </Form>
             {snapshot && productCount && (
               <Flex>
                 <Button

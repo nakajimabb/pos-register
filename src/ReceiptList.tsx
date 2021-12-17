@@ -1,19 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
-import {
-  getFirestore,
-  getDocs,
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  QuerySnapshot,
-  QueryConstraint,
-} from 'firebase/firestore';
+import { getFirestore, getDocs, collection, query, where, orderBy, limit, QueryConstraint } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { Alert, Button, Card, Flex, Form, Table } from './components';
+import { useAppContext } from './AppContext';
 import { Sale, SaleDetail } from './types';
 import firebaseError from './firebaseError';
 
@@ -21,21 +12,21 @@ const db = getFirestore();
 const MAX_SEARCH = 50;
 
 const ReceiptList: React.FC = () => {
-  const [snapshot, setSnapshot] = useState<QuerySnapshot<Sale> | null>(null);
+  const { currentShop } = useAppContext();
   const [sales, setSales] = useState<[Sale, string][]>();
   const [sale, setSale] = useState<Sale>();
   const [saleDetails, setSaleDetails] = useState<SaleDetail[]>([]);
-  const [productNames, setProductNames] = useState<string[]>([]);
   const [dateTimeFrom, setDateTimeFrom] = useState<Date>();
   const [dateTimeTo, setDateTimeTo] = useState<Date>();
   const [error, setError] = useState<string>('');
   const componentRef = useRef(null);
 
-  const querySales = async () => {
+  const querySales = useCallback(async () => {
+    if (!currentShop) return;
     try {
       setError('');
       const conds: QueryConstraint[] = [];
-      conds.push(where('code', '==', '05'));
+      conds.push(where('code', '==', currentShop.code));
       if (dateTimeFrom) {
         conds.push(where('createdAt', '>=', dateTimeFrom));
       }
@@ -46,7 +37,6 @@ const ReceiptList: React.FC = () => {
       conds.push(limit(MAX_SEARCH));
       const q = query(collection(db, 'sales'), ...conds);
       const querySnapshot = await getDocs(q);
-      setSnapshot(querySnapshot as QuerySnapshot<Sale>);
       const salesData = new Array<[Sale, string]>();
       await Promise.all(
         querySnapshot.docs.map(async (doc) => {
@@ -67,7 +57,7 @@ const ReceiptList: React.FC = () => {
       console.log({ error });
       setError(firebaseError(error));
     }
-  };
+  }, [currentShop, dateTimeFrom, dateTimeTo]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +70,7 @@ const ReceiptList: React.FC = () => {
 
   useEffect(() => {
     querySales();
-  }, []);
+  }, [querySales]);
 
   return (
     <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
@@ -149,7 +139,6 @@ const ReceiptList: React.FC = () => {
                 {sales &&
                   sales.map((data, index) => {
                     const [saleData, productName] = data;
-                    console.log(productName);
                     return (
                       <Table.Row className="hover:bg-gray-300" key={index}>
                         <Table.Cell>{index + 1}</Table.Cell>
@@ -170,7 +159,7 @@ const ReceiptList: React.FC = () => {
                                 collection(db, 'sales', saleData.receiptNumber.toString(), 'saleDetails')
                               );
                               const details: Array<SaleDetail> = [];
-                              querySnapshot.docs.map((doc) => {
+                              querySnapshot.docs.forEach((doc) => {
                                 details.push(doc.data() as SaleDetail);
                               });
                               setSaleDetails(details);

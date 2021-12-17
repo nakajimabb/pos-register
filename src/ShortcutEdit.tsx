@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { Button, Card, Flex, Form, Grid, Table } from './components';
 import { Brand, Brands } from './components/type';
+import { useAppContext } from './AppContext';
 import { Product, ShortcutItem } from './types';
 import RegisterSearch from './RegisterSearch';
 
@@ -26,6 +27,7 @@ const ShortcutEdit: React.FC = () => {
     color: Brand;
   };
 
+  const { currentShop } = useAppContext();
   const [itemIndex, setItemIndex] = useState<number | null>();
   const [itemColor, setItemColor] = useState<Brand | null>('info');
   const [productCode, setProductCode] = useState<string>('');
@@ -60,10 +62,11 @@ const ShortcutEdit: React.FC = () => {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentShop) return;
     try {
       if (itemIndex != null) {
         const item = { color: itemColor, index: itemIndex, productRef };
-        await setDoc(doc(db, 'shops', '05', 'shortcutItems', itemIndex.toString()), item);
+        await setDoc(doc(db, 'shops', currentShop.code, 'shortcutItems', itemIndex.toString()), item);
         setProduct(null);
         setProductRef(null);
         setProductCode('');
@@ -76,9 +79,10 @@ const ShortcutEdit: React.FC = () => {
 
   const remove = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentShop) return;
     try {
       if (itemIndex != null) {
-        await deleteDoc(doc(db, 'shops', '05', 'shortcutItems', itemIndex.toString()));
+        await deleteDoc(doc(db, 'shops', currentShop.code, 'shortcutItems', itemIndex.toString()));
         setProduct(null);
         setProductRef(null);
         setProductCode('');
@@ -90,30 +94,34 @@ const ShortcutEdit: React.FC = () => {
   };
 
   useEffect(() => {
-    const unsubShortcutItems = onSnapshot(collection(db, 'shops', '05', 'shortcutItems'), async (snapshot) => {
-      const shortcutArray = new Array<Shortcut | null>(20);
-      const shortcutItemArray = new Array<ShortcutItem>();
-      shortcutArray.fill(null);
-      snapshot.forEach((doc) => {
-        const item = doc.data() as ShortcutItem;
-        shortcutItemArray.push(item);
-      });
-      for (let item of shortcutItemArray) {
-        if (item.productRef) {
-          const productSnap = await getDoc(item.productRef);
-          if (productSnap.exists()) {
-            const product = productSnap.data() as Product;
-            shortcutArray[item.index] = { index: item.index, color: item.color as Brand, product };
+    if (!currentShop) return;
+    const unsubShortcutItems = onSnapshot(
+      collection(db, 'shops', currentShop.code, 'shortcutItems'),
+      async (snapshot) => {
+        const shortcutArray = new Array<Shortcut | null>(20);
+        const shortcutItemArray = new Array<ShortcutItem>();
+        shortcutArray.fill(null);
+        snapshot.forEach((doc) => {
+          const item = doc.data() as ShortcutItem;
+          shortcutItemArray.push(item);
+        });
+        for (let item of shortcutItemArray) {
+          if (item.productRef) {
+            const productSnap = await getDoc(item.productRef);
+            if (productSnap.exists()) {
+              const product = productSnap.data() as Product;
+              shortcutArray[item.index] = { index: item.index, color: item.color as Brand, product };
+            }
           }
         }
+        setShortcuts(shortcutArray);
       }
-      setShortcuts(shortcutArray);
-    });
+    );
 
     document.getElementById('productCode')?.focus();
 
     return () => unsubShortcutItems();
-  }, [itemIndex]);
+  }, [itemIndex, currentShop]);
 
   return (
     <>

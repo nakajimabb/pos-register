@@ -4,6 +4,7 @@ import { getFirestore, doc, getDoc, collection, onSnapshot } from 'firebase/fire
 
 import { Button, Card, Flex, Form, Grid, Icon, Table } from './components';
 import { Brand } from './components/type';
+import { useAppContext } from './AppContext';
 import RegisterPayment from './RegisterPayment';
 import RegisterInput from './RegisterInput';
 import RegisterModify from './RegisterModify';
@@ -24,6 +25,7 @@ const RegisterMain: React.FC = () => {
     product: Product;
   };
 
+  const { currentShop } = useAppContext();
   const [productCode, setProductCode] = useState<string>('');
   const [basketItem, setBasketItem] = useState<BasketItem>();
   const [basketItems, setBasketItems] = useState<BasketItem[]>([]);
@@ -88,6 +90,7 @@ const RegisterMain: React.FC = () => {
     taxTotal;
 
   useEffect(() => {
+    if (!currentShop) return;
     const unsubRegisterItems = onSnapshot(collection(db, 'registerItems'), async (snapshot) => {
       const items = new Array<RegisterItem>();
       snapshot.forEach((doc) => {
@@ -96,27 +99,30 @@ const RegisterMain: React.FC = () => {
       setRegisterItems(items);
     });
 
-    const unsubShortcutItems = onSnapshot(collection(db, 'shops', '05', 'shortcutItems'), async (snapshot) => {
-      const shortcutArray = new Array<Shortcut | null>(20);
-      const shortcutItemArray = new Array<ShortcutItem>();
-      shortcutArray.fill(null);
-      snapshot.forEach((doc) => {
-        const item = doc.data() as ShortcutItem;
-        shortcutItemArray.push(item);
-      });
-      await Promise.all(
-        shortcutItemArray.map(async (item) => {
-          if (item.productRef) {
-            const productSnap = await getDoc(item.productRef);
-            if (productSnap.exists()) {
-              const product = productSnap.data() as Product;
-              shortcutArray[item.index] = { index: item.index, color: item.color, product };
+    const unsubShortcutItems = onSnapshot(
+      collection(db, 'shops', currentShop.code, 'shortcutItems'),
+      async (snapshot) => {
+        const shortcutArray = new Array<Shortcut | null>(20);
+        const shortcutItemArray = new Array<ShortcutItem>();
+        shortcutArray.fill(null);
+        snapshot.forEach((doc) => {
+          const item = doc.data() as ShortcutItem;
+          shortcutItemArray.push(item);
+        });
+        await Promise.all(
+          shortcutItemArray.map(async (item) => {
+            if (item.productRef) {
+              const productSnap = await getDoc(item.productRef);
+              if (productSnap.exists()) {
+                const product = productSnap.data() as Product;
+                shortcutArray[item.index] = { index: item.index, color: item.color, product };
+              }
             }
-          }
-        })
-      );
-      setShortcuts(shortcutArray);
-    });
+          })
+        );
+        setShortcuts(shortcutArray);
+      }
+    );
 
     document.getElementById('productCode')?.focus();
 
@@ -124,7 +130,7 @@ const RegisterMain: React.FC = () => {
       unsubRegisterItems();
       unsubShortcutItems();
     };
-  }, []);
+  }, [currentShop]);
 
   return (
     <Flex direction="col" justify_content="center" align_items="center" className="h-screen">

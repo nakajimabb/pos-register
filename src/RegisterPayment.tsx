@@ -4,6 +4,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useReactToPrint } from 'react-to-print';
 import app from './firebase';
 import { Button, Form, Modal, Table } from './components';
+import { useAppContext } from './AppContext';
 import { Product, Sale, SaleDetail, Stock } from './types';
 
 type BasketItem = {
@@ -30,6 +31,7 @@ const RegisterPayment: React.FC<Props> = ({
   setBasketItems,
   onClose,
 }) => {
+  const { currentShop } = useAppContext();
   const [cash, setCash] = useState<number>(0);
   const componentRef = useRef(null);
   const registerSign = registerMode === 'Return' ? -1 : 1;
@@ -40,6 +42,7 @@ const RegisterPayment: React.FC<Props> = ({
   `;
 
   const save = async () => {
+    if (!currentShop) return;
     runTransaction(db, async (transaction) => {
       const functions = getFunctions(app, 'asia-northeast1');
       const result = await httpsCallable(functions, 'getSequence')({ docId: 'sales' });
@@ -48,13 +51,13 @@ const RegisterPayment: React.FC<Props> = ({
       await Promise.all(
         basketItems.map(async (item, index) => {
           if (item.product.code) {
-            const stockRef = doc(collection(db, 'shops', '05', 'stocks'), item.product.code);
+            const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), item.product.code);
             const stockDoc = await transaction.get(stockRef);
             if (stockDoc.exists()) {
               stocks[index] = stockDoc.data() as Stock;
             } else {
               stocks[index] = {
-                shopCode: '05',
+                shopCode: currentShop.code,
                 productCode: item.product.code,
                 productName: item.product.name,
                 quantity: 0,
@@ -67,7 +70,7 @@ const RegisterPayment: React.FC<Props> = ({
 
       const sale: Sale = {
         receiptNumber,
-        code: '05',
+        code: currentShop.code,
         createdAt: Timestamp.fromDate(new Date()),
         detailsCount: basketItems.filter((item) => !!item.product.code).length,
         salesTotal,
@@ -85,7 +88,7 @@ const RegisterPayment: React.FC<Props> = ({
       transaction.set(saleRef, sale);
 
       let discountTotal = 0;
-      basketItems.map((item, index) => {
+      basketItems.forEach((item, index) => {
         const detail: SaleDetail = {
           salesId: saleRef.id,
           index: index,
@@ -101,7 +104,7 @@ const RegisterPayment: React.FC<Props> = ({
           transaction.update(prevDetailRef, { discount: -item.product.sellingPrice });
           discountTotal += -item.product.sellingPrice;
         }
-        const stockRef = doc(collection(db, 'shops', '05', 'stocks'), item.product.code);
+        const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), item.product.code);
         transaction.set(stockRef, {
           ...stocks[index],
           quantity: stocks[index].quantity - item.quantity * registerSign,
@@ -157,7 +160,7 @@ const RegisterPayment: React.FC<Props> = ({
     const inputCash = document.getElementById('inputCash') as HTMLInputElement;
     inputCash?.focus();
     inputCash?.select();
-  }, [open]);
+  }, [open, registerMode, paymentType, salesTotal]);
 
   return (
     <Modal open={open} size="none" onClose={onClose} className="w-1/3">
