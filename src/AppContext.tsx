@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useContext, createContext } from 'react';
 
-import { collection, doc, getDoc, getDocs, getFirestore, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getFirestore, onSnapshot, Timestamp, Bytes } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
 import { userCodeFromEmail } from './tools';
-import { Shop, ProductFullTextSearch, CounterItem, Counters } from './types';
+import { Shop, CounterItem, Counters } from './types';
+
+const zlib = require('zlib');
 
 const db = getFirestore();
 const auth = getAuth();
@@ -22,10 +24,18 @@ const AppContext = createContext({
   loadProductOptions: async (inputText: string) => [],
 } as ContextType);
 
+type FullTextSearch = {
+  texts: string[];
+  updatedAt: Timestamp;
+};
+
 export const AppContextProvider: React.FC = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentShop, setCurrentShop] = useState<Shop | null>(null);
-  const [productFullTextSearch, setProductFullTextSearch] = useState<ProductFullTextSearch | null>(null);
+  const [productFullTextSearch, setProductFullTextSearch] = useState<FullTextSearch>({
+    texts: [],
+    updatedAt: new Timestamp(0, 0),
+  });
   const [counters, setCounters] = useState<Counters>({
     products: { all: 0, lastUpdatedAt: new Timestamp(0, 0) },
     shops: { all: 0, lastUpdatedAt: new Timestamp(0, 0) },
@@ -68,47 +78,37 @@ export const AppContextProvider: React.FC = ({ children }) => {
 
   const updateProductTextSearch = async () => {
     const productCounter = counters.products;
-    if (
-      !productFullTextSearch ||
-      (productCounter.searchUpdatedAt &&
-        productFullTextSearch.updatedAt &&
-        productCounter.searchUpdatedAt > productFullTextSearch.updatedAt)
-    ) {
-      const fullTextSearch: ProductFullTextSearch = {
-        productCode: [],
-        productName: [],
-        updatedAt: productCounter.searchUpdatedAt,
-      };
-
-      const snap = await getDocs(collection(db, 'searches'));
-      snap.docs.forEach((item) => {
-        if (item.id === 'productCode' || item.id === 'productName') {
-          const search = item.data();
-          fullTextSearch[item.id] = search.words;
-        }
-      });
-      setProductFullTextSearch(fullTextSearch);
-      console.log('updated fullTextSearch');
-      console.log({ fullTextSearch });
-
-      return fullTextSearch;
-    } else {
-      return productFullTextSearch;
+    if (productCounter.searchUpdatedAt && productCounter.searchUpdatedAt > productFullTextSearch.updatedAt) {
+      const snap = await getDoc(doc(db, 'searches', 'products'));
+      const searchItem = snap.data();
+      if (searchItem) {
+        const blob = searchItem.blob as Bytes;
+        const json = decodeURIComponent(zlib.unzipSync(Buffer.from(blob.toUint8Array())));
+        const texts: string[] = JSON.parse(json);
+        const fullTextSearch = { texts, updatedAt: productCounter.searchUpdatedAt };
+        setProductFullTextSearch(fullTextSearch);
+        console.log('updated fullTextSearch');
+        return fullTextSearch;
+      }
     }
+    return productFullTextSearch;
   };
 
   const loadProductOptions = async (inputText: string) => {
     inputText = inputText.trim();
     const isNumber = inputText.match(/^\d+$/);
-    // 数字3文字以下、数字以外２文字以下だと空を返す
-    if ((isNumber && inputText.length < 3) || (!isNumber && inputText.length < 2)) {
+    // 数字で3文字以下、数字以外で1文字以下だと空を返す
+    if ((isNumber && inputText.length < 3) || (!isNumber && inputText.length < 1)) {
       return [];
     }
 
     const fullTextSearch = await updateProductTextSearch();
-    const words = isNumber ? fullTextSearch.productCode : fullTextSearch.productName;
-    const targetWords = words.filter((word) => word.indexOf(inputText) >= 0);
-    return targetWords.map((word) => ({ label: word, value: word }));
+    const texts = fullTextSearch.texts;
+    const targetWords = texts.filter((word) => word.indexOf(inputText) >= 0);
+    return targetWords.map((word) => {
+      const words = word.split('|');
+      return { label: words[1], value: words[0] };
+    });
   };
 
   return (

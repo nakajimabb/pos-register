@@ -20,6 +20,7 @@ import {
   QuerySnapshot,
   onSnapshot,
   serverTimestamp,
+  Bytes,
 } from 'firebase/firestore';
 import AsyncSelect from 'react-select/async';
 
@@ -29,6 +30,9 @@ import firebaseError from './firebaseError';
 import ProductEdit from './ProductEdit';
 import { sortedProductCategories } from './tools';
 import { Product, ProductCategory, Supplier } from './types';
+
+// import * as zlib from 'zlib';
+const zlib = require('zlib');
 
 const db = getFirestore();
 const PER_PAGE = 25;
@@ -172,33 +176,22 @@ const ProductList: React.FC = () => {
     }
   };
 
-  const createSearchData = async () => {
+  const createFullTextSearch = async () => {
     if (window.confirm('全文検索用のデータを作成しますか？')) {
-      const ref = collection(db, 'products');
-      const snap = await getDocs(ref);
-      const codes = new Set<string>();
-      const names = new Set<string>();
-      snap.docs.forEach((item) => {
+      const q = query(collection(db, 'products'), where('hidden', '==', false));
+      const snap = await getDocs(q);
+
+      // 検索用テキストをセパレータで区切って１つの文字列として格納
+      const texts = snap.docs.map((item) => {
         const product = item.data() as Product;
-        if (!product.hidden) {
-          codes.add(product.code);
-          names.add(product.name);
-        }
+        return [product.code, product.name].join('|');
       });
 
-      const productCodes = Array.from(codes);
-      const productNames = Array.from(names);
+      // 圧縮してバイナリデータとして保存
+      const json = JSON.stringify(texts);
+      const blob = Bytes.fromUint8Array(zlib.gzipSync(encodeURIComponent(json)));
 
-      const productCodeSize = productCodes.reduce((sum, str) => sum + new Blob([str]).size, 0);
-      const productNameSize = productNames.reduce((sum, str) => sum + new Blob([str]).size, 0);
-      console.log({ productCodeSize, productNameSize });
-
-      await setDoc(doc(db, 'searches', 'productCode'), {
-        words: productCodes,
-      });
-      await setDoc(doc(db, 'searches', 'productName'), {
-        words: productNames,
-      });
+      await setDoc(doc(db, 'searches', 'products'), { blob });
       await setDoc(
         doc(db, 'counters', 'products'),
         {
@@ -206,6 +199,7 @@ const ProductList: React.FC = () => {
         },
         { merge: true }
       );
+
       alert('全文検索用のデータを作成しました。');
     }
   };
@@ -248,7 +242,7 @@ const ProductList: React.FC = () => {
             <Button variant="outlined" className="mr-2" onClick={newProduct}>
               新規
             </Button>
-            <Button variant="outlined" className="mr-2" onClick={createSearchData}>
+            <Button variant="outlined" className="mr-2" onClick={createFullTextSearch}>
               検索データ作成
             </Button>
           </Flex>
