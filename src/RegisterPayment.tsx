@@ -3,9 +3,10 @@ import { getFirestore, doc, collection, runTransaction, Timestamp } from 'fireba
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useReactToPrint } from 'react-to-print';
 import app from './firebase';
-import { Button, Form, Modal, Table } from './components';
+import { Button, Flex, Form, Modal, Table } from './components';
 import { useAppContext } from './AppContext';
 import { Product, Sale, SaleDetail, Stock } from './types';
+import { prefectureName } from './tools';
 
 type BasketItem = {
   product: Product;
@@ -33,6 +34,7 @@ const RegisterPayment: React.FC<Props> = ({
 }) => {
   const { currentShop } = useAppContext();
   const [cash, setCash] = useState<number>(0);
+  const [currentTimestamp, setCurrentTimestamp] = useState<Timestamp>(Timestamp.fromDate(new Date()));
   const componentRef = useRef(null);
   const registerSign = registerMode === 'Return' ? -1 : 1;
   const pageStyle = `
@@ -61,7 +63,7 @@ const RegisterPayment: React.FC<Props> = ({
                 productCode: item.product.code,
                 productName: item.product.name,
                 quantity: 0,
-                updatedAt: Timestamp.fromDate(new Date()),
+                updatedAt: currentTimestamp,
               };
             }
           }
@@ -71,7 +73,7 @@ const RegisterPayment: React.FC<Props> = ({
       const sale: Sale = {
         receiptNumber,
         code: currentShop.code,
-        createdAt: Timestamp.fromDate(new Date()),
+        createdAt: currentTimestamp,
         detailsCount: basketItems.filter((item) => !!item.product.code).length,
         salesTotal,
         taxTotal: taxNormalTotal + taxReducedTotal,
@@ -157,6 +159,7 @@ const RegisterPayment: React.FC<Props> = ({
     } else {
       setCash(paymentType === 'Cash' ? 0 : salesTotal);
     }
+    setCurrentTimestamp(Timestamp.fromDate(new Date()));
     const inputCash = document.getElementById('inputCash') as HTMLInputElement;
     inputCash?.focus();
     inputCash?.select();
@@ -208,6 +211,16 @@ const RegisterPayment: React.FC<Props> = ({
         {/* 領収書 */}
         <div className="hidden">
           <div ref={componentRef} className="p-10">
+            <p className="text-right text-sm mt-2">
+              {currentTimestamp.toDate().toLocaleDateString()} {currentTimestamp.toDate().toLocaleTimeString()}
+            </p>
+            <p className="text-right text-sm mt-2">
+              {currentShop ? prefectureName(currentShop.prefecture) : ''}
+              {currentShop?.municipality}
+              {currentShop?.house_number}
+              {currentShop?.building_name}
+            </p>
+            <p className="text-right text-sm mt-2">{currentShop?.name}</p>
             <p className="text-center text-xl font-bold m-2">{registerMode === 'Return' ? '返品' : '領収書'}</p>
             <Table border="cell" className="table-fixed w-full text-sm shadow-none">
               <Table.Head>
@@ -249,54 +262,63 @@ const RegisterPayment: React.FC<Props> = ({
               </Table.Body>
             </Table>
 
-            <Table border="none" size="sm" className="table-fixed w-1/2 mt-4 shadow-none ml-96">
-              <Table.Head>
-                <Table.Row>
-                  <Table.Cell type="th" className="w-3/12" />
-                  <Table.Cell type="th" className="w-3/12" />
-                  <Table.Cell type="th" className="w-6/12" />
-                </Table.Row>
-              </Table.Head>
-              <Table.Body>
-                <Table.Row>
-                  <Table.Cell type="th" className="text-lg">
-                    {registerMode === 'Return' ? 'ご返金' : '合計'}
-                  </Table.Cell>
-                  <Table.Cell className="text-right text-xl pr-4">¥{salesTotal.toLocaleString()}</Table.Cell>
-                  <Table.Cell></Table.Cell>
-                </Table.Row>
-                <Table.Row>
-                  <Table.Cell type="th">8%対象</Table.Cell>
-                  <Table.Cell className="text-right pr-4">
-                    ¥{(priceReducedTotal + taxReducedTotal + 0).toLocaleString()}
-                  </Table.Cell>
-                  <Table.Cell>（内消費税等　¥{(taxReducedTotal + 0).toLocaleString()}）</Table.Cell>
-                </Table.Row>
-                <Table.Row>
-                  <Table.Cell type="th">10%対象</Table.Cell>
-                  <Table.Cell className="text-right pr-4">
-                    ¥{(priceNormalTotal + taxNormalTotal + 0).toLocaleString()}
-                  </Table.Cell>
-                  <Table.Cell>（内消費税等　¥{(taxNormalTotal + 0).toLocaleString()}）</Table.Cell>
-                </Table.Row>
-                {registerMode === 'Return' ? null : (
+            <Flex className="mt-4">
+              <div className="text-xs w-1/3 mt-4">
+                軽印は、軽減税率対象商品です。 <br />
+                ★印は、セルフメディケーション
+                <br />
+                税制対象製品です。
+              </div>
+
+              <Table border="none" size="sm" className="table-fixed w-2/3 shadow-none">
+                <Table.Head>
                   <Table.Row>
-                    <Table.Cell type="th">お預かり</Table.Cell>
-                    <Table.Cell className="text-right pr-4">¥{cash.toLocaleString()}</Table.Cell>
-                    <Table.Cell></Table.Cell>
+                    <Table.Cell type="th" className="w-3/12" />
+                    <Table.Cell type="th" className="w-3/12" />
+                    <Table.Cell type="th" className="w-6/12" />
                   </Table.Row>
-                )}
-                {registerMode === 'Return' ? null : (
+                </Table.Head>
+                <Table.Body>
                   <Table.Row>
-                    <Table.Cell type="th">お釣り</Table.Cell>
-                    <Table.Cell className="text-right pr-4">
-                      ¥{cash < salesTotal ? '0' : (cash - salesTotal).toLocaleString()}
+                    <Table.Cell type="th" className="text-lg">
+                      {registerMode === 'Return' ? 'ご返金' : '合計'}
                     </Table.Cell>
+                    <Table.Cell className="text-right text-xl pr-4">¥{salesTotal.toLocaleString()}</Table.Cell>
                     <Table.Cell></Table.Cell>
                   </Table.Row>
-                )}
-              </Table.Body>
-            </Table>
+                  <Table.Row>
+                    <Table.Cell type="th">8%対象</Table.Cell>
+                    <Table.Cell className="text-right pr-4">
+                      ¥{(priceReducedTotal + taxReducedTotal + 0).toLocaleString()}
+                    </Table.Cell>
+                    <Table.Cell>（内消費税等　¥{(taxReducedTotal + 0).toLocaleString()}）</Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell type="th">10%対象</Table.Cell>
+                    <Table.Cell className="text-right pr-4">
+                      ¥{(priceNormalTotal + taxNormalTotal + 0).toLocaleString()}
+                    </Table.Cell>
+                    <Table.Cell>（内消費税等　¥{(taxNormalTotal + 0).toLocaleString()}）</Table.Cell>
+                  </Table.Row>
+                  {registerMode === 'Return' ? null : (
+                    <Table.Row>
+                      <Table.Cell type="th">お預かり</Table.Cell>
+                      <Table.Cell className="text-right pr-4">¥{cash.toLocaleString()}</Table.Cell>
+                      <Table.Cell></Table.Cell>
+                    </Table.Row>
+                  )}
+                  {registerMode === 'Return' ? null : (
+                    <Table.Row>
+                      <Table.Cell type="th">お釣り</Table.Cell>
+                      <Table.Cell className="text-right pr-4">
+                        ¥{cash < salesTotal ? '0' : (cash - salesTotal).toLocaleString()}
+                      </Table.Cell>
+                      <Table.Cell></Table.Cell>
+                    </Table.Row>
+                  )}
+                </Table.Body>
+              </Table>
+            </Flex>
           </div>
         </div>
       </Modal.Body>

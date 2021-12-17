@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { Alert, Button, Card, Flex, Form, Table } from './components';
 import { useAppContext } from './AppContext';
 import { Sale, SaleDetail } from './types';
+import { prefectureName } from './tools';
 import firebaseError from './firebaseError';
 
 const db = getFirestore();
@@ -112,7 +113,7 @@ const ReceiptList: React.FC = () => {
       <Card className="mx-8 mb-4">
         <Card.Body className="p-4">
           {error && <Alert severity="error">{error}</Alert>}
-          <div className="overflow-y-scroll">
+          <div className="overflow-y-scroll h-96">
             <Table border="row" className="table-fixed w-full text-sm">
               <Table.Head>
                 <Table.Row>
@@ -187,6 +188,16 @@ const ReceiptList: React.FC = () => {
       {/* 領収書 */}
       <div className="hidden">
         <div ref={componentRef} className="p-10">
+          <p className="text-right text-sm mt-2">
+            {sale?.createdAt?.toDate().toLocaleDateString()} {sale?.createdAt?.toDate().toLocaleTimeString()}
+          </p>
+          <p className="text-right text-sm mt-2">
+            {currentShop ? prefectureName(currentShop.prefecture) : ''}
+            {currentShop?.municipality}
+            {currentShop?.house_number}
+            {currentShop?.building_name}
+          </p>
+          <p className="text-right text-sm mt-2">{currentShop?.name}</p>
           <p className="text-center text-xl font-bold m-2">{sale?.status === 'Return' ? '返品' : '領収書'}</p>
           <Table border="cell" className="table-fixed w-full text-sm shadow-none">
             <Table.Head>
@@ -226,54 +237,62 @@ const ReceiptList: React.FC = () => {
             </Table.Body>
           </Table>
 
-          <Table border="none" size="sm" className="table-fixed w-1/2 mt-4 shadow-none ml-96">
-            <Table.Head>
-              <Table.Row>
-                <Table.Cell type="th" className="w-3/12" />
-                <Table.Cell type="th" className="w-3/12" />
-                <Table.Cell type="th" className="w-6/12" />
-              </Table.Row>
-            </Table.Head>
-            <Table.Body>
-              <Table.Row>
-                <Table.Cell type="th" className="text-lg">
-                  {sale?.status === 'Return' ? 'ご返金' : '合計'}
-                </Table.Cell>
-                <Table.Cell className="text-right text-xl pr-4">¥{sale?.salesTotal.toLocaleString()}</Table.Cell>
-                <Table.Cell></Table.Cell>
-              </Table.Row>
-              <Table.Row>
-                <Table.Cell type="th">8%対象</Table.Cell>
-                <Table.Cell className="text-right pr-4">
-                  ¥{(Number(sale?.salesReducedTotal) + 0).toLocaleString()}
-                </Table.Cell>
-                <Table.Cell>（内消費税等　¥{(Number(sale?.taxReducedTotal) + 0).toLocaleString()}）</Table.Cell>
-              </Table.Row>
-              <Table.Row>
-                <Table.Cell type="th">10%対象</Table.Cell>
-                <Table.Cell className="text-right pr-4">
-                  ¥{(Number(sale?.salesNormalTotal) + 0).toLocaleString()}
-                </Table.Cell>
-                <Table.Cell>（内消費税等　¥{(Number(sale?.taxNormalTotal) + 0).toLocaleString()}）</Table.Cell>
-              </Table.Row>
-              {sale?.status === 'Return' ? null : (
+          <Flex className="mt-4">
+            <div className="text-xs w-1/3 mt-4">
+              軽印は、軽減税率対象商品です。 <br />
+              ★印は、セルフメディケーション
+              <br />
+              税制対象製品です。
+            </div>
+            <Table border="none" size="sm" className="table-fixed w-2/3 shadow-none">
+              <Table.Head>
                 <Table.Row>
-                  <Table.Cell type="th">お預かり</Table.Cell>
-                  <Table.Cell className="text-right pr-4">¥{sale?.cashAmount.toLocaleString()}</Table.Cell>
-                  <Table.Cell></Table.Cell>
+                  <Table.Cell type="th" className="w-3/12" />
+                  <Table.Cell type="th" className="w-3/12" />
+                  <Table.Cell type="th" className="w-6/12" />
                 </Table.Row>
-              )}
-              {sale?.status === 'Return' ? null : (
+              </Table.Head>
+              <Table.Body>
                 <Table.Row>
-                  <Table.Cell type="th">お釣り</Table.Cell>
-                  <Table.Cell className="text-right pr-4">
-                    ¥{(Number(sale?.cashAmount) - Number(sale?.salesTotal)).toLocaleString()}
+                  <Table.Cell type="th" className="text-lg">
+                    {sale?.status === 'Return' ? 'ご返金' : '合計'}
                   </Table.Cell>
+                  <Table.Cell className="text-right text-xl pr-4">¥{sale?.salesTotal.toLocaleString()}</Table.Cell>
                   <Table.Cell></Table.Cell>
                 </Table.Row>
-              )}
-            </Table.Body>
-          </Table>
+                <Table.Row>
+                  <Table.Cell type="th">8%対象</Table.Cell>
+                  <Table.Cell className="text-right pr-4">
+                    ¥{(Number(sale?.salesReducedTotal) + 0).toLocaleString()}
+                  </Table.Cell>
+                  <Table.Cell>（内消費税等　¥{(Number(sale?.taxReducedTotal) + 0).toLocaleString()}）</Table.Cell>
+                </Table.Row>
+                <Table.Row>
+                  <Table.Cell type="th">10%対象</Table.Cell>
+                  <Table.Cell className="text-right pr-4">
+                    ¥{(Number(sale?.salesNormalTotal) + 0).toLocaleString()}
+                  </Table.Cell>
+                  <Table.Cell>（内消費税等　¥{(Number(sale?.taxNormalTotal) + 0).toLocaleString()}）</Table.Cell>
+                </Table.Row>
+                {sale?.status === 'Return' ? null : (
+                  <Table.Row>
+                    <Table.Cell type="th">お預かり</Table.Cell>
+                    <Table.Cell className="text-right pr-4">¥{sale?.cashAmount.toLocaleString()}</Table.Cell>
+                    <Table.Cell></Table.Cell>
+                  </Table.Row>
+                )}
+                {sale?.status === 'Return' ? null : (
+                  <Table.Row>
+                    <Table.Cell type="th">お釣り</Table.Cell>
+                    <Table.Cell className="text-right pr-4">
+                      ¥{(Number(sale?.cashAmount) - Number(sale?.salesTotal)).toLocaleString()}
+                    </Table.Cell>
+                    <Table.Cell></Table.Cell>
+                  </Table.Row>
+                )}
+              </Table.Body>
+            </Table>
+          </Flex>
         </div>
       </div>
     </Flex>
