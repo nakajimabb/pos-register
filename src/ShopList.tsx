@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import {
   collection,
-  doc,
   query,
-  getDoc,
   getDocs,
   getFirestore,
   limit,
@@ -19,6 +17,7 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from './firebase';
 
+import { useAppContext } from './AppContext';
 import { Alert, Button, Card, Flex, Form, Table } from './components';
 import firebaseError from './firebaseError';
 import { Shop } from './types';
@@ -36,6 +35,7 @@ const ShopList: React.FC = () => {
   const [shopCount, setShopCount] = useState<number | null>(null);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const { counters } = useAppContext();
 
   const existSearch = () => search.text.trim();
 
@@ -61,12 +61,7 @@ const ShopList: React.FC = () => {
         setPage(0);
         setShopCount(null);
       } else {
-        const snap = await getDoc(doc(db, 'counters', 'shops'));
-        if (snap.exists()) {
-          setShopCount(snap.data().all);
-        } else {
-          setShopCount(null);
-        }
+        setShopCount(Number(counters?.shops.all));
 
         if (action === 'head') {
           conds.push(orderBy('code'));

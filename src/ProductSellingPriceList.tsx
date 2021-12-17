@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { truncate } from 'lodash';
 import {
   collection,
   doc,
@@ -19,7 +18,7 @@ import Select from 'react-select';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import ProductSellingPriceEdit from './ProductSellingPriceEdit';
-import { ProductSellingPrice, Shop, Supplier } from './types';
+import { ProductSellingPrice, Shop } from './types';
 import { nameWithCode } from './tools';
 
 const db = getFirestore();

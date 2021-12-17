@@ -3,7 +3,6 @@ import {
   collection,
   doc,
   query,
-  getDoc,
   getDocs,
   deleteDoc,
   getFirestore,
@@ -18,6 +17,7 @@ import {
   QuerySnapshot,
 } from 'firebase/firestore';
 
+import { useAppContext } from './AppContext';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import SupplierEdit from './SupplierEdit';
@@ -35,6 +35,7 @@ const SupplierList: React.FC = () => {
   const [docId, setDocId] = useState<string | null>(null);
   const [supplierCount, setSupplierCount] = useState<number | null>(null);
   const [error, setError] = useState<string>('');
+  const { counters } = useAppContext();
 
   const querySuppliers = (action: 'head' | 'prev' | 'next' | 'current') => async () => {
     try {
@@ -53,12 +54,7 @@ const SupplierList: React.FC = () => {
         setPage(0);
         setSupplierCount(null);
       } else {
-        const snap = await getDoc(doc(db, 'counters', 'suppliers'));
-        if (snap.exists()) {
-          setSupplierCount(snap.data().all);
-        } else {
-          setSupplierCount(null);
-        }
+        setSupplierCount(Number(counters?.suppliers.all));
 
         if (action === 'head') {
           conds.push(orderBy('code'));

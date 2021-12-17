@@ -109,3 +109,21 @@ export type Stock = {
   quantity: number;
   updatedAt: Timestamp;
 };
+
+export type ProductFullTextSearch = {
+  productCode: string[];
+  productName: string[];
+  updatedAt?: Timestamp;
+};
+
+export type CounterItem = {
+  all: number;
+  lastUpdatedAt: Timestamp;
+  searchUpdatedAt?: Timestamp;
+};
+
+export type Counters = {
+  products: CounterItem;
+  shops: CounterItem;
+  suppliers: CounterItem;
+};

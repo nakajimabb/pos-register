@@ -15,6 +15,7 @@ import SupplierList from './SupplierList';
 import RegisterMain from './RegisterMain';
 import ShortcutEdit from './ShortcutEdit';
 import ShopList from './ShopList';
+import { AppContextProvider } from './AppContext';
 import './App.css';
 import ReceiptList from './ReceiptList';
 
@@ -32,22 +33,24 @@ const App: React.FC = () => {
 
   return (
     <React.StrictMode>
-      <Router>
-        <Route path="/" component={AppBar} />
-        <Route exact path="/" component={RegisterMain} />
-        <Route exact path="/products" component={ProductList} />
-        <Route exact path="/product_cost_prices" component={ProductCostPriceList} />
-        <Route exact path="/product_selling_prices" component={ProductSellingPriceList} />
-        <Route exact path="/import_products" component={() => <ImportProducts common={true} />} />
-        <Route exact path="/import_shop_products" component={() => <ImportProducts common={false} />} />
-        <Route exact path="/import_suppliers" component={ImportSuppliers} />
-        <Route exact path="/suppliers" component={SupplierList} />
-        <Route exact path="/product_categories" component={ProductCategoryList} />
-        <Route exact path="/shops" component={ShopList} />
-        <Route exact path="/shortcut_edit" component={ShortcutEdit} />
-        <Route exact path="/receipt_list" component={ReceiptList} />
-        <Route exact path="/tailwind" component={Tailwind} />
-      </Router>
+      <AppContextProvider>
+        <Router>
+          <Route path="/" component={AppBar} />
+          <Route exact path="/" component={RegisterMain} />
+          <Route exact path="/products" component={ProductList} />
+          <Route exact path="/product_cost_prices" component={ProductCostPriceList} />
+          <Route exact path="/product_selling_prices" component={ProductSellingPriceList} />
+          <Route exact path="/import_products" component={() => <ImportProducts common={true} />} />
+          <Route exact path="/import_shop_products" component={() => <ImportProducts common={false} />} />
+          <Route exact path="/import_suppliers" component={ImportSuppliers} />
+          <Route exact path="/suppliers" component={SupplierList} />
+          <Route exact path="/product_categories" component={ProductCategoryList} />
+          <Route exact path="/shops" component={ShopList} />
+          <Route exact path="/shortcut_edit" component={ShortcutEdit} />
+          <Route exact path="/receipt_list" component={ReceiptList} />
+          <Route exact path="/tailwind" component={Tailwind} />
+        </Router>
+      </AppContextProvider>
     </React.StrictMode>
   );
 };

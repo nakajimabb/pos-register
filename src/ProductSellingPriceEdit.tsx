@@ -40,6 +40,25 @@ const ProductSellingPriceEdit: React.FC<Props> = ({ open, shopCode, productCode,
   });
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    const f = async () => {
+      if (productCode && shopCode) {
+        const ref = doc(db, 'shops', shopCode, 'productSellingPrices', productCode);
+        const snap = await getDoc(ref);
+        if (snap.exists()) {
+          const cost_price = snap.data() as ProductSellingPrice;
+          setProductSellingPrice(cost_price);
+        } else {
+          resetProductSellingPrice();
+        }
+      } else {
+        resetProductSellingPrice();
+      }
+      setError('');
+    };
+    f();
+  }, [productCode, shopCode]);
+
   const setProductCode = async (e: SingleValue<{ label: string; value: string }>) => {
     const code = String(e?.value);
     const ref = doc(db, 'products', code);
@@ -76,25 +95,6 @@ const ProductSellingPriceEdit: React.FC<Props> = ({ open, shopCode, productCode,
       return [];
     }
   };
-
-  useEffect(() => {
-    const f = async () => {
-      if (productCode && shopCode) {
-        const ref = doc(db, 'shops', shopCode, 'productSellingPrices', productCode);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          const cost_price = snap.data() as ProductSellingPrice;
-          setProductSellingPrice(cost_price);
-        } else {
-          resetProductSellingPrice();
-        }
-      } else {
-        resetProductSellingPrice();
-      }
-      setError('');
-    };
-    f();
-  }, [productCode, shopCode]);
 
   const resetProductSellingPrice = () => {
     setProductSellingPrice({

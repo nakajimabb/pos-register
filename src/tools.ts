@@ -1,6 +1,8 @@
 import { ProductCategory } from './types';
 import { QuerySnapshot } from 'firebase/firestore';
 
+export const MAIL_DOMAIN = '@ebondregister.com';
+
 export const sortedProductCategories = (snapshot: QuerySnapshot<ProductCategory>) => {
   const flatten = (
     id: string,
@@ -129,4 +131,14 @@ export const nameWithCode = (obj: { [key: string]: any }) => {
   if ('name' in obj) result += obj['name'];
   if ('code' in obj) result += '(' + obj['code'] + ')';
   return result;
+};
+
+export const userCodeFromEmail = (email: string) => {
+  const reg = new RegExp(`(.+)${MAIL_DOMAIN}`);
+  const m = email.match(reg);
+  if (m && m[1]) {
+    return m[1];
+  } else {
+    return null;
+  }
 };

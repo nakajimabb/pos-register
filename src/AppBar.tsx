@@ -4,9 +4,13 @@ import { getAuth, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Button, Flex, Dropdown, Icon, Navbar, Tooltip } from './components';
 import app from './firebase';
+import { useAppContext } from './AppContext';
+import { nameWithCode } from './tools';
 import './App.css';
 
 const AppBar: React.FC = () => {
+  const { currentShop } = useAppContext();
+
   const logout = () => {
     if (window.confirm('ログアウトしますか？')) {
       const auth = getAuth();
@@ -79,6 +83,7 @@ const AppBar: React.FC = () => {
         </Dropdown>
       </Flex>
       <Flex align_items="center">
+        {currentShop && nameWithCode(currentShop)}
         <Link to="/sign_in">
           <Tooltip title="ログアウト">
             <Button

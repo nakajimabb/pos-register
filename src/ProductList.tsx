@@ -4,8 +4,8 @@ import {
   collection,
   doc,
   query,
-  getDoc,
   getDocs,
+  setDoc,
   deleteDoc,
   getFirestore,
   limit,
@@ -19,8 +19,11 @@ import {
   QueryConstraint,
   QuerySnapshot,
   onSnapshot,
+  serverTimestamp,
 } from 'firebase/firestore';
+import AsyncSelect from 'react-select/async';
 
+import { useAppContext } from './AppContext';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import ProductEdit from './ProductEdit';
@@ -31,8 +34,10 @@ const db = getFirestore();
 const PER_PAGE = 25;
 const MAX_SEARCH = 50;
 
+type SearchType = { text: string; categoryId: string };
+
 const ProductList: React.FC = () => {
-  const [search, setSearch] = useState({ text: '', categoryId: '' });
+  const [search, setSearch] = useState<SearchType>({ text: '', categoryId: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Product> | null>(null);
   const [productCategories, setProductCategories] = useState<{ id: string; productCategory: ProductCategory }[]>([]);
   const [suppliers, setSuppliers] = useState<{ id: string; supplier: Supplier }[]>([]);
@@ -42,6 +47,7 @@ const ProductList: React.FC = () => {
   const [productCount, setProductCount] = useState<number | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
+  const { counters, loadProductOptions } = useAppContext();
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'productCategories'), (snapshot) => {
@@ -65,13 +71,13 @@ const ProductList: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  const existSearch = () => search.text.trim() || search.categoryId.trim();
+  const existSearch = (search: SearchType) => search.text.trim() || search.categoryId.trim();
 
-  const queryProducts = (action: 'head' | 'prev' | 'next' | 'current') => async () => {
+  const queryProducts = (search: SearchType, action: 'head' | 'prev' | 'next' | 'current') => async () => {
     try {
       setError('');
       const conds: QueryConstraint[] = [];
-      if (existSearch()) {
+      if (existSearch(search)) {
         const searchText = search.text.trim();
         const categoryId = search.categoryId.trim();
         if (searchText) {
@@ -91,12 +97,7 @@ const ProductList: React.FC = () => {
         setPage(0);
         setProductCount(null);
       } else {
-        const snap = await getDoc(doc(db, 'counters', 'products'));
-        if (snap.exists()) {
-          setProductCount(snap.data().all);
-        } else {
-          setProductCount(null);
-        }
+        setProductCount(Number(counters?.products.all));
 
         if (action === 'head') {
           conds.push(orderBy('code'));
@@ -129,7 +130,6 @@ const ProductList: React.FC = () => {
       const q = query(collection(db, 'products'), ...conds);
       const querySnapshot = await getDocs(q);
       setSnapshot(querySnapshot as QuerySnapshot<Product>);
-      console.log({ size: querySnapshot.size });
     } catch (error) {
       console.log({ error });
       setError(firebaseError(error));
@@ -150,7 +150,7 @@ const ProductList: React.FC = () => {
     if (window.confirm('削除してもよろしいですか？')) {
       try {
         await deleteDoc(doc(db, 'products', code));
-        queryProducts('current')();
+        queryProducts(search, 'current')();
       } catch (error) {
         console.log({ error });
         alert(firebaseError(error));
@@ -172,6 +172,44 @@ const ProductList: React.FC = () => {
     }
   };
 
+  const createSearchData = async () => {
+    if (window.confirm('全文検索用のデータを作成しますか？')) {
+      const ref = collection(db, 'products');
+      const snap = await getDocs(ref);
+      const codes = new Set<string>();
+      const names = new Set<string>();
+      snap.docs.forEach((item) => {
+        const product = item.data() as Product;
+        if (!product.hidden) {
+          codes.add(product.code);
+          names.add(product.name);
+        }
+      });
+
+      const productCodes = Array.from(codes);
+      const productNames = Array.from(names);
+
+      const productCodeSize = productCodes.reduce((sum, str) => sum + new Blob([str]).size, 0);
+      const productNameSize = productNames.reduce((sum, str) => sum + new Blob([str]).size, 0);
+      console.log({ productCodeSize, productNameSize });
+
+      await setDoc(doc(db, 'searches', 'productCode'), {
+        words: productCodes,
+      });
+      await setDoc(doc(db, 'searches', 'productName'), {
+        words: productNames,
+      });
+      await setDoc(
+        doc(db, 'counters', 'products'),
+        {
+          searchUpdatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      alert('全文検索用のデータを作成しました。');
+    }
+  };
+
   return (
     <div className="pt-12">
       <ProductEdit
@@ -180,17 +218,21 @@ const ProductList: React.FC = () => {
         productCategories={productCategories}
         suppliers={suppliers}
         onClose={() => setOpen(false)}
-        onUpdate={queryProducts('current')}
+        onUpdate={queryProducts(search, 'current')}
       />
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">商品マスタ(共通)</h1>
-      <Card className="mx-8 mb-4">
+      <Card className="mx-8 mb-4 overflow-visible">
         <Flex justify_content="between" align_items="center" className="p-4">
           <Flex>
-            <Form.Text
-              placeholder="検索文字"
-              className="mr-2"
-              value={search.text}
-              onChange={(e) => setSearch({ ...search, text: e.target.value })}
+            <AsyncSelect
+              className="w-80 mr-2"
+              value={{ label: search.text, value: search.text }}
+              loadOptions={loadProductOptions}
+              onChange={(e) => {
+                const newSearch = { ...search, text: e?.label ?? '' };
+                setSearch(newSearch);
+                queryProducts(newSearch, 'head')();
+              }}
             />
             <Form.Select
               id="select"
@@ -200,11 +242,14 @@ const ProductList: React.FC = () => {
               options={categoryOptions}
               onChange={(e) => setSearch({ ...search, categoryId: e.target.value })}
             />
-            <Button variant="outlined" className="mr-2" onClick={queryProducts('head')}>
+            <Button variant="outlined" className="mr-2" onClick={queryProducts(search, 'head')}>
               検索
             </Button>
             <Button variant="outlined" className="mr-2" onClick={newProduct}>
               新規
+            </Button>
+            <Button variant="outlined" className="mr-2" onClick={createSearchData}>
+              検索データ作成
             </Button>
           </Flex>
           {snapshot && productCount && (
@@ -212,9 +257,9 @@ const ProductList: React.FC = () => {
               <Button
                 color="light"
                 size="xs"
-                disabled={!!existSearch() || page <= 0 || !snapshot || snapshot.size === 0}
+                disabled={!!existSearch(search) || page <= 0 || !snapshot || snapshot.size === 0}
                 className="mr-2"
-                onClick={queryProducts('prev')}
+                onClick={queryProducts(search, 'prev')}
               >
                 前へ
               </Button>
@@ -222,10 +267,13 @@ const ProductList: React.FC = () => {
                 color="light"
                 size="xs"
                 disabled={
-                  !!existSearch() || PER_PAGE * page + snapshot.size >= productCount || !snapshot || snapshot.size === 0
+                  !!existSearch(search) ||
+                  PER_PAGE * page + snapshot.size >= productCount ||
+                  !snapshot ||
+                  snapshot.size === 0
                 }
                 className="mr-2"
-                onClick={queryProducts('next')}
+                onClick={queryProducts(search, 'next')}
               >
                 後へ
               </Button>
