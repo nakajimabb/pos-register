@@ -220,12 +220,12 @@ const ProductList: React.FC = () => {
           <Flex>
             <AsyncSelect
               className="w-80 mr-2"
+              isClearable={true}
               value={{ label: search.text, value: search.text }}
               loadOptions={loadProductOptions}
               onChange={(e) => {
                 const newSearch = { ...search, text: e?.label ?? '' };
                 setSearch(newSearch);
-                queryProducts(newSearch, 'head')();
               }}
             />
             <Form.Select
