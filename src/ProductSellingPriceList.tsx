@@ -16,10 +16,11 @@ import {
 import Select from 'react-select';
 
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
+import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
 import ProductSellingPriceEdit from './ProductSellingPriceEdit';
 import { ProductSellingPrice, Shop } from './types';
-import { nameWithCode } from './tools';
+import { nameWithCode, userCodeFromEmail } from './tools';
 
 const db = getFirestore();
 
@@ -33,6 +34,14 @@ const ProductSellingPriceList: React.FC = () => {
   });
   const [shopOptions, setShopOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
+  const { currentUser } = useAppContext();
+
+  useEffect(() => {
+    if (currentUser && currentUser.email) {
+      const shopCode = userCodeFromEmail(currentUser.email);
+      if (shopCode) setSearch((prev) => ({ ...prev, shopCode }));
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'shops'), (snapshot) => {
