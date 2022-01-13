@@ -218,7 +218,7 @@ const RegisterMain: React.FC = () => {
                     <Table.Cell type="th" className="w-1/12">
                       No.
                     </Table.Cell>
-                    <Table.Cell type="th" className="w-2/12">
+                    <Table.Cell type="th" className="w-3/12">
                       コード
                     </Table.Cell>
                     <Table.Cell type="th" className="w-3/12">
@@ -227,10 +227,11 @@ const RegisterMain: React.FC = () => {
                     <Table.Cell type="th" className="w-2/12">
                       単価
                     </Table.Cell>
-                    <Table.Cell type="th" className="w-2/12">
+                    <Table.Cell type="th" className="w-1/12">
                       数量
                     </Table.Cell>
-                    <Table.Cell type="th" className="w-2/12" />
+                    <Table.Cell type="th" className="w-1/12" />
+                    <Table.Cell type="th" className="w-1/12" />
                   </Table.Row>
                 </Table.Head>
                 <Table.Body>
@@ -238,7 +239,7 @@ const RegisterMain: React.FC = () => {
                     <Table.Row key={index} className={index % 2 === 1 ? 'bg-blue-50' : ''}>
                       <Table.Cell>{index + 1}</Table.Cell>
                       <Table.Cell>{basketItem.product.code}</Table.Cell>
-                      <Table.Cell className="truncate">{basketItem.product.name}</Table.Cell>
+                      <Table.Cell>{basketItem.product.name}</Table.Cell>
                       <Table.Cell className="text-right">
                         ¥{basketItem.product.sellingPrice?.toLocaleString()}
                       </Table.Cell>
@@ -258,13 +259,19 @@ const RegisterMain: React.FC = () => {
                             <Icon name="pencil-alt" />
                           </Button>
                         ) : null}
+                      </Table.Cell>
+                      <Table.Cell className="text-center">
                         <Button
                           variant="icon"
                           size="xs"
                           color="none"
                           className="hover:bg-gray-300"
                           onClick={(e) => {
-                            setBasketItems(basketItems.filter((item) => item.product.code !== basketItem.product.code));
+                            if (window.confirm('削除してもよろしいですか？')) {
+                              setBasketItems(
+                                basketItems.filter((item) => item.product.code !== basketItem.product.code)
+                              );
+                            }
                           }}
                         >
                           <Icon name="trash" />
