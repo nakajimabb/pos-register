@@ -127,3 +127,11 @@ export type Counters = {
   shops: CounterItem;
   suppliers: CounterItem;
 };
+
+export type ProductBundle = {
+  code: string;
+  name: string;
+  quantity: number;
+  discount: number;
+  productCodes: string[];
+};

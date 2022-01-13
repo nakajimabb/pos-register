@@ -18,6 +18,8 @@ import ShopList from './ShopList';
 import { AppContextProvider } from './AppContext';
 import './App.css';
 import ReceiptList from './ReceiptList';
+import ProductBundleList from './ProductBundleList';
+import ProductBundleEdit from './ProductBundleEdit';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -48,6 +50,9 @@ const App: React.FC = () => {
           <Route exact path="/shops" component={ShopList} />
           <Route exact path="/shortcut_edit" component={ShortcutEdit} />
           <Route exact path="/receipt_list" component={ReceiptList} />
+          <Route exact path="/product_bundle_list" component={ProductBundleList} />
+          <Route exact path="/product_bundle_edit" component={ProductBundleEdit} />
+          <Route path="/product_bundle_edit/:id" component={ProductBundleEdit} />
           <Route exact path="/tailwind" component={Tailwind} />
         </Router>
       </AppContextProvider>
