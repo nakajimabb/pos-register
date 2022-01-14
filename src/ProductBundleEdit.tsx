@@ -92,6 +92,7 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
     e.preventDefault();
     setError('');
     try {
+      productBundle.productCodes = products.map((product) => product.code);
       if (docId) {
         await setDoc(doc(db, 'productBundles', docId), productBundle);
       } else {
@@ -118,7 +119,7 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
           document.getElementById('productCode')?.focus();
         }}
       ></RegisterSearch>
-      <Card className="m-2 w-1/2">
+      <Card className="mt-16 mb-2 w-1/2 h-full">
         <Card.Body>
           <div>
             {error && (
@@ -220,7 +221,7 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
           </div>
           <Flex justify_content="center" align_items="center" className="m-4">
             <Link to="/product_bundle_list">
-              <Button color="secondary" variant="outlined" className="mr-3">
+              <Button color="secondary" variant="outlined" className="ml-8 mr-3">
                 キャンセル
               </Button>
             </Link>
