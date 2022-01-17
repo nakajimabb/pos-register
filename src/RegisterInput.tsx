@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Form, Modal, Table } from './components';
+import { useAppContext } from './AppContext';
 import { Product, RegisterItem } from './types';
 
 type BasketItem = {
@@ -17,6 +18,8 @@ type Props = {
 
 const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBasketItems, onClose }) => {
   const [price, setPrice] = useState<number>(0);
+  const { addBundleDiscount } = useAppContext();
+
   useEffect(() => {
     const inputPrice = document.getElementById('inputPrice') as HTMLInputElement;
     inputPrice?.focus();
@@ -29,7 +32,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
       const existingIndex = basketItems.findIndex((item) => item.product.code === registerItem.code);
       if (existingIndex >= 0) {
         basketItems[existingIndex].product.sellingPrice = price;
-        setBasketItems([...basketItems]);
+        setBasketItems(addBundleDiscount(basketItems));
       } else {
         const basketItem = {
           product: {
@@ -51,7 +54,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
           },
           quantity: 1,
         };
-        setBasketItems([...basketItems, basketItem]);
+        setBasketItems(addBundleDiscount([...basketItems, basketItem]));
       }
     }
     setPrice(0);

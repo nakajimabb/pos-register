@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Form, Modal, Table } from './components';
+import { useAppContext } from './AppContext';
 import { Product } from './types';
 
 type BasketItem = {
@@ -19,6 +20,7 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
   const [quantity, setQuantity] = useState<number>(0);
   const [discount, setDiscount] = useState<number>(0);
   const [rate, setRate] = useState<number>(0);
+  const { addBundleDiscount } = useAppContext();
 
   useEffect(() => {
     setQuantity(Number(basketItem?.quantity));
@@ -69,7 +71,7 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
             basketItems.splice(existingIndex + 1, 0, discountItem);
           }
         }
-        setBasketItems([...basketItems]);
+        setBasketItems(addBundleDiscount(basketItems));
       }
     }
     setDiscount(0);

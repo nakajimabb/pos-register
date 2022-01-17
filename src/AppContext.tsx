@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext, createContext } from 'react';
 import { collection, doc, getDoc, getFirestore, onSnapshot, Timestamp, Bytes } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
 import { userCodeFromEmail } from './tools';
-import { Shop, CounterItem, Counters } from './types';
+import { Shop, CounterItem, Counters, Product, ProductBundle } from './types';
 
 const zlib = require('zlib');
 
@@ -14,6 +14,8 @@ export type ContextType = {
   currentUser: User | null;
   currentShop: Shop | null;
   counters: Counters | null;
+  productBundles: ProductBundle[];
+  addBundleDiscount: (basketItems: BasketItem[]) => BasketItem[];
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;
 };
 
@@ -21,12 +23,19 @@ const AppContext = createContext({
   currentUser: null,
   currentShop: null,
   counters: null,
+  productBundles: [],
+  addBundleDiscount: (basketItems: BasketItem[]) => basketItems,
   loadProductOptions: async (inputText: string) => [],
 } as ContextType);
 
 type FullTextSearch = {
   texts: string[];
   updatedAt: Timestamp;
+};
+
+type BasketItem = {
+  product: Product;
+  quantity: number;
 };
 
 export const AppContextProvider: React.FC = ({ children }) => {
@@ -41,6 +50,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
     shops: { all: 0, lastUpdatedAt: new Timestamp(0, 0) },
     suppliers: { all: 0, lastUpdatedAt: new Timestamp(0, 0) },
   });
+  const [productBundles, setProductBundles] = useState<ProductBundle[]>([]);
 
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
@@ -75,6 +85,56 @@ export const AppContextProvider: React.FC = ({ children }) => {
     console.log('...start realtime listener about counters.');
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'productBundles'), (snapshot) => {
+      const bundlesData: ProductBundle[] = [];
+      snapshot.docs.forEach((doc) => {
+        bundlesData.push(doc.data() as ProductBundle);
+      });
+      setProductBundles(bundlesData);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const addBundleDiscount = (basketItems: BasketItem[]) => {
+    let filteredBasketItems = basketItems.filter(
+      (item) => !productBundles.map((bundle) => bundle.name).includes(item.product.name)
+    );
+    productBundles.forEach((productBundle) => {
+      let count = 0;
+      basketItems.forEach((item) => {
+        if (productBundle.productCodes.includes(item.product.code)) {
+          count += item.quantity;
+        }
+      });
+      if (count >= productBundle.quantity) {
+        const discountPrice = -Math.floor(count / productBundle.quantity) * productBundle.discount;
+        const discountItem = {
+          product: {
+            abbr: '',
+            code: '',
+            kana: '',
+            name: productBundle.name,
+            hidden: false,
+            costPrice: null,
+            sellingPrice: discountPrice,
+            stockTaxClass: null,
+            sellingTaxClass: productBundle.sellingTaxClass,
+            stockTax: productBundle.sellingTax,
+            sellingTax: 8,
+            selfMedication: false,
+            supplierRef: null,
+            categoryRef: null,
+            note: '',
+          },
+          quantity: 1,
+        };
+        filteredBasketItems.push(discountItem);
+      }
+    });
+    return filteredBasketItems;
+  };
 
   const updateProductTextSearch = async () => {
     const productCounter = counters.products;
@@ -117,6 +177,8 @@ export const AppContextProvider: React.FC = ({ children }) => {
         currentUser,
         currentShop,
         counters,
+        productBundles,
+        addBundleDiscount,
         loadProductOptions,
       }}
     >

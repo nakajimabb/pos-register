@@ -131,6 +131,8 @@ export type Counters = {
 export type ProductBundle = {
   code: string;
   name: string;
+  sellingTaxClass: TaxClass | null; // 税区分
+  sellingTax: number | null; // 消費税
   quantity: number;
   discount: number;
   productCodes: string[];

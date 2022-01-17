@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getFirestore, doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
-
 import { Button, Card, Flex, Form, Grid, Icon, Table } from './components';
 import { Brand } from './components/type';
 import { useAppContext } from './AppContext';
@@ -25,7 +24,7 @@ const RegisterMain: React.FC = () => {
     product: Product;
   };
 
-  const { currentShop } = useAppContext();
+  const { currentShop, addBundleDiscount } = useAppContext();
   const [productCode, setProductCode] = useState<string>('');
   const [basketItem, setBasketItem] = useState<BasketItem>();
   const [basketItems, setBasketItems] = useState<BasketItem[]>([]);
@@ -49,10 +48,10 @@ const RegisterMain: React.FC = () => {
         const existingIndex = basketItems.findIndex((item) => item.product.code === code);
         if (existingIndex >= 0) {
           basketItems[existingIndex].quantity += 1;
-          setBasketItems([...basketItems]);
+          setBasketItems(addBundleDiscount(basketItems));
         } else {
           const basketItem = { product, quantity: 1 };
-          setBasketItems([...basketItems, basketItem]);
+          setBasketItems(addBundleDiscount([...basketItems, basketItem]));
         }
         setProductCode('');
       } else {
@@ -269,7 +268,9 @@ const RegisterMain: React.FC = () => {
                           onClick={(e) => {
                             if (window.confirm('削除してもよろしいですか？')) {
                               setBasketItems(
-                                basketItems.filter((item) => item.product.code !== basketItem.product.code)
+                                addBundleDiscount(
+                                  basketItems.filter((item) => item.product.code !== basketItem.product.code)
+                                )
                               );
                             }
                           }}
@@ -388,13 +389,13 @@ const RegisterMain: React.FC = () => {
                           );
                           if (existingIndex >= 0) {
                             basketItems[existingIndex].quantity += 1;
-                            setBasketItems([...basketItems]);
+                            setBasketItems(addBundleDiscount(basketItems));
                           } else {
                             const basketItem = {
                               product: shortcut.product,
                               quantity: 1,
                             };
-                            setBasketItems([...basketItems, basketItem]);
+                            setBasketItems(addBundleDiscount([...basketItems, basketItem]));
                           }
                         }
                       }}

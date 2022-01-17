@@ -57,7 +57,7 @@ const ProductBundleList: React.FC = () => {
       console.log({ error });
       setError(firebaseError(error));
     }
-  }, []);
+  }, [search]);
 
   const deleteProductBundle = (code: string) => async () => {
     if (window.confirm('削除してもよろしいですか？')) {

@@ -4,10 +4,23 @@ import { doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
 
 import { Alert, Button, Card, Flex, Form, Grid, Icon, Table } from './components';
 import firebaseError from './firebaseError';
-import { ProductBundle, Product } from './types';
+import { ProductBundle, Product, TaxClass } from './types';
 import RegisterSearch from './RegisterSearch';
 
 const db = getFirestore();
+
+const TAX_CLASS_OPTIONS = [
+  { value: '', label: '' },
+  { value: 'exclusive', label: '外税' },
+  { value: 'inclusive', label: '内税' },
+  { value: 'free', label: '非課税' },
+];
+
+const TAX_OPTIONS = [
+  { value: '', label: '' },
+  { value: '8', label: '8%' },
+  { value: '10', label: '10%' },
+];
 
 interface Props extends RouteComponentProps<{ id: string }> {
   open: boolean;
@@ -20,6 +33,8 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
   const [productBundle, setProductBundle] = useState<ProductBundle>({
     code: '',
     name: '',
+    sellingTaxClass: null,
+    sellingTax: null,
     quantity: 0,
     discount: 0,
     productCodes: [],
@@ -55,12 +70,14 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
       setError('');
     };
     f();
-  }, []);
+  }, [docId]);
 
   const resetProductBundle = () => {
     setProductBundle({
       code: '',
       name: '',
+      sellingTaxClass: null,
+      sellingTax: null,
       quantity: 0,
       discount: 0,
       productCodes: [],
@@ -141,6 +158,22 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
                 placeholder="名称"
                 value={productBundle.name}
                 onChange={(e) => setProductBundle({ ...productBundle, name: e.target.value })}
+              />
+              <Form.Label>税区分</Form.Label>
+              <Form.Select
+                className="mb-3 sm:mb-0"
+                value={String(productBundle.sellingTaxClass)}
+                options={TAX_CLASS_OPTIONS}
+                onChange={(e) => setProductBundle({ ...productBundle, sellingTaxClass: e.target.value as TaxClass })}
+              />
+              <Form.Label>消費税</Form.Label>
+              <Form.Select
+                className="mb-3 sm:mb-0"
+                value={String(productBundle.sellingTax)}
+                options={TAX_OPTIONS}
+                onChange={(e) =>
+                  setProductBundle({ ...productBundle, sellingTax: e.target.value ? +e.target.value : null })
+                }
               />
               <Form.Label>成立数量</Form.Label>
               <Form.Text
