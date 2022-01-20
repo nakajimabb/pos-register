@@ -2,11 +2,17 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { getAuth, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getFirestore, getDocs, collectionGroup, writeBatch } from 'firebase/firestore';
+
 import { Button, Flex, Dropdown, Icon, Navbar, Tooltip } from './components';
 import app from './firebase';
 import { useAppContext } from './AppContext';
 import { nameWithCode } from './tools';
+import firebaseError from './firebaseError';
 import './App.css';
+
+const db = getFirestore();
+const MAX_BATCH = 500;
 
 const AppBar: React.FC = () => {
   const { currentShop } = useAppContext();
@@ -37,6 +43,37 @@ const AppBar: React.FC = () => {
       } catch (error) {
         console.log({ error });
         alert('エラーが発生しました。');
+      }
+    }
+  };
+
+  const clearProductCostPrices = async () => {
+    if (window.confirm('削除してもよろしいですか？')) {
+      try {
+        const querySnapshot = await getDocs(collectionGroup(db, 'productCostPrices'));
+        console.log({ len: querySnapshot.docs.length });
+        const refs = querySnapshot.docs.map((ds) => ds.ref);
+        const taskSize = Math.ceil(refs.length / MAX_BATCH);
+        const sequential = [...Array(taskSize)].map((_, i) => i);
+        const tasks = sequential.map(async (_, i) => {
+          try {
+            const batch = writeBatch(db);
+            const sliced = refs.slice(i * MAX_BATCH, (i + 1) * MAX_BATCH);
+            sliced.forEach((ref) => batch.delete(ref));
+            await batch.commit();
+            return { count: sliced.length, error: '' };
+          } catch (error) {
+            return { count: 0, error: firebaseError(error) };
+          }
+        });
+        const results = await Promise.all(tasks);
+        const count = results.reduce((cnt, res) => cnt + res.count, 0);
+        const errors = results.filter((res) => !!res.error).map((res) => res.error);
+        alert(`${count}件のデータを削除しました。`);
+        console.log({ errors });
+      } catch (error) {
+        console.log({ error });
+        alert(firebaseError(error));
       }
     }
   };
@@ -112,6 +149,7 @@ const AppBar: React.FC = () => {
           align="right"
         >
           <Dropdown.Item title="ユーザ情報取得" onClick={getAuthUserByCode} />
+          <Dropdown.Item title="店舗原価マスタ全削除" onClick={clearProductCostPrices} />
           <Dropdown.Item title="tailwind" to="/tailwind" />
         </Dropdown>
       </Flex>
