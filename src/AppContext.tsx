@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext, createContext } from 'react';
 import { collection, doc, getDoc, getFirestore, onSnapshot, Timestamp, Bytes } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
 import { userCodeFromEmail } from './tools';
-import { Shop, CounterItem, Counters, Product, ProductBundle } from './types';
+import { Supplier, Shop, CounterItem, Counters, Product, ProductBundle } from './types';
 
 const zlib = require('zlib');
 
@@ -15,17 +15,21 @@ export type ContextType = {
   currentShop: Shop | null;
   counters: Counters | null;
   productBundles: ProductBundle[];
+  suppliers: { [code: string]: Supplier } | null;
   addBundleDiscount: (basketItems: BasketItem[]) => BasketItem[];
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;
+  registListner: (name: 'suppliers') => void;
 };
 
 const AppContext = createContext({
   currentUser: null,
   currentShop: null,
   counters: null,
+  suppliers: null,
   productBundles: [],
   addBundleDiscount: (basketItems: BasketItem[]) => basketItems,
   loadProductOptions: async (inputText: string) => [],
+  registListner: (name: 'suppliers') => {},
 } as ContextType);
 
 type FullTextSearch = {
@@ -51,6 +55,8 @@ export const AppContextProvider: React.FC = ({ children }) => {
     suppliers: { all: 0, lastUpdatedAt: new Timestamp(0, 0) },
   });
   const [productBundles, setProductBundles] = useState<ProductBundle[]>([]);
+  const [suppliers, setSuppliers] = useState<{ [code: string]: Supplier }>({});
+  const [listeners, setListeners] = useState<{ suppliers: boolean }>({ suppliers: false });
 
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
@@ -82,7 +88,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
       });
       setCounters(cnts);
     });
-    console.log('...start realtime listener about counters.');
+    console.log('...start realtime listener on counters.');
     return () => unsubscribe();
   }, []);
 
@@ -96,6 +102,24 @@ export const AppContextProvider: React.FC = ({ children }) => {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (listeners.suppliers) {
+      const unsubscribe = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
+        const suppliersData: { [code: string]: Supplier } = {};
+        snapshot.docs.forEach((doc) => {
+          suppliersData[doc.id] = doc.data() as Supplier;
+        });
+        setSuppliers(suppliersData);
+      });
+      console.log('...start realtime listener on suppliers.');
+      return () => unsubscribe();
+    }
+  }, [listeners.suppliers]);
+
+  const registListner = (name: 'suppliers') => {
+    setListeners((prev) => ({ ...prev, [name]: true }));
+  };
 
   const addBundleDiscount = (basketItems: BasketItem[]) => {
     let filteredBasketItems = basketItems.filter(
@@ -177,9 +201,11 @@ export const AppContextProvider: React.FC = ({ children }) => {
         currentUser,
         currentShop,
         counters,
+        suppliers,
         productBundles,
         addBundleDiscount,
         loadProductOptions,
+        registListner,
       }}
     >
       {children}
