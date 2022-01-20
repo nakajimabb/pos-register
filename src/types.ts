@@ -39,9 +39,13 @@ export type ProductCostPrice = {
   shopCode: string; // 店舗コード
   productCode: string; // JANコード
   productName: string;
-  costPrice: number | null; // 売価(税抜)
-  supplierRef: DocumentReference<Supplier> | null;
+  supplierCode: string; // 仕入先コード
+  supplierName: string;
+  costPrice: number | null; // 原価(税抜)
 };
+
+export const getProductCostPricePath = (data: ProductCostPrice) =>
+  `shops/${data.shopCode}/productCostPrices/${data.productCode}|${data.supplierCode}`;
 
 export type ProductSellingPrice = {
   shopCode: string; // 店舗コード

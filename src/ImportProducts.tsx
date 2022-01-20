@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { getFirestore, doc, getDocs, collection, writeBatch, DocumentReference } from 'firebase/firestore';
 
 import { Alert, Button, Card, Flex, Form } from './components';
 import { readExcelAsOjects, HeaderInfo } from './readExcel';
+import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
-import { Supplier } from './types';
+import { Supplier, ProductCostPrice, getProductCostPricePath } from './types';
 import { checkDigit } from './tools';
 
 const db = getFirestore();
@@ -17,7 +18,12 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [messages, setMessages] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const { registListner, suppliers } = useAppContext();
   const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    registListner('suppliers');
+  }, []);
 
   const importExcel = async (e: React.FormEvent) => {
     setMessages([]);
@@ -26,7 +32,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
 
     const files = ref?.current?.files;
     const blob = files && files[0];
-    if (blob && blob.name) {
+    if (blob && blob.name && suppliers) {
       setLoading(true);
       try {
         // EXCEL 読み込み
@@ -170,11 +176,16 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
                     const supCode2 = supplierCodes.includes(supCode) ? supCode : '0'; // 存在しなければ その他(0)
                     supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
                   }
-                  batch.set(
-                    doc(db, 'shops', shopCode, 'productCostPrices', code),
-                    { shopCode, productCode: code, productName: item.name, supplierRef, costPrice: item.costPrice },
-                    { merge: true }
-                  );
+                  const supplier = suppliers[String(item.supplierCode)];
+                  const productCostPrice: ProductCostPrice = {
+                    shopCode,
+                    productCode: code,
+                    productName: String(item.name),
+                    supplierCode: supplier.code ?? '0',
+                    supplierName: supplier.name ?? 'その他',
+                    costPrice: +item.costPrice,
+                  };
+                  batch.set(doc(db, getProductCostPricePath(productCostPrice)), productCostPrice, { merge: true });
                   count += 1;
                 }
               });

@@ -126,7 +126,7 @@ export const checkDigit = (str: string) => {
   }
 };
 
-export const nameWithCode = (obj: { [key: string]: any }) => {
+export const nameWithCode = (obj: { code: string; name: string }) => {
   let result = '';
   if ('name' in obj) result += obj['name'];
   if ('code' in obj) result += '(' + obj['code'] + ')';

@@ -6,7 +6,6 @@ import {
   getDocs,
   setDoc,
   getFirestore,
-  DocumentReference,
   limit,
   orderBy,
   startAt,
@@ -18,8 +17,9 @@ import Select, { SingleValue } from 'react-select';
 import AsyncSelect from 'react-select/async';
 
 import { Alert, Button, Form, Grid, Modal } from './components';
+import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
-import { Product, ProductCostPrice, Supplier } from './types';
+import { Product, ProductCostPrice, Supplier, getProductCostPricePath } from './types';
 import { nameWithCode } from './tools';
 
 const db = getFirestore();
@@ -27,39 +27,49 @@ const db = getFirestore();
 type Props = {
   open: boolean;
   shopCode: string;
-  productCode: string | null;
-  suppliers: { id: string; supplier: Supplier }[];
+  path: string | null;
   onClose: () => void;
   onUpdate: () => void;
 };
 
-const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, productCode, suppliers, onClose, onUpdate }) => {
+const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, path, onClose, onUpdate }) => {
   const [productCostPrice, setProductCostPrice] = useState<ProductCostPrice>({
-    productCode: productCode ?? '',
+    productCode: '',
     productName: '',
     shopCode,
     costPrice: null,
-    supplierRef: null,
+    supplierCode: '',
+    supplierName: '',
   });
   const [error, setError] = useState('');
   const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
+  const { registListner, suppliers } = useAppContext();
 
   useEffect(() => {
-    const options = suppliers.map(({ id, supplier }) => ({
-      value: id,
-      label: `${supplier.name}(${supplier.code})`,
-    }));
-    options.unshift({ label: '', value: '' });
-    setSuppliersOptions(options);
+    if (open) registListner('suppliers');
+  }, [open]);
+
+  useEffect(() => {
+    if (suppliers) {
+      const options = Object.entries(suppliers).map(([code, supplier]) => ({
+        value: code,
+        label: nameWithCode(supplier),
+      }));
+      options.unshift({ label: '', value: '' });
+      setSuppliersOptions(options);
+    }
   }, [suppliers]);
 
   const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
     return value ? options.find((option) => option.value === value) : { label: '', value: '' };
   };
 
-  const setSupplierRef = (e: SingleValue<{ label: string; value: string }>) => {
-    const ref = e?.value ? doc(db, 'suppliers', e.value) : null;
-    setProductCostPrice({ ...productCostPrice, supplierRef: ref as DocumentReference<Supplier> | null });
+  const setSupplier = (e: SingleValue<{ label: string; value: string }>) => {
+    const supplierCode = e?.value || '';
+    if (supplierCode && suppliers) {
+      const supplier = suppliers[supplierCode];
+      setProductCostPrice({ ...productCostPrice, supplierCode, supplierName: supplier.name });
+    }
   };
 
   const setProductCode = async (e: SingleValue<{ label: string; value: string }>) => {
@@ -68,12 +78,15 @@ const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, productCode, su
     const snap = await getDoc(ref);
     const product = snap.data();
     if (product) {
+      const snapSupplier = await getDoc(product.supplierRef);
+      const supplier = snapSupplier.data() as Supplier;
       setProductCostPrice({
         ...productCostPrice,
         productCode: code,
         productName: product.name,
         costPrice: product.costPrice,
-        supplierRef: product.supplierRef,
+        supplierCode: supplier.code,
+        supplierName: supplier.name,
       });
     }
   };
@@ -102,8 +115,8 @@ const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, productCode, su
 
   useEffect(() => {
     const f = async () => {
-      if (productCode && shopCode) {
-        const ref = doc(db, 'shops', shopCode, 'productCostPrices', productCode);
+      if (path) {
+        const ref = doc(db, path);
         const snap = await getDoc(ref);
         if (snap.exists()) {
           const cost_price = snap.data() as ProductCostPrice;
@@ -117,15 +130,16 @@ const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, productCode, su
       setError('');
     };
     f();
-  }, [productCode, shopCode]);
+  }, [path]);
 
   const resetProductCostPrice = () => {
     setProductCostPrice({
       shopCode,
       productCode: '',
       productName: '',
+      supplierCode: '',
+      supplierName: '',
       costPrice: null,
-      supplierRef: null,
     });
   };
 
@@ -134,18 +148,19 @@ const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, productCode, su
     setError('');
     try {
       if (!shopCode) throw Error('店舗コードが指定されていません。');
-      if (!productCostPrice.supplierRef) throw Error('仕入先が指定されていません。');
+      if (!productCostPrice.supplierCode) throw Error('仕入先が指定されていません。');
 
-      if (productCode) {
-        await setDoc(doc(db, 'shops', shopCode, 'productCostPrices', productCode), productCostPrice);
+      if (path) {
+        await setDoc(doc(db, path), productCostPrice);
       } else {
         if (!productCostPrice.productCode) throw Error('商品が指定されていません。');
 
-        const ref = doc(db, 'shops', shopCode, 'productCostPrices', productCostPrice.productCode);
+        const path = getProductCostPricePath(productCostPrice);
+        const ref = doc(db, path);
         const snap = await getDoc(ref);
         if (snap.exists()) throw Error('指定された商品は既に登録されています。');
 
-        await setDoc(doc(db, 'shops', shopCode, 'productCostPrices', productCostPrice.productCode), productCostPrice);
+        await setDoc(doc(db, path), productCostPrice);
       }
       onUpdate();
       onClose();
@@ -172,9 +187,17 @@ const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, productCode, su
             <AsyncSelect
               className="mb-3 sm:mb-0"
               value={{ label: productCostPrice.productName, value: productCostPrice.productCode }}
-              isDisabled={!!productCode}
+              isDisabled={!!path}
               loadOptions={loadProductions}
               onChange={setProductCode}
+            />
+            <Form.Label>仕入先</Form.Label>
+            <Select
+              value={selectValue(productCostPrice.supplierCode, supplierOptions)}
+              isDisabled={!!path}
+              options={supplierOptions}
+              onChange={setSupplier}
+              className="mb-3 sm:mb-0"
             />
             <Form.Label>原価税抜</Form.Label>
             <Form.Number
@@ -184,13 +207,6 @@ const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, productCode, su
               onChange={(e) =>
                 setProductCostPrice({ ...productCostPrice, costPrice: e.target.value ? +e.target.value : null })
               }
-            />
-            <Form.Label>仕入先</Form.Label>
-            <Select
-              className="mb-3 sm:mb-0"
-              value={selectValue(productCostPrice.supplierRef?.id, supplierOptions)}
-              options={supplierOptions}
-              onChange={setSupplierRef}
             />
           </Grid>
         </Modal.Body>

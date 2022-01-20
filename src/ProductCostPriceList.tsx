@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { truncate } from 'lodash';
 import {
   collection,
+  collectionGroup,
   doc,
   query,
   getDocs,
@@ -20,7 +21,7 @@ import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import { useAppContext } from './AppContext';
 import ProductCostPriceEdit from './ProductCostPriceEdit';
-import { ProductCostPrice, Shop, Supplier } from './types';
+import { ProductCostPrice, Shop } from './types';
 import { nameWithCode, userCodeFromEmail } from './tools';
 
 const db = getFirestore();
@@ -28,12 +29,8 @@ const db = getFirestore();
 const ProductCostPriceList: React.FC = () => {
   const [search, setSearch] = useState({ text: '', shopCode: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<ProductCostPrice> | null>(null);
-  const [suppliers, setSuppliers] = useState<{ id: string; supplier: Supplier }[]>([]);
   const [open, setOpen] = useState(false);
-  const [target, setTarget] = useState<{ shopCode: string | null; productCode: string | null }>({
-    shopCode: null,
-    productCode: null,
-  });
+  const [targetPath, setTargetPath] = useState<string | null>(null);
   const [shopOptions, setShopOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
   const { currentUser } = useAppContext();
@@ -44,14 +41,6 @@ const ProductCostPriceList: React.FC = () => {
       if (shopCode) setSearch((prev) => ({ ...prev, shopCode }));
     }
   }, [currentUser]);
-
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
-      const newSuppliers = snapshot.docs.map((item) => ({ id: item.id, supplier: item.data() as Supplier }));
-      setSuppliers(newSuppliers);
-    });
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'shops'), (snapshot) => {
@@ -78,9 +67,9 @@ const ProductCostPriceList: React.FC = () => {
       if (searchText) {
         if (searchText) {
           if (searchText.match(/^\d+$/)) {
-            conds.push(orderBy('code'));
+            conds.push(orderBy('productCode'));
           } else {
-            conds.push(orderBy('name'));
+            conds.push(orderBy('productName'));
           }
           conds.push(startAt(searchText));
           conds.push(endAt(searchText + '\uf8ff'));
@@ -98,20 +87,20 @@ const ProductCostPriceList: React.FC = () => {
   const newProductCostPrice = (shopCode: string) => () => {
     if (shopCode) {
       setOpen(true);
-      setTarget({ shopCode, productCode: null });
+      setTargetPath(null);
     }
   };
 
-  const editProductCostPrice = (shopCode: string, productCode: string) => () => {
+  const editProductCostPrice = (path: string) => () => {
     setOpen(true);
-    setTarget({ shopCode, productCode });
+    setTargetPath(path);
   };
 
-  const deleteProductCostPrice = (shopCode: string, productCode: string) => async () => {
+  const deleteProductCostPrice = (path: string) => async () => {
     if (window.confirm('削除してもよろしいですか？')) {
       try {
-        if (shopCode && productCode) {
-          await deleteDoc(doc(db, 'shops', shopCode, 'productCostPrices', productCode));
+        if (path) {
+          await deleteDoc(doc(db, path));
           queryResults();
         }
       } catch (error) {
@@ -121,25 +110,17 @@ const ProductCostPriceList: React.FC = () => {
     }
   };
 
-  const supplierName = (costPrice: ProductCostPrice) => {
-    if (costPrice.supplierRef) {
-      const supplier = suppliers.find((s) => s.id === costPrice.supplierRef?.id);
-      return supplier?.supplier?.name;
-    }
-  };
-
   const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
     return value ? options.find((option) => option.value === value) : { label: '', value: '' };
   };
 
   return (
     <div className="pt-12">
-      {target.shopCode && (
+      {search.shopCode && (
         <ProductCostPriceEdit
           open={open}
-          shopCode={target.shopCode}
-          productCode={target.productCode}
-          suppliers={suppliers}
+          shopCode={search.shopCode}
+          path={targetPath}
           onClose={() => setOpen(false)}
           onUpdate={queryResults}
         />
@@ -184,23 +165,21 @@ const ProductCostPriceList: React.FC = () => {
               {snapshot &&
                 snapshot.docs.map((doc, i) => {
                   const item = doc.data();
-                  const ref = doc.ref;
-                  const id = ref.id; // productCode
-                  const shopId = String(ref.parent.parent?.id); // shopCode
+                  const path = doc.ref.path;
 
                   return (
                     <Table.Row key={i}>
                       <Table.Cell>{item.productCode}</Table.Cell>
                       <Table.Cell>{item.productName}</Table.Cell>
                       <Table.Cell className="text-right">{item.costPrice?.toLocaleString()}</Table.Cell>
-                      <Table.Cell>{truncate(supplierName(item), { length: 10 })}</Table.Cell>
+                      <Table.Cell>{truncate(item.supplierName, { length: 10 })}</Table.Cell>
                       <Table.Cell>
                         <Button
                           variant="icon"
                           size="xs"
                           color="none"
                           className="hover:bg-gray-300 "
-                          onClick={editProductCostPrice(shopId, id)}
+                          onClick={editProductCostPrice(path)}
                         >
                           <Icon name="pencil-alt" />
                         </Button>
@@ -209,7 +188,7 @@ const ProductCostPriceList: React.FC = () => {
                           size="xs"
                           color="none"
                           className="hover:bg-gray-300"
-                          onClick={deleteProductCostPrice(shopId, id)}
+                          onClick={deleteProductCostPrice(path)}
                         >
                           <Icon name="trash" />
                         </Button>
