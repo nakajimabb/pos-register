@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Form, Modal, Table } from './components';
 import { useAppContext } from './AppContext';
 import { Product, RegisterItem } from './types';
+import { toNumber } from './tools';
 
 type BasketItem = {
   product: Product;
@@ -17,10 +18,11 @@ type Props = {
 };
 
 const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBasketItems, onClose }) => {
-  const [price, setPrice] = useState<number>(0);
+  const [priceText, setPriceText] = useState<string>('0');
   const { addBundleDiscount } = useAppContext();
 
   useEffect(() => {
+    setPriceText('0');
     const inputPrice = document.getElementById('inputPrice') as HTMLInputElement;
     inputPrice?.focus();
     inputPrice?.select();
@@ -28,6 +30,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
+    const price = toNumber(priceText);
     if (registerItem && price > 0) {
       const existingIndex = basketItems.findIndex((item) => item.product.code === registerItem.code);
       if (existingIndex >= 0) {
@@ -57,7 +60,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
         setBasketItems(addBundleDiscount([...basketItems, basketItem]));
       }
     }
-    setPrice(0);
+    setPriceText('0');
     onClose();
   };
 
@@ -76,8 +79,9 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
                   <Form.Text
                     id="inputPrice"
                     placeholder="金額"
-                    value={price.toString()}
-                    onChange={(e) => setPrice(Number(e.target.value.replace(/\D/, '')) || 0)}
+                    value={priceText}
+                    onChange={(e) => setPriceText(e.target.value)}
+                    onBlur={() => setPriceText(toNumber(priceText).toString())}
                     className="text-right w-full"
                   />
                 </Form>

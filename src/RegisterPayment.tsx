@@ -6,7 +6,7 @@ import app from './firebase';
 import { Button, Flex, Form, Modal, Table } from './components';
 import { useAppContext } from './AppContext';
 import { Product, Sale, SaleDetail, Stock } from './types';
-import { prefectureName } from './tools';
+import { prefectureName, toNumber } from './tools';
 
 type BasketItem = {
   product: Product;
@@ -33,7 +33,7 @@ const RegisterPayment: React.FC<Props> = ({
   onClose,
 }) => {
   const { currentShop } = useAppContext();
-  const [cash, setCash] = useState<number>(0);
+  const [cashText, setCashText] = useState<string>('0');
   const [currentTimestamp, setCurrentTimestamp] = useState<Timestamp>(Timestamp.fromDate(new Date()));
   const componentRef = useRef(null);
   const registerSign = registerMode === 'Return' ? -1 : 1;
@@ -79,7 +79,7 @@ const RegisterPayment: React.FC<Props> = ({
         taxTotal: taxNormalTotal + taxReducedTotal,
         discountTotal: 0,
         paymentType,
-        cashAmount: cash,
+        cashAmount: toNumber(cashText),
         salesNormalTotal: priceNormalTotal + taxNormalTotal,
         salesReducedTotal: priceReducedTotal + taxReducedTotal,
         taxNormalTotal,
@@ -155,9 +155,9 @@ const RegisterPayment: React.FC<Props> = ({
 
   useEffect(() => {
     if (registerMode === 'Return') {
-      setCash(-salesTotal);
+      setCashText((-salesTotal).toString());
     } else {
-      setCash(paymentType === 'Cash' ? 0 : salesTotal);
+      setCashText(paymentType === 'Cash' ? '0' : salesTotal.toString());
     }
     setCurrentTimestamp(Timestamp.fromDate(new Date()));
     const inputCash = document.getElementById('inputCash') as HTMLInputElement;
@@ -186,14 +186,15 @@ const RegisterPayment: React.FC<Props> = ({
                   <Form.Text
                     id="inputCash"
                     placeholder="金額"
-                    value={cash.toString()}
-                    onChange={(e) => setCash(Number(e.target.value.replace(/\D/, '')) || 0)}
+                    value={cashText}
+                    onChange={(e) => setCashText(e.target.value)}
                     onKeyPress={(e) => {
                       if (e.key === 'Enter' && handlePrint) {
                         e.preventDefault();
                         handlePrint();
                       }
                     }}
+                    onBlur={() => setCashText(toNumber(cashText).toString())}
                     className="text-right w-full"
                   />
                 </Form>
@@ -202,7 +203,7 @@ const RegisterPayment: React.FC<Props> = ({
             <Table.Row className={registerMode === 'Return' ? 'hidden' : ''}>
               <Table.Cell type="th">お釣り</Table.Cell>
               <Table.Cell className="text-right pr-4">
-                ¥{cash < salesTotal ? '0' : (cash - salesTotal).toLocaleString()}
+                ¥{toNumber(cashText) < salesTotal ? '0' : (toNumber(cashText) - salesTotal).toLocaleString()}
               </Table.Cell>
             </Table.Row>
           </Table.Body>
@@ -303,7 +304,7 @@ const RegisterPayment: React.FC<Props> = ({
                   {registerMode === 'Return' ? null : (
                     <Table.Row>
                       <Table.Cell type="th">お預かり</Table.Cell>
-                      <Table.Cell className="text-right pr-4">¥{cash.toLocaleString()}</Table.Cell>
+                      <Table.Cell className="text-right pr-4">¥{toNumber(cashText).toLocaleString()}</Table.Cell>
                       <Table.Cell></Table.Cell>
                     </Table.Row>
                   )}
@@ -311,7 +312,7 @@ const RegisterPayment: React.FC<Props> = ({
                     <Table.Row>
                       <Table.Cell type="th">お釣り</Table.Cell>
                       <Table.Cell className="text-right pr-4">
-                        ¥{cash < salesTotal ? '0' : (cash - salesTotal).toLocaleString()}
+                        ¥{toNumber(cashText) < salesTotal ? '0' : (toNumber(cashText) - salesTotal).toLocaleString()}
                       </Table.Cell>
                       <Table.Cell></Table.Cell>
                     </Table.Row>
@@ -326,7 +327,7 @@ const RegisterPayment: React.FC<Props> = ({
         <Button color="secondary" variant="outlined" className="mr-3" onClick={onClose}>
           キャンセル
         </Button>
-        <Button onClick={handlePrint} color="primary">
+        <Button onClick={handlePrint} color="primary" disabled={toNumber(cashText) < salesTotal}>
           レシート発行
         </Button>
       </Modal.Footer>

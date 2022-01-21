@@ -26,7 +26,8 @@ const RegisterMain: React.FC = () => {
 
   const { currentShop, addBundleDiscount } = useAppContext();
   const [productCode, setProductCode] = useState<string>('');
-  const [basketItem, setBasketItem] = useState<BasketItem>();
+  const [productError, setProductError] = useState<string>('');
+  const [basketItemIndex, setBasketItemIndex] = useState<number>(0);
   const [basketItems, setBasketItems] = useState<BasketItem[]>([]);
   const [registerItem, setRegisterItem] = useState<RegisterItem>();
   const [registerItems, setRegisterItems] = useState<RegisterItem[]>([]);
@@ -41,6 +42,7 @@ const RegisterMain: React.FC = () => {
 
   const findProduct = async (code: string) => {
     try {
+      setProductError('');
       const docRef = doc(db, 'products', code);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
@@ -55,7 +57,8 @@ const RegisterMain: React.FC = () => {
         }
         setProductCode('');
       } else {
-        console.log('no such product');
+        setProductCode('');
+        setProductError(`${code}：商品の登録がありません。`);
       }
     } catch (error) {
       console.log(error);
@@ -64,6 +67,7 @@ const RegisterMain: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setProductError('');
     if (productCode) {
       findProduct(productCode);
     } else {
@@ -156,7 +160,7 @@ const RegisterMain: React.FC = () => {
       />
       <RegisterModify
         open={openModify}
-        basketItem={basketItem}
+        itemIndex={basketItemIndex}
         basketItems={basketItems}
         setBasketItems={setBasketItems}
         onClose={() => {
@@ -194,6 +198,7 @@ const RegisterMain: React.FC = () => {
                 variant={registerMode === 'Sales' ? 'contained' : 'outlined'}
                 color={registerMode === 'Sales' ? 'info' : 'light'}
                 size="xs"
+                disabled={basketItems.length > 0}
                 className="w-16 mt-16 ml-16"
                 onClick={() => setRegisterMode('Sales')}
               >
@@ -203,6 +208,7 @@ const RegisterMain: React.FC = () => {
                 variant={registerMode === 'Return' ? 'contained' : 'outlined'}
                 color={registerMode === 'Return' ? 'info' : 'light'}
                 size="xs"
+                disabled={basketItems.length > 0}
                 className="w-16 mt-16"
                 onClick={() => setRegisterMode('Return')}
               >
@@ -210,7 +216,27 @@ const RegisterMain: React.FC = () => {
               </Button>
             </Flex>
 
-            <div className="mt-8 h-96 overflow-y-scroll">
+            <Flex className="w-full">
+              <div className="w-1/2 mx-4 my-2 h-4 text-xs text-red-500 font-bold">{productError}</div>
+              <Flex justify_content="end" className="w-1/2">
+                {basketItems.length > 0 ? (
+                  <Button
+                    color="danger"
+                    size="xs"
+                    className="w-24 mr-4"
+                    onClick={() => {
+                      if (window.confirm('明細をクリアしてもよろしいですか？')) {
+                        setBasketItems([]);
+                      }
+                    }}
+                  >
+                    明細クリア
+                  </Button>
+                ) : null}
+              </Flex>
+            </Flex>
+
+            <div className="h-96 overflow-y-scroll">
               <Table border="row" className="table-fixed w-full text-xs">
                 <Table.Head>
                   <Table.Row>
@@ -251,7 +277,7 @@ const RegisterMain: React.FC = () => {
                             color="none"
                             className="hover:bg-gray-300"
                             onClick={(e) => {
-                              setBasketItem(basketItem);
+                              setBasketItemIndex(index);
                               setOpenModify(true);
                             }}
                           >

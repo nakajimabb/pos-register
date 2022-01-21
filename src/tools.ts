@@ -109,6 +109,31 @@ export const hiraToKana = (str: string) => {
   });
 };
 
+// 半角変換
+export const toAscii = (str: string) => {
+  const halfStr = str.replace(/[！-～]/g, (s) => {
+    // 文字コードをシフト
+    return String.fromCharCode(s.charCodeAt(0) - 0xfee0);
+  });
+
+  // 文字コードシフトで対応できない文字の変換
+  return halfStr
+    .replace(/”/g, '"')
+    .replace(/’/g, "'")
+    .replace(/‘/g, '`')
+    .replace(/￥/g, '\\')
+    .replace(/　/g, ' ')
+    .replace(/〜/g, '~')
+    .replace(/[－−]/g, '-');
+};
+
+// 数値変換
+export const toNumber = (str: string) => {
+  const ret = toAscii(str).replace(/,/g, '');
+  const num = ret ? parseInt(ret) : 0;
+  return isNaN(num) ? 0 : num;
+};
+
 // JANコードのチェックデジット
 export const checkDigit = (str: string) => {
   if (str.match(/^\d{8}$|^\d{13}$/)) {

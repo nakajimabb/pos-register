@@ -30,6 +30,7 @@ type InputProps = {
   size?: 'sm' | 'md' | 'lg';
   onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyPress?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
   className?: string;
   style?: CSSProperties;
 };
@@ -49,6 +50,7 @@ const Input: (type: InputType) => React.FC<InputProps> =
     autoComplete = 'off',
     onChange,
     onKeyPress,
+    onBlur,
     className,
     style,
   }) => {
@@ -70,6 +72,7 @@ const Input: (type: InputType) => React.FC<InputProps> =
         autoComplete={autoComplete}
         onChange={onChange}
         onKeyPress={onKeyPress}
+        onBlur={onBlur}
         className={clsx(
           baseClass,
           textSize[size],

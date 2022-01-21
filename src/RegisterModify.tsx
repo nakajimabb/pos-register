@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Form, Modal, Table } from './components';
 import { useAppContext } from './AppContext';
 import { Product } from './types';
+import { toNumber } from './tools';
 
 type BasketItem = {
   product: Product;
@@ -10,39 +11,42 @@ type BasketItem = {
 
 type Props = {
   open: boolean;
-  basketItem: BasketItem | undefined;
+  itemIndex: number;
   basketItems: BasketItem[];
   setBasketItems: React.Dispatch<React.SetStateAction<BasketItem[]>>;
   onClose: () => void;
 };
 
-const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBasketItems, onClose }) => {
-  const [quantity, setQuantity] = useState<number>(0);
-  const [discount, setDiscount] = useState<number>(0);
-  const [rate, setRate] = useState<number>(0);
+const RegisterModify: React.FC<Props> = ({ open, itemIndex, basketItems, setBasketItems, onClose }) => {
+  const [quantityText, setQuantityText] = useState<string>('1');
+  const [discountText, setDiscountText] = useState<string>('0');
+  const [rateText, setRateText] = useState<string>('0');
   const { addBundleDiscount } = useAppContext();
 
   useEffect(() => {
-    setQuantity(Number(basketItem?.quantity));
+    // setQuantityText(Number(basketItem?.quantity).toString());
     const inputQuantity = document.getElementById('inputQuantity') as HTMLInputElement;
+    if (inputQuantity) inputQuantity.value = String(basketItems[itemIndex]?.quantity);
     inputQuantity?.focus();
     inputQuantity?.select();
-  }, [open, basketItem]);
+  }, [open, basketItems, itemIndex]);
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    if (basketItem) {
-      const existingIndex = basketItems.findIndex((item) => item.product.code === basketItem.product.code);
+    if (basketItems[itemIndex]) {
+      const existingIndex = basketItems.findIndex((item) => item.product.code === basketItems[itemIndex].product.code);
       if (existingIndex >= 0) {
-        basketItems[existingIndex].quantity = quantity;
-        if (discount > 0 || rate > 0) {
+        basketItems[existingIndex].quantity = toNumber(quantityText);
+        if (toNumber(discountText) > 0 || toNumber(rateText) > 0) {
           let discountName = '値引き';
           let discountPrice = 0;
-          if (discount > 0) {
-            discountPrice = -discount;
+          if (toNumber(discountText) > 0) {
+            discountPrice = -toNumber(discountText);
           } else {
-            discountName += `(${rate}%)`;
-            discountPrice = -Math.floor((Number(basketItem.product.sellingPrice) * rate) / 100.0);
+            discountName += `(${toNumber(rateText)}%)`;
+            discountPrice = -Math.floor(
+              (Number(basketItems[itemIndex].product.sellingPrice) * toNumber(rateText)) / 100.0
+            );
           }
           const discountItem = {
             product: {
@@ -54,9 +58,9 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
               costPrice: null,
               sellingPrice: discountPrice,
               stockTaxClass: null,
-              sellingTaxClass: basketItem.product.sellingTaxClass,
+              sellingTaxClass: basketItems[itemIndex].product.sellingTaxClass,
               stockTax: null,
-              sellingTax: basketItem.product.sellingTax,
+              sellingTax: basketItems[itemIndex].product.sellingTax,
               selfMedication: false,
               supplierRef: null,
               categoryRef: null,
@@ -74,13 +78,13 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
         setBasketItems(addBundleDiscount(basketItems));
       }
     }
-    setDiscount(0);
-    setRate(0);
+    setDiscountText('0');
+    setRateText('0');
     onClose();
   };
 
   return (
-    <Modal open={open && !!basketItem} size="none" onClose={onClose} className="w-1/2">
+    <Modal open={open && !!basketItems[itemIndex]} size="none" onClose={onClose} className="w-1/2">
       <Modal.Header centered={false} onClose={onClose}>
         明細修正
       </Modal.Header>
@@ -89,11 +93,11 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
           <Table.Body>
             <Table.Row>
               <Table.Cell type="th">商品名</Table.Cell>
-              <Table.Cell>{basketItem?.product.name}</Table.Cell>
+              <Table.Cell>{basketItems[itemIndex]?.product.name}</Table.Cell>
             </Table.Row>
             <Table.Row>
               <Table.Cell type="th">単価</Table.Cell>
-              <Table.Cell>{basketItem?.product.sellingPrice?.toLocaleString()}</Table.Cell>
+              <Table.Cell>{basketItems[itemIndex]?.product.sellingPrice?.toLocaleString()}</Table.Cell>
             </Table.Row>
             <Table.Row>
               <Table.Cell type="th">数量</Table.Cell>
@@ -102,8 +106,9 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
                   <Form.Text
                     id="inputQuantity"
                     placeholder="数量"
-                    value={quantity.toString()}
-                    onChange={(e) => setQuantity(Number(e.target.value.replace(/\D/, '')) || 0)}
+                    value={quantityText}
+                    onChange={(e) => setQuantityText(e.target.value)}
+                    onBlur={() => setQuantityText(toNumber(quantityText).toString())}
                     className="text-right w-full"
                   />
                 </Form>
@@ -116,8 +121,9 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
                   <Form.Text
                     id="inputDiscount"
                     placeholder="値引き(金額)"
-                    value={discount.toString()}
-                    onChange={(e) => setDiscount(Number(e.target.value.replace(/\D/, '')) || 0)}
+                    value={discountText}
+                    onChange={(e) => setDiscountText(e.target.value)}
+                    onBlur={() => setDiscountText(toNumber(discountText).toString())}
                     className="text-right w-full"
                   />
                 </Form>
@@ -130,8 +136,9 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
                   <Form.Text
                     id="inputRate"
                     placeholder="値引き(%)"
-                    value={rate.toString()}
-                    onChange={(e) => setRate(Number(e.target.value.replace(/\D/, '')) || 0)}
+                    value={rateText}
+                    onChange={(e) => setRateText(e.target.value)}
+                    onBlur={() => setRateText(toNumber(rateText).toString())}
                     className="text-right w-full"
                   />
                 </Form>
@@ -144,7 +151,7 @@ const RegisterModify: React.FC<Props> = ({ open, basketItem, basketItems, setBas
         <Button color="secondary" variant="outlined" className="mr-3" onClick={onClose}>
           キャンセル
         </Button>
-        <Button color="primary" onClick={save}>
+        <Button color="primary" disabled={toNumber(quantityText) <= 0} onClick={save}>
           OK
         </Button>
       </Modal.Footer>

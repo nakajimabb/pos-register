@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, RouteComponentProps } from 'react-router-dom';
 import { doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
-
 import { Alert, Button, Card, Flex, Form, Grid, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import { ProductBundle, Product, TaxClass } from './types';
+import { toNumber } from './tools';
 import RegisterSearch from './RegisterSearch';
 
 const db = getFirestore();
@@ -39,6 +39,8 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
     discount: 0,
     productCodes: [],
   });
+  const [quantityText, setQuantityText] = useState<string>('0');
+  const [discountText, setDiscountText] = useState<string>('0');
   const [productCode, setProductCode] = useState<string>('');
   const [products, setProducts] = useState<Product[]>([]);
   const [openSearch, setOpenSearch] = useState<boolean>(false);
@@ -53,6 +55,8 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
         if (snap.exists()) {
           const bundle = snap.data() as ProductBundle;
           setProductBundle(bundle);
+          setQuantityText(bundle.quantity.toString());
+          setDiscountText(bundle.discount.toString());
           const productsData: Product[] = [];
           await Promise.all(
             bundle.productCodes.map(async (productCode) => {
@@ -82,6 +86,8 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
       discount: 0,
       productCodes: [],
     });
+    setQuantityText('0');
+    setDiscountText('0');
   };
 
   const findProduct = async (code: string) => {
@@ -110,6 +116,8 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
     setError('');
     try {
       productBundle.productCodes = products.map((product) => product.code);
+      productBundle.quantity = toNumber(quantityText);
+      productBundle.discount = toNumber(discountText);
       if (docId) {
         await setDoc(doc(db, 'productBundles', docId), productBundle);
       } else {
@@ -177,18 +185,16 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
               />
               <Form.Label>成立数量</Form.Label>
               <Form.Text
-                value={productBundle.quantity.toString()}
-                onChange={(e) =>
-                  setProductBundle({ ...productBundle, quantity: Number(e.target.value.replace(/\D/, '')) || 0 })
-                }
+                value={quantityText}
+                onChange={(e) => setQuantityText(e.target.value)}
+                onBlur={() => setQuantityText(toNumber(quantityText).toString())}
                 className="text-right"
               />
               <Form.Label>値引き</Form.Label>
               <Form.Text
-                value={productBundle.discount.toString()}
-                onChange={(e) =>
-                  setProductBundle({ ...productBundle, discount: Number(e.target.value.replace(/\D/, '')) || 0 })
-                }
+                value={discountText}
+                onChange={(e) => setDiscountText(e.target.value)}
+                onBlur={() => setDiscountText(toNumber(discountText).toString())}
                 className="text-right"
               />
               <Form.Label>対象商品</Form.Label>
