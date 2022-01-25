@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext, createContext } from 'react';
 import { collection, doc, getDoc, getFirestore, onSnapshot, Timestamp, Bytes } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
 import { userCodeFromEmail } from './tools';
-import { Supplier, Shop, CounterItem, Counters, Product, ProductBundle } from './types';
+import { Supplier, Shop, CounterItem, Counters, ProductBundle, BasketItem } from './types';
 
 const zlib = require('zlib');
 
@@ -35,11 +35,6 @@ const AppContext = createContext({
 type FullTextSearch = {
   texts: string[];
   updatedAt: Timestamp;
-};
-
-type BasketItem = {
-  product: Product;
-  quantity: number;
 };
 
 export const AppContextProvider: React.FC = ({ children }) => {
@@ -152,6 +147,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
             categoryRef: null,
             note: '',
           },
+          outputReceipt: true,
           quantity: 1,
         };
         filteredBasketItems.push(discountItem);

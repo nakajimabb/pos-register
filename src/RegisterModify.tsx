@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Form, Modal, Table } from './components';
 import { useAppContext } from './AppContext';
-import { Product } from './types';
+import { BasketItem } from './types';
 import { toNumber } from './tools';
-
-type BasketItem = {
-  product: Product;
-  quantity: number;
-};
 
 type Props = {
   open: boolean;
@@ -66,6 +61,7 @@ const RegisterModify: React.FC<Props> = ({ open, itemIndex, basketItems, setBask
               categoryRef: null,
               note: '',
             },
+            outputReceipt: true,
             quantity: 1,
           };
 

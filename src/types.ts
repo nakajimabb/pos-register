@@ -70,8 +70,16 @@ export type RegisterItem = {
   index: number;
   code: string;
   name: string;
+  defaultPrice: number;
+  outputReceipt: boolean;
   taxClass: TaxClass | null;
   tax: number | null;
+};
+
+export type BasketItem = {
+  product: Product;
+  outputReceipt: boolean;
+  quantity: number;
 };
 
 export type ShortcutItem = {

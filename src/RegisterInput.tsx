@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Form, Modal, Table } from './components';
 import { useAppContext } from './AppContext';
-import { Product, RegisterItem } from './types';
+import { BasketItem, RegisterItem } from './types';
 import { toNumber } from './tools';
-
-type BasketItem = {
-  product: Product;
-  quantity: number;
-};
 
 type Props = {
   open: boolean;
@@ -22,8 +17,8 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
   const { addBundleDiscount } = useAppContext();
 
   useEffect(() => {
-    setPriceText('0');
     const inputPrice = document.getElementById('inputPrice') as HTMLInputElement;
+    if (inputPrice && registerItem) inputPrice.value = toNumber(String(registerItem.defaultPrice)).toString();
     inputPrice?.focus();
     inputPrice?.select();
   }, [open]);
@@ -31,7 +26,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     const price = toNumber(priceText);
-    if (registerItem && price > 0) {
+    if (registerItem && price !== 0) {
       const existingIndex = basketItems.findIndex((item) => item.product.code === registerItem.code);
       if (existingIndex >= 0) {
         basketItems[existingIndex].product.sellingPrice = price;
@@ -55,6 +50,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
             categoryRef: null,
             note: '',
           },
+          outputReceipt: registerItem.outputReceipt,
           quantity: 1,
         };
         setBasketItems(addBundleDiscount([...basketItems, basketItem]));

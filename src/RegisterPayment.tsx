@@ -5,13 +5,8 @@ import { useReactToPrint } from 'react-to-print';
 import app from './firebase';
 import { Button, Flex, Form, Modal, Table } from './components';
 import { useAppContext } from './AppContext';
-import { Product, Sale, SaleDetail, Stock } from './types';
+import { Sale, SaleDetail, Stock, BasketItem } from './types';
 import { prefectureName, toNumber } from './tools';
-
-type BasketItem = {
-  product: Product;
-  quantity: number;
-};
 
 type Props = {
   open: boolean;

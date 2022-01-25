@@ -8,16 +8,11 @@ import RegisterPayment from './RegisterPayment';
 import RegisterInput from './RegisterInput';
 import RegisterModify from './RegisterModify';
 import RegisterSearch from './RegisterSearch';
-import { Product, RegisterItem, ShortcutItem } from './types';
+import { Product, BasketItem, RegisterItem, ShortcutItem } from './types';
 
 const db = getFirestore();
 
 const RegisterMain: React.FC = () => {
-  type BasketItem = {
-    product: Product;
-    quantity: number;
-  };
-
   type Shortcut = {
     index: number;
     color: string;
@@ -52,7 +47,7 @@ const RegisterMain: React.FC = () => {
           basketItems[existingIndex].quantity += 1;
           setBasketItems(addBundleDiscount(basketItems));
         } else {
-          const basketItem = { product, quantity: 1 };
+          const basketItem = { product, outputReceipt: true, quantity: 1 };
           setBasketItems(addBundleDiscount([...basketItems, basketItem]));
         }
         setProductCode('');
@@ -419,6 +414,7 @@ const RegisterMain: React.FC = () => {
                           } else {
                             const basketItem = {
                               product: shortcut.product,
+                              outputReceipt: true,
                               quantity: 1,
                             };
                             setBasketItems(addBundleDiscount([...basketItems, basketItem]));
