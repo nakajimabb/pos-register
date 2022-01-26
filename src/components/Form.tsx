@@ -31,6 +31,7 @@ type InputProps = {
   onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyPress?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   onBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
+  innerRef?: React.RefObject<HTMLInputElement>;
   className?: string;
   style?: CSSProperties;
 };
@@ -51,6 +52,7 @@ const Input: (type: InputType) => React.FC<InputProps> =
     onChange,
     onKeyPress,
     onBlur,
+    innerRef,
     className,
     style,
   }) => {
@@ -73,6 +75,7 @@ const Input: (type: InputType) => React.FC<InputProps> =
         onChange={onChange}
         onKeyPress={onKeyPress}
         onBlur={onBlur}
+        ref={innerRef}
         className={clsx(
           baseClass,
           textSize[size],

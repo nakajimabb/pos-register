@@ -19,7 +19,7 @@ import AsyncSelect from 'react-select/async';
 import { Alert, Button, Form, Grid, Modal } from './components';
 import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
-import { Product, ProductCostPrice, Supplier, getProductCostPricePath } from './types';
+import { Product, ProductCostPrice, Supplier, productCostPricePath } from './types';
 import { nameWithCode } from './tools';
 
 const db = getFirestore();
@@ -155,7 +155,7 @@ const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, path, onClose, 
       } else {
         if (!productCostPrice.productCode) throw Error('商品が指定されていません。');
 
-        const path = getProductCostPricePath(productCostPrice);
+        const path = productCostPricePath(productCostPrice);
         const ref = doc(db, path);
         const snap = await getDoc(ref);
         if (snap.exists()) throw Error('指定された商品は既に登録されています。');

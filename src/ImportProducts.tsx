@@ -5,7 +5,7 @@ import { Alert, Button, Card, Flex, Form } from './components';
 import { readExcelAsOjects, HeaderInfo } from './readExcel';
 import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
-import { Supplier, ProductCostPrice, getProductCostPricePath } from './types';
+import { Supplier, ProductCostPrice, productCostPricePath } from './types';
 import { checkDigit } from './tools';
 
 const db = getFirestore();
@@ -185,7 +185,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
                     supplierName: supplier.name ?? 'その他',
                     costPrice: +item.costPrice,
                   };
-                  batch.set(doc(db, getProductCostPricePath(productCostPrice)), productCostPrice, { merge: true });
+                  batch.set(doc(db, productCostPricePath(productCostPrice)), productCostPrice, { merge: true });
                   count += 1;
                 }
               });

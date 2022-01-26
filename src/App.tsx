@@ -20,6 +20,7 @@ import './App.css';
 import ReceiptList from './ReceiptList';
 import ProductBundleList from './ProductBundleList';
 import ProductBundleEdit from './ProductBundleEdit';
+import PurchaseMain from './PurchaseMain';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -53,6 +54,7 @@ const App: React.FC = () => {
           <Route exact path="/product_bundle_list" component={ProductBundleList} />
           <Route exact path="/product_bundle_edit" component={ProductBundleEdit} />
           <Route path="/product_bundle_edit/:id" component={ProductBundleEdit} />
+          <Route path="/purchase_main" component={PurchaseMain} />
           <Route exact path="/tailwind" component={Tailwind} />
         </Router>
       </AppContextProvider>

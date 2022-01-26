@@ -87,6 +87,11 @@ const AppBar: React.FC = () => {
             レジ画面
           </Button>
         </Link>
+        <Link to="/purchase_main" className="mx-2">
+          <Button color="light" size="sm">
+            仕入処理
+          </Button>
+        </Link>
         <Dropdown
           icon={
             <Button color="light" size="sm" className="flex">

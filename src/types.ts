@@ -44,7 +44,7 @@ export type ProductCostPrice = {
   costPrice: number | null; // 原価(税抜)
 };
 
-export const getProductCostPricePath = (data: ProductCostPrice) =>
+export const productCostPricePath = (data: { shopCode: string; productCode: string; supplierCode: string }) =>
   `shops/${data.shopCode}/productCostPrices/${data.productCode}|${data.supplierCode}`;
 
 export type ProductSellingPrice = {
@@ -149,3 +149,29 @@ export type ProductBundle = {
   discount: number;
   productCodes: string[];
 };
+
+// 仕入れ情報
+export type Purchase = {
+  shopCode: string; // 店舗コード
+  supplierCode: string;
+  date: Timestamp; // 仕入れ日
+};
+
+export const purchasePath = (data: { shopCode: string; date: string; supplierCode: string }) =>
+  `shops/${data.shopCode}/purchases/${data.date}|${data.supplierCode}`;
+
+// 仕入情報
+export type PurchaseDetail = {
+  productCode: string; // JANコード
+  productName: string;
+  quantity: number;
+  costPrice: number | null; // 原価(税抜)
+  noReturn?: boolean; // 返品不可
+};
+
+export const purchaseDetailPath = (data: {
+  shopCode: string;
+  date: string;
+  supplierCode: string;
+  productCode: string;
+}) => `shops/${data.shopCode}/purchases/${data.date}|${data.supplierCode}/purchaseDetails/${data.productCode}`;

@@ -167,3 +167,16 @@ export const userCodeFromEmail = (email: string) => {
     return null;
   }
 };
+
+//日付から文字列に変換する関数
+export const toDateString = (date: Date, format: string) => {
+  let result = format;
+  result = result.replace(/YYYY/g, String(date.getFullYear()).padStart(4, '0'));
+  result = result.replace(/YY/g, String(date.getFullYear() - 2000).padStart(2, '0'));
+  result = result.replace(/MM/g, String(date.getMonth() + 1).padStart(2, '0'));
+  result = result.replace(/DD/g, String(date.getDate()).padStart(2, '0'));
+  result = result.replace(/hh/g, String(date.getHours()).padStart(2, '0'));
+  result = result.replace(/mm/g, String(date.getMinutes()).padStart(2, '0'));
+  result = result.replace(/ss/g, String(date.getSeconds()).padStart(2, '0'));
+  return result;
+};
