@@ -1,4 +1,5 @@
 import { DocumentReference, Timestamp } from 'firebase/firestore';
+import { toDateString } from './tools';
 
 export type Shop = {
   code: string;
@@ -157,8 +158,8 @@ export type Purchase = {
   date: Timestamp; // 仕入れ日
 };
 
-export const purchasePath = (data: { shopCode: string; date: string; supplierCode: string }) =>
-  `shops/${data.shopCode}/purchases/${data.date}|${data.supplierCode}`;
+export const purchasePath = (data: { shopCode: string; date: Date; supplierCode: string }) =>
+  `shops/${data.shopCode}/purchases/${toDateString(data.date, 'YYYY-MM-DD')}|${data.supplierCode}`;
 
 // 仕入情報
 export type PurchaseDetail = {
@@ -169,9 +170,7 @@ export type PurchaseDetail = {
   noReturn?: boolean; // 返品不可
 };
 
-export const purchaseDetailPath = (data: {
-  shopCode: string;
-  date: string;
-  supplierCode: string;
-  productCode: string;
-}) => `shops/${data.shopCode}/purchases/${data.date}|${data.supplierCode}/purchaseDetails/${data.productCode}`;
+export const purchaseDetailPath = (data: { shopCode: string; date: Date; supplierCode: string; productCode: string }) =>
+  `shops/${data.shopCode}/purchases/${toDateString(data.date, 'YYYY-MM-DD')}|${data.supplierCode}/purchaseDetails/${
+    data.productCode
+  }`;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Select, { SingleValue } from 'react-select';
+import Select from 'react-select';
 import {
   getFirestore,
   doc,
@@ -10,7 +10,7 @@ import {
   writeBatch,
   QuerySnapshot,
 } from 'firebase/firestore';
-import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
+import { Alert, Button, Card, Form, Icon, Table } from './components';
 import { useAppContext } from './AppContext';
 import { nameWithCode, toDateString } from './tools';
 import firebaseError from './firebaseError';
@@ -24,12 +24,12 @@ import {
 } from './types';
 
 const db = getFirestore();
-type Item = PurchaseDetail & { deleted?: boolean };
+type Item = PurchaseDetail & { removed?: boolean };
 
 const PurchaseMain: React.FC = () => {
-  const [target, setTarget] = useState<{ supplierCode: string; date: string }>({
+  const [target, setTarget] = useState<{ supplierCode: string; date: Date }>({
     supplierCode: '',
-    date: toDateString(new Date(), 'YYYY-MM-DD'),
+    date: new Date(),
   });
   const [currentItem, setCurrentItem] = useState<{
     productCode: string;
@@ -73,7 +73,7 @@ const PurchaseMain: React.FC = () => {
     });
   };
 
-  const loadPurchaseDetails = async (shopCode: string, supplierCode: string, date: string) => {
+  const loadPurchaseDetails = async (shopCode: string, supplierCode: string, date: Date) => {
     if (shopCode && supplierCode && date) {
       const path = purchasePath({ shopCode, supplierCode, date }) + '/purchaseDetails';
       const snap = (await getDocs(collection(db, path))) as QuerySnapshot<Item>;
@@ -87,7 +87,7 @@ const PurchaseMain: React.FC = () => {
       const snap = (await getDoc(ref)) as DocumentSnapshot<Product>;
       const product = snap.data();
       if (product) {
-        const index = items.findIndex((item) => item.productCode === currentItem.productCode);
+        const index = items.findIndex((item) => !item.removed && item.productCode === currentItem.productCode);
         if (index >= 0) {
           const newItems = [...items];
           newItems[index].quantity += +currentItem.quantity;
@@ -112,7 +112,7 @@ const PurchaseMain: React.FC = () => {
 
   const removeItem = (i: number) => async (e: React.FormEvent) => {
     const newItems = [...items];
-    newItems.splice(i, 1);
+    newItems[i].removed = true;
     setItems(newItems);
   };
 
@@ -163,25 +163,36 @@ const PurchaseMain: React.FC = () => {
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentShop) {
+    if (currentShop && target.date && target.supplierCode) {
       try {
         const batch = writeBatch(db);
         // purchases
         const ref = doc(db, purchasePath({ ...target, shopCode: currentShop.code }));
         batch.set(ref, { shopCode: currentShop.code, supplierCode: target.supplierCode, date: target.date });
         // purchaseDetails
-        items.forEach((item) => {
-          const ref2 = doc(
-            db,
-            purchaseDetailPath({ ...target, shopCode: currentShop.code, productCode: item.productCode })
-          );
-          batch.set(ref2, {
-            productCode: item.productCode,
-            productName: item.productName,
-            quantity: item.quantity,
-            costPrice: item.costPrice,
+        items
+          .filter((item) => item.removed)
+          .forEach((item) => {
+            const ref2 = doc(
+              db,
+              purchaseDetailPath({ ...target, shopCode: currentShop.code, productCode: item.productCode })
+            );
+            batch.delete(ref2);
           });
-        });
+        items
+          .filter((item) => !item.removed)
+          .forEach((item) => {
+            const ref2 = doc(
+              db,
+              purchaseDetailPath({ ...target, shopCode: currentShop.code, productCode: item.productCode })
+            );
+            batch.set(ref2, {
+              productCode: item.productCode,
+              productName: item.productName,
+              quantity: item.quantity,
+              costPrice: item.costPrice,
+            });
+          });
         batch.commit();
         alert('保存しました。');
       } catch (error) {
@@ -198,11 +209,12 @@ const PurchaseMain: React.FC = () => {
         <Card className="p-5 overflow-visible">
           <Form className="flex space-x-2 mb-2" onSubmit={save}>
             <Form.Date
-              value={target.date}
+              value={toDateString(target.date, 'YYYY-MM-DD')}
               onChange={(e) => {
-                setTarget((prev) => ({ ...prev, date: String(e.target.value) }));
+                const date = new Date(e.target.value);
+                setTarget((prev) => ({ ...prev, date }));
                 if (currentShop && e.target.value) {
-                  loadPurchaseDetails(currentShop.code, target.supplierCode, e.target.value);
+                  loadPurchaseDetails(currentShop.code, target.supplierCode, date);
                 }
               }}
             />
@@ -231,6 +243,7 @@ const PurchaseMain: React.FC = () => {
               value={String(currentItem.quantity)}
               placeholder="数量"
               innerRef={quantityRef}
+              min={1}
               onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
               onKeyPress={blockEnter}
               className="w-36"
@@ -263,20 +276,29 @@ const PurchaseMain: React.FC = () => {
               </Table.Row>
             </Table.Head>
             <Table.Body>
-              {items.map((item, i) => (
-                <Table.Row key={i}>
-                  <Table.Cell>{i + 1}</Table.Cell>
-                  <Table.Cell>{item.productCode}</Table.Cell>
-                  <Table.Cell>{item.productName}</Table.Cell>
-                  <Table.Cell>{item.quantity}</Table.Cell>
-                  <Table.Cell>{item.costPrice}</Table.Cell>
-                  <Table.Cell>
-                    <Button variant="icon" size="xs" color="none" className="hover:bg-gray-300" onClick={removeItem(i)}>
-                      <Icon name="trash" />
-                    </Button>
-                  </Table.Cell>
-                </Table.Row>
-              ))}
+              {items.map(
+                (item, i) =>
+                  !item.removed && (
+                    <Table.Row key={i}>
+                      <Table.Cell>{i + 1}</Table.Cell>
+                      <Table.Cell>{item.productCode}</Table.Cell>
+                      <Table.Cell>{item.productName}</Table.Cell>
+                      <Table.Cell>{item.quantity}</Table.Cell>
+                      <Table.Cell>{item.costPrice}</Table.Cell>
+                      <Table.Cell>
+                        <Button
+                          variant="icon"
+                          size="xs"
+                          color="none"
+                          className="hover:bg-gray-300"
+                          onClick={removeItem(i)}
+                        >
+                          <Icon name="trash" />
+                        </Button>
+                      </Table.Cell>
+                    </Table.Row>
+                  )
+              )}
             </Table.Body>
           </Table>
         </Card>

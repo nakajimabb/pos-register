@@ -27,6 +27,8 @@ type InputProps = {
   required?: boolean;
   placeholder?: string;
   autoComplete?: string;
+  min?: number;
+  max?: number;
   size?: 'sm' | 'md' | 'lg';
   onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyPress?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -47,6 +49,8 @@ const Input: (type: InputType) => React.FC<InputProps> =
     disabled,
     required,
     placeholder,
+    min,
+    max,
     size = 'md',
     autoComplete = 'off',
     onChange,
@@ -72,6 +76,8 @@ const Input: (type: InputType) => React.FC<InputProps> =
         required={required}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        min={min}
+        max={max}
         onChange={onChange}
         onKeyPress={onKeyPress}
         onBlur={onBlur}
