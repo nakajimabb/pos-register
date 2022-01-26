@@ -67,7 +67,7 @@ const RegisterPayment: React.FC<Props> = ({
 
       const sale: Sale = {
         receiptNumber,
-        code: currentShop.code,
+        shopCode: currentShop.code,
         createdAt: currentTimestamp,
         detailsCount: basketItems.filter((item) => !!item.product.code).length,
         salesTotal,
@@ -90,6 +90,7 @@ const RegisterPayment: React.FC<Props> = ({
           salesId: saleRef.id,
           index: index,
           product: item.product,
+          division: item.division,
           quantity: item.quantity,
           discount: 0,
           status: registerMode,
@@ -101,11 +102,13 @@ const RegisterPayment: React.FC<Props> = ({
           transaction.update(prevDetailRef, { discount: -item.product.sellingPrice });
           discountTotal += -item.product.sellingPrice;
         }
-        const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), item.product.code);
-        transaction.set(stockRef, {
-          ...stocks[index],
-          quantity: stocks[index].quantity - item.quantity * registerSign,
-        });
+        if (item.product.code) {
+          const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), item.product.code);
+          transaction.set(stockRef, {
+            ...stocks[index],
+            quantity: stocks[index].quantity - item.quantity * registerSign,
+          });
+        }
       });
       transaction.update(saleRef, { discountTotal });
     });

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Form, Modal, Table } from './components';
 import { useAppContext } from './AppContext';
 import { BasketItem } from './types';
-import { toNumber } from './tools';
+import { toNumber, OTC_DIVISION } from './tools';
 
 type Props = {
   open: boolean;
@@ -61,6 +61,7 @@ const RegisterModify: React.FC<Props> = ({ open, itemIndex, basketItems, setBask
               categoryRef: null,
               note: '',
             },
+            division: OTC_DIVISION,
             outputReceipt: true,
             quantity: 1,
           };

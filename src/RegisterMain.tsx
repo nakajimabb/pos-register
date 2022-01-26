@@ -9,6 +9,7 @@ import RegisterInput from './RegisterInput';
 import RegisterModify from './RegisterModify';
 import RegisterSearch from './RegisterSearch';
 import { Product, BasketItem, RegisterItem, ShortcutItem } from './types';
+import { OTC_DIVISION } from './tools';
 
 const db = getFirestore();
 
@@ -47,7 +48,7 @@ const RegisterMain: React.FC = () => {
           basketItems[existingIndex].quantity += 1;
           setBasketItems(addBundleDiscount(basketItems));
         } else {
-          const basketItem = { product, outputReceipt: true, quantity: 1 };
+          const basketItem = { product, division: OTC_DIVISION, outputReceipt: true, quantity: 1 };
           setBasketItems(addBundleDiscount([...basketItems, basketItem]));
         }
         setProductCode('');
@@ -414,6 +415,7 @@ const RegisterMain: React.FC = () => {
                           } else {
                             const basketItem = {
                               product: shortcut.product,
+                              division: OTC_DIVISION,
                               outputReceipt: true,
                               quantity: 1,
                             };

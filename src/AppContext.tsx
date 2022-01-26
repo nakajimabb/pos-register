@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, createContext } from 'react';
 
 import { collection, doc, getDoc, getFirestore, onSnapshot, Timestamp, Bytes } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
-import { userCodeFromEmail } from './tools';
+import { userCodeFromEmail, OTC_DIVISION } from './tools';
 import { Supplier, Shop, CounterItem, Counters, ProductBundle, BasketItem } from './types';
 
 const zlib = require('zlib');
@@ -140,13 +140,14 @@ export const AppContextProvider: React.FC = ({ children }) => {
             sellingPrice: discountPrice,
             stockTaxClass: null,
             sellingTaxClass: productBundle.sellingTaxClass,
-            stockTax: productBundle.sellingTax,
-            sellingTax: 8,
+            stockTax: null,
+            sellingTax: productBundle.sellingTax,
             selfMedication: false,
             supplierRef: null,
             categoryRef: null,
             note: '',
           },
+          division: OTC_DIVISION,
           outputReceipt: true,
           quantity: 1,
         };

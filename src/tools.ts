@@ -180,3 +180,5 @@ export const toDateString = (date: Date, format: string) => {
   result = result.replace(/ss/g, String(date.getSeconds()).padStart(2, '0'));
   return result;
 };
+
+export const OTC_DIVISION = '5';

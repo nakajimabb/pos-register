@@ -34,7 +34,7 @@ const ReceiptList: React.FC = () => {
       if (dateTimeTo) {
         conds.push(where('createdAt', '<=', dateTimeTo));
       }
-      conds.push(orderBy('createdAt'));
+      conds.push(orderBy('createdAt', 'desc'));
       conds.push(limit(MAX_SEARCH));
       const q = query(collection(db, 'sales'), ...conds);
       const querySnapshot = await getDocs(q);

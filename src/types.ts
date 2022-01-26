@@ -71,6 +71,7 @@ export type RegisterItem = {
   index: number;
   code: string;
   name: string;
+  division: string;
   defaultPrice: number;
   outputReceipt: boolean;
   taxClass: TaxClass | null;
@@ -79,6 +80,7 @@ export type RegisterItem = {
 
 export type BasketItem = {
   product: Product;
+  division: string;
   outputReceipt: boolean;
   quantity: number;
 };
@@ -91,7 +93,7 @@ export type ShortcutItem = {
 
 export type Sale = {
   receiptNumber: number;
-  code: string;
+  shopCode: string;
   createdAt: Timestamp;
   detailsCount: number;
   salesTotal: number;
@@ -110,6 +112,7 @@ export type SaleDetail = {
   salesId: string;
   index: number;
   product: Product;
+  division: string;
   quantity: number;
   discount: number;
   status: 'Sales' | 'Cancel' | 'Return';

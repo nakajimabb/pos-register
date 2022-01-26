@@ -50,6 +50,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
             categoryRef: null,
             note: '',
           },
+          division: registerItem.division,
           outputReceipt: registerItem.outputReceipt,
           quantity: 1,
         };
