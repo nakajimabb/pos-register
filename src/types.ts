@@ -5,13 +5,15 @@ export type Shop = {
   code: string;
   name: string;
   kana: string;
+  formalName: string;
+  formalKana: string;
   hidden: boolean;
   email: string;
   zip: string;
   prefecture: number;
   municipality: string;
-  house_number: string;
-  building_name: string;
+  houseNumber: string;
+  buildingName: string;
   tel: string;
   fax: string;
 };

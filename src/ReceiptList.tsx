@@ -194,8 +194,8 @@ const ReceiptList: React.FC = () => {
           <p className="text-right text-sm mt-2">
             {currentShop ? prefectureName(currentShop.prefecture) : ''}
             {currentShop?.municipality}
-            {currentShop?.house_number}
-            {currentShop?.building_name}
+            {currentShop?.houseNumber}
+            {currentShop?.buildingName}
           </p>
           <p className="text-right text-sm mt-2">{currentShop?.name}</p>
           <p className="text-center text-xl font-bold m-2">{sale?.status === 'Return' ? '返品' : '領収書'}</p>

@@ -172,7 +172,8 @@ const ShopList: React.FC = () => {
               <Table.Row>
                 <Table.Cell type="th">店舗番号</Table.Cell>
                 <Table.Cell type="th">店舗名</Table.Cell>
-                <Table.Cell type="th">店舗名カナ</Table.Cell>
+                <Table.Cell type="th">店舗名(カナ)</Table.Cell>
+                <Table.Cell type="th">薬局名</Table.Cell>
                 <Table.Cell type="th">TEL</Table.Cell>
                 <Table.Cell type="th">郵便番号</Table.Cell>
                 <Table.Cell type="th">都道府県</Table.Cell>
@@ -187,6 +188,7 @@ const ShopList: React.FC = () => {
                       <Table.Cell>{shop.code}</Table.Cell>
                       <Table.Cell>{shop.name}</Table.Cell>
                       <Table.Cell>{shop.kana}</Table.Cell>
+                      <Table.Cell>{shop.formalName}</Table.Cell>
                       <Table.Cell>{shop.tel}</Table.Cell>
                       <Table.Cell>{shop.zip}</Table.Cell>
                       <Table.Cell>{prefectureName(shop.prefecture)}</Table.Cell>
