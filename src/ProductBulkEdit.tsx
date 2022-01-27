@@ -71,7 +71,7 @@ const ProductBulkEdit: React.FC<Props> = (props: Props) => {
         const product = docSnap.data() as Product;
         setProductBulk({ ...productBulk, parentProductCode: product.code, parentProductName: product.name });
       } else {
-        console.log('no such product');
+        setProductBulk({ ...productBulk, parentProductCode: '', parentProductName: '' });
       }
     } catch (error) {
       console.log(error);
@@ -86,7 +86,7 @@ const ProductBulkEdit: React.FC<Props> = (props: Props) => {
         const product = docSnap.data() as Product;
         setProductBulk({ ...productBulk, childProductCode: product.code, childProductName: product.name });
       } else {
-        console.log('no such product');
+        setProductBulk({ ...productBulk, childProductCode: '', childProductName: '' });
       }
     } catch (error) {
       console.log(error);
@@ -95,15 +95,15 @@ const ProductBulkEdit: React.FC<Props> = (props: Props) => {
 
   const handleSubmitParent = (e: React.FormEvent) => {
     e.preventDefault();
-    if (parentProductCode) {
-      findParentProduct(parentProductCode);
+    if (productBulk.parentProductCode) {
+      findParentProduct(productBulk.parentProductCode);
     }
   };
 
   const handleSubmitChild = (e: React.FormEvent) => {
     e.preventDefault();
-    if (childProductCode) {
-      findChildProduct(childProductCode);
+    if (productBulk.childProductCode) {
+      findChildProduct(productBulk.childProductCode);
     }
   };
 
@@ -112,6 +112,16 @@ const ProductBulkEdit: React.FC<Props> = (props: Props) => {
     setError('');
     try {
       productBulk.quantity = toNumber(quantityText);
+      if (productBulk.parentProductCode === productBulk.childProductCode) throw Error('親コードと子コードが同じです。');
+      if (productBulk.quantity < 1) throw Error('数量は1以上の値を入力してください。');
+      const parentProductRef = doc(db, 'products', productBulk.parentProductCode);
+      const parentProductSnap = await getDoc(parentProductRef);
+      if (!parentProductSnap.exists()) throw Error('親コードがマスタに存在しません。');
+      const childProductRef = doc(db, 'products', productBulk.childProductCode);
+      const childProductSnap = await getDoc(childProductRef);
+      if (!childProductSnap.exists()) throw Error('子コードがマスタに存在しません。');
+      productBulk.parentProductName = parentProductSnap.data().name;
+      productBulk.childProductName = childProductSnap.data().name;
       if (docId) {
         await setDoc(doc(db, 'productBulks', docId), productBulk);
       } else {
@@ -205,7 +215,11 @@ const ProductBulkEdit: React.FC<Props> = (props: Props) => {
                 キャンセル
               </Button>
             </Link>
-            <Button color="primary" onClick={save}>
+            <Button
+              color="primary"
+              disabled={!productBulk.parentProductCode || !productBulk.childProductCode}
+              onClick={save}
+            >
               保存
             </Button>
           </Flex>

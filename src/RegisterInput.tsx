@@ -25,7 +25,8 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    const price = toNumber(priceText);
+    const inputPrice = document.getElementById('inputPrice') as HTMLInputElement;
+    const price = toNumber(inputPrice.value);
     if (registerItem && price !== 0) {
       const existingIndex = basketItems.findIndex((item) => item.product.code === registerItem.code);
       if (existingIndex >= 0) {
