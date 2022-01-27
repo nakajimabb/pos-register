@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { Alert, Button, Card, Form, Icon, Table } from './components';
 import { useAppContext } from './AppContext';
+import PurchaseDetailEdit from './PurchaseDetailEdit';
 import { nameWithCode, toDateString } from './tools';
 import firebaseError from './firebaseError';
 import {
@@ -42,13 +43,21 @@ const PurchaseMain: React.FC = () => {
   });
   const [items, setItems] = useState<Item[]>([]);
   const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
+  const [messages, setMessages] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [open, setOpen] = useState<boolean>(false);
+  const [editIndex, setEditIndex] = useState<number>(-1);
   const { registListner, suppliers, currentShop } = useAppContext();
   const quantityRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     registListner('suppliers');
   }, []);
+
+  useEffect(() => {
+    setMessages([]);
+    if (!target.supplierCode) setMessages((prev) => [...prev, '仕入先を指定してください。']);
+  }, [target.supplierCode]);
 
   useEffect(() => {
     if (suppliers) {
@@ -78,6 +87,7 @@ const PurchaseMain: React.FC = () => {
       const path = purchasePath({ shopCode, supplierCode, date }) + '/purchaseDetails';
       const snap = (await getDocs(collection(db, path))) as QuerySnapshot<Item>;
       setItems(snap.docs.map((docSnap) => docSnap.data()));
+      if (snap.docs.length === 0) setMessages(['データが存在しません。']);
     }
   };
 
@@ -116,14 +126,19 @@ const PurchaseMain: React.FC = () => {
     setItems(newItems);
   };
 
+  const editPurchaseDetail = (i: number) => async (e: React.FormEvent) => {
+    setOpen(true);
+    setEditIndex(i);
+  };
+
   const blockEnter = async (e: React.KeyboardEvent) => {
-    if (e.key == 'Enter') {
+    if (e.key === 'Enter') {
       e.preventDefault();
     }
   };
 
   const loadProduct = async (e: React.KeyboardEvent) => {
-    if (currentItem.productCode && e.key == 'Enter') {
+    if (currentItem.productCode && e.key === 'Enter') {
       e.preventDefault();
       setErrors([]);
       if (currentShop) {
@@ -231,6 +246,13 @@ const PurchaseMain: React.FC = () => {
             />
             <Button className="w-48">登録</Button>
           </Form>
+          {messages.length > 0 && (
+            <Alert severity="error" onClose={() => setMessages([])}>
+              {messages.map((err, i) => (
+                <p key={i}>{err}</p>
+              ))}
+            </Alert>
+          )}
           <hr className="m-4" />
           <Form className="flex space-x-2 mb-2" onSubmit={handleSubmit}>
             <Form.Text
@@ -290,6 +312,15 @@ const PurchaseMain: React.FC = () => {
                           variant="icon"
                           size="xs"
                           color="none"
+                          className="hover:bg-gray-300 "
+                          onClick={editPurchaseDetail(i)}
+                        >
+                          <Icon name="pencil-alt" />
+                        </Button>
+                        <Button
+                          variant="icon"
+                          size="xs"
+                          color="none"
                           className="hover:bg-gray-300"
                           onClick={removeItem(i)}
                         >
@@ -301,6 +332,21 @@ const PurchaseMain: React.FC = () => {
               )}
             </Table.Body>
           </Table>
+          {open && editIndex >= 0 && (
+            <PurchaseDetailEdit
+              open={open}
+              item={items[editIndex]}
+              onClose={() => {
+                setOpen(false);
+                setEditIndex(-1);
+              }}
+              setItem={(item: PurchaseDetail) => {
+                const newItems = [...items];
+                if (editIndex >= 0) newItems[editIndex] = item;
+                setItems(newItems);
+              }}
+            />
+          )}
         </Card>
       </div>
     </div>
