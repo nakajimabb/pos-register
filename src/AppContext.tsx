@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext, createContext } from 'react';
 import { collection, doc, getDoc, getFirestore, onSnapshot, Timestamp, Bytes } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
 import { userCodeFromEmail, OTC_DIVISION } from './tools';
-import { Supplier, Shop, CounterItem, Counters, ProductBundle, ProductBulk, BasketItem } from './types';
+import { Supplier, Shop, CounterItem, Counters, ProductBundle, ProductBulk, BasketItem, FixedCostRate } from './types';
 
 const zlib = require('zlib');
 
@@ -16,6 +16,7 @@ export type ContextType = {
   counters: Counters | null;
   productBundles: ProductBundle[];
   productBulks: ProductBulk[];
+  fixedCostRates: FixedCostRate[];
   suppliers: { [code: string]: Supplier } | null;
   addBundleDiscount: (basketItems: BasketItem[]) => BasketItem[];
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;
@@ -29,6 +30,7 @@ const AppContext = createContext({
   suppliers: null,
   productBundles: [],
   productBulks: [],
+  fixedCostRates: [],
   addBundleDiscount: (basketItems: BasketItem[]) => basketItems,
   loadProductOptions: async (inputText: string) => [],
   registListner: (name: 'suppliers') => {},
@@ -53,6 +55,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
   });
   const [productBundles, setProductBundles] = useState<ProductBundle[]>([]);
   const [productBulks, setProductBulks] = useState<ProductBulk[]>([]);
+  const [fixedCostRates, setFixedCostRates] = useState<FixedCostRate[]>([]);
   const [suppliers, setSuppliers] = useState<{ [code: string]: Supplier }>({});
   const [listeners, setListeners] = useState<{ suppliers: boolean }>({ suppliers: false });
 
@@ -108,6 +111,17 @@ export const AppContextProvider: React.FC = ({ children }) => {
         bulksData.push(doc.data() as ProductBulk);
       });
       setProductBulks(bulksData);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'fixedCostRates'), (snapshot) => {
+      const ratesData: FixedCostRate[] = [];
+      snapshot.docs.forEach((doc) => {
+        ratesData.push(doc.data() as FixedCostRate);
+      });
+      setFixedCostRates(ratesData);
     });
     return () => unsubscribe();
   }, []);
@@ -215,6 +229,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
         suppliers,
         productBundles,
         productBulks,
+        fixedCostRates,
         addBundleDiscount,
         loadProductOptions,
         registListner,

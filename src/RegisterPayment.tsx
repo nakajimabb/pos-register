@@ -80,13 +80,14 @@ const RegisterPayment: React.FC<Props> = ({
         discountTotal: 0,
         paymentType,
         cashAmount: toNumber(cashText),
+        salesTaxFreeTotal: priceTaxFreeTotal,
         salesNormalTotal: priceNormalTotal + taxNormalTotal,
         salesReducedTotal: priceReducedTotal + taxReducedTotal,
         taxNormalTotal,
         taxReducedTotal,
         status: registerMode,
       };
-      const saleRef = doc(collection(db, 'sales'), receiptNumber.toString());
+      const saleRef = doc(collection(db, 'sales'));
       transaction.set(saleRef, sale);
 
       let discountTotal = 0;
@@ -145,6 +146,14 @@ const RegisterPayment: React.FC<Props> = ({
     return (
       items
         .filter((item) => item.product.sellingTax === 8)
+        .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign
+    );
+  })(basketItems);
+
+  const priceTaxFreeTotal = ((items: BasketItem[]) => {
+    return (
+      items
+        .filter((item) => item.product.sellingTax === 0)
         .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign
     );
   })(basketItems);
@@ -292,6 +301,11 @@ const RegisterPayment: React.FC<Props> = ({
                       {registerMode === 'Return' ? 'ご返金' : '合計'}
                     </Table.Cell>
                     <Table.Cell className="text-right text-xl pr-4">¥{salesTotal.toLocaleString()}</Table.Cell>
+                    <Table.Cell></Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell type="th">非課税対象</Table.Cell>
+                    <Table.Cell className="text-right pr-4">¥{priceTaxFreeTotal.toLocaleString()}</Table.Cell>
                     <Table.Cell></Table.Cell>
                   </Table.Row>
                   <Table.Row>

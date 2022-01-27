@@ -14,20 +14,23 @@ type Props = {
 
 const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBasketItems, onClose }) => {
   const [priceText, setPriceText] = useState<string>('0');
-  const { addBundleDiscount } = useAppContext();
+  const { addBundleDiscount, fixedCostRates } = useAppContext();
 
   useEffect(() => {
     const inputPrice = document.getElementById('inputPrice') as HTMLInputElement;
     if (inputPrice && registerItem) inputPrice.value = toNumber(String(registerItem.defaultPrice)).toString();
     inputPrice?.focus();
     inputPrice?.select();
-  }, [open]);
+  }, [open, registerItem]);
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     const inputPrice = document.getElementById('inputPrice') as HTMLInputElement;
     const price = toNumber(inputPrice.value);
     if (registerItem && price !== 0) {
+      const existingRateIndex = fixedCostRates.findIndex((rate) => rate.productCode === registerItem.code);
+      const costPrice =
+        existingRateIndex >= 0 ? Math.floor((price * fixedCostRates[existingRateIndex].rate) / 100) : null;
       const existingIndex = basketItems.findIndex((item) => item.product.code === registerItem.code);
       if (existingIndex >= 0) {
         basketItems[existingIndex].product.sellingPrice = price;
@@ -40,7 +43,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
             kana: '',
             name: registerItem.name,
             hidden: false,
-            costPrice: null,
+            costPrice: costPrice,
             sellingPrice: price,
             stockTaxClass: null,
             sellingTaxClass: registerItem.taxClass,

@@ -14,7 +14,7 @@ const MAX_SEARCH = 50;
 
 const ReceiptList: React.FC = () => {
   const { currentShop } = useAppContext();
-  const [sales, setSales] = useState<[Sale, string][]>();
+  const [sales, setSales] = useState<[string, Sale, string][]>();
   const [sale, setSale] = useState<Sale>();
   const [saleDetails, setSaleDetails] = useState<SaleDetail[]>([]);
   const [dateTimeFrom, setDateTimeFrom] = useState<Date>();
@@ -38,11 +38,12 @@ const ReceiptList: React.FC = () => {
       conds.push(limit(MAX_SEARCH));
       const q = query(collection(db, 'sales'), ...conds);
       const querySnapshot = await getDocs(q);
-      const salesData = new Array<[Sale, string]>();
+      const salesData = new Array<[string, Sale, string]>();
       await Promise.all(
         querySnapshot.docs.map(async (doc) => {
           const detailsSnapshot = await getDocs(collection(db, 'sales', doc.id, 'saleDetails'));
           salesData.push([
+            doc.id,
             doc.data() as Sale,
             detailsSnapshot.docs
               .map((detailDoc) => {
@@ -139,7 +140,7 @@ const ReceiptList: React.FC = () => {
               <Table.Body>
                 {sales &&
                   sales.map((data, index) => {
-                    const [saleData, productName] = data;
+                    const [docId, saleData, productName] = data;
                     return (
                       <Table.Row className="hover:bg-gray-300" key={index}>
                         <Table.Cell>{index + 1}</Table.Cell>
@@ -156,9 +157,7 @@ const ReceiptList: React.FC = () => {
                             size="xs"
                             onClick={async () => {
                               setSale(saleData);
-                              const querySnapshot = await getDocs(
-                                collection(db, 'sales', saleData.receiptNumber.toString(), 'saleDetails')
-                              );
+                              const querySnapshot = await getDocs(collection(db, 'sales', docId, 'saleDetails'));
                               const details: Array<SaleDetail> = [];
                               querySnapshot.docs.forEach((doc) => {
                                 details.push(doc.data() as SaleDetail);
@@ -258,6 +257,13 @@ const ReceiptList: React.FC = () => {
                     {sale?.status === 'Return' ? 'ご返金' : '合計'}
                   </Table.Cell>
                   <Table.Cell className="text-right text-xl pr-4">¥{sale?.salesTotal.toLocaleString()}</Table.Cell>
+                  <Table.Cell></Table.Cell>
+                </Table.Row>
+                <Table.Row>
+                  <Table.Cell type="th">非課税対象</Table.Cell>
+                  <Table.Cell className="text-right pr-4">
+                    ¥{(Number(sale?.salesTaxFreeTotal) + 0).toLocaleString()}
+                  </Table.Cell>
                   <Table.Cell></Table.Cell>
                 </Table.Row>
                 <Table.Row>

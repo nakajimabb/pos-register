@@ -103,6 +103,7 @@ export type Sale = {
   discountTotal: number;
   paymentType: 'Cash' | 'Credit';
   cashAmount: number;
+  salesTaxFreeTotal: number;
   salesNormalTotal: number;
   salesReducedTotal: number;
   taxNormalTotal: number;
@@ -162,6 +163,12 @@ export type ProductBulk = {
   childProductCode: string;
   childProductName: string;
   quantity: number;
+};
+
+export type FixedCostRate = {
+  productCode: string;
+  description: string;
+  rate: number;
 };
 
 // 仕入れ情報

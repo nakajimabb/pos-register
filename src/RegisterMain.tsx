@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getFirestore, doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { Button, Card, Flex, Form, Grid, Icon, Table } from './components';
 import { Brand } from './components/type';
 import { useAppContext } from './AppContext';
@@ -90,13 +90,16 @@ const RegisterMain: React.FC = () => {
 
   useEffect(() => {
     if (!currentShop) return;
-    const unsubRegisterItems = onSnapshot(collection(db, 'registerItems'), async (snapshot) => {
-      const items = new Array<RegisterItem>();
-      snapshot.forEach((doc) => {
-        items.push(doc.data() as RegisterItem);
-      });
-      setRegisterItems(items);
-    });
+    const unsubRegisterItems = onSnapshot(
+      query(collection(db, 'registerItems'), orderBy('index')),
+      async (snapshot) => {
+        const items = new Array<RegisterItem>();
+        snapshot.forEach((doc) => {
+          items.push(doc.data() as RegisterItem);
+        });
+        setRegisterItems(items);
+      }
+    );
 
     const unsubShortcutItems = onSnapshot(
       collection(db, 'shops', currentShop.code, 'shortcutItems'),
