@@ -27,7 +27,7 @@ const RegisterPayment: React.FC<Props> = ({
   setBasketItems,
   onClose,
 }) => {
-  const { currentShop } = useAppContext();
+  const { currentShop, productBulks } = useAppContext();
   const [cashText, setCashText] = useState<string>('0');
   const [currentTimestamp, setCurrentTimestamp] = useState<Timestamp>(Timestamp.fromDate(new Date()));
   const componentRef = useRef(null);
@@ -48,15 +48,20 @@ const RegisterPayment: React.FC<Props> = ({
       await Promise.all(
         basketItems.map(async (item, index) => {
           if (item.product.code) {
-            const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), item.product.code);
+            const existingBulkIndex = productBulks.findIndex((bulk) => bulk.parentProductCode === item.product.code);
+            const stockProductCode =
+              existingBulkIndex >= 0 ? productBulks[existingBulkIndex].childProductCode : item.product.code;
+            const stockProductName =
+              existingBulkIndex >= 0 ? productBulks[existingBulkIndex].childProductName : item.product.name;
+            const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), stockProductCode);
             const stockDoc = await transaction.get(stockRef);
             if (stockDoc.exists()) {
               stocks[index] = stockDoc.data() as Stock;
             } else {
               stocks[index] = {
                 shopCode: currentShop.code,
-                productCode: item.product.code,
-                productName: item.product.name,
+                productCode: stockProductCode,
+                productName: stockProductName,
                 quantity: 0,
                 updatedAt: currentTimestamp,
               };
@@ -103,10 +108,14 @@ const RegisterPayment: React.FC<Props> = ({
           discountTotal += -item.product.sellingPrice;
         }
         if (item.product.code) {
-          const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), item.product.code);
+          const existingBulkIndex = productBulks.findIndex((bulk) => bulk.parentProductCode === item.product.code);
+          const stockProductCode =
+            existingBulkIndex >= 0 ? productBulks[existingBulkIndex].childProductCode : item.product.code;
+          const stockQuantity = existingBulkIndex >= 0 ? productBulks[existingBulkIndex].quantity : item.quantity;
+          const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), stockProductCode);
           transaction.set(stockRef, {
             ...stocks[index],
-            quantity: stocks[index].quantity - item.quantity * registerSign,
+            quantity: stocks[index].quantity - stockQuantity * registerSign,
           });
         }
       });
@@ -219,7 +228,7 @@ const RegisterPayment: React.FC<Props> = ({
               {currentShop?.houseNumber}
               {currentShop?.buildingName}
             </p>
-            <p className="text-right text-sm mt-2">{currentShop?.name}</p>
+            <p className="text-right text-sm mt-2">{currentShop?.formalName}</p>
             <p className="text-center text-xl font-bold m-2">{registerMode === 'Return' ? '返品' : '領収書'}</p>
             <Table border="cell" className="table-fixed w-full text-sm shadow-none">
               <Table.Head>

@@ -108,7 +108,8 @@ const AppBar: React.FC = () => {
           <Dropdown.Item title="商品マスタ(共通)取込" to="/import_products" />
           <Dropdown.Item title="商品マスタ(店舗)取込" to="/import_shop_products" />
           <Dropdown.Item title="商品カテゴリ" to="/product_categories" />
-          <Dropdown.Item title="まとめ売り" to="/product_bundle_list" />
+          <Dropdown.Item title="バンドル" to="/product_bundle_list" />
+          <Dropdown.Item title="セット" to="/product_bulk_list" />
         </Dropdown>
         <Dropdown
           icon={

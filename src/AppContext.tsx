@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext, createContext } from 'react';
 import { collection, doc, getDoc, getFirestore, onSnapshot, Timestamp, Bytes } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
 import { userCodeFromEmail, OTC_DIVISION } from './tools';
-import { Supplier, Shop, CounterItem, Counters, ProductBundle, BasketItem } from './types';
+import { Supplier, Shop, CounterItem, Counters, ProductBundle, ProductBulk, BasketItem } from './types';
 
 const zlib = require('zlib');
 
@@ -15,6 +15,7 @@ export type ContextType = {
   currentShop: Shop | null;
   counters: Counters | null;
   productBundles: ProductBundle[];
+  productBulks: ProductBulk[];
   suppliers: { [code: string]: Supplier } | null;
   addBundleDiscount: (basketItems: BasketItem[]) => BasketItem[];
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;
@@ -27,6 +28,7 @@ const AppContext = createContext({
   counters: null,
   suppliers: null,
   productBundles: [],
+  productBulks: [],
   addBundleDiscount: (basketItems: BasketItem[]) => basketItems,
   loadProductOptions: async (inputText: string) => [],
   registListner: (name: 'suppliers') => {},
@@ -50,6 +52,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
     suppliers: { all: 0, lastUpdatedAt: new Timestamp(0, 0) },
   });
   const [productBundles, setProductBundles] = useState<ProductBundle[]>([]);
+  const [productBulks, setProductBulks] = useState<ProductBulk[]>([]);
   const [suppliers, setSuppliers] = useState<{ [code: string]: Supplier }>({});
   const [listeners, setListeners] = useState<{ suppliers: boolean }>({ suppliers: false });
 
@@ -94,6 +97,17 @@ export const AppContextProvider: React.FC = ({ children }) => {
         bundlesData.push(doc.data() as ProductBundle);
       });
       setProductBundles(bundlesData);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'productBulks'), (snapshot) => {
+      const bulksData: ProductBulk[] = [];
+      snapshot.docs.forEach((doc) => {
+        bulksData.push(doc.data() as ProductBulk);
+      });
+      setProductBulks(bulksData);
     });
     return () => unsubscribe();
   }, []);
@@ -200,6 +214,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
         counters,
         suppliers,
         productBundles,
+        productBulks,
         addBundleDiscount,
         loadProductOptions,
         registListner,

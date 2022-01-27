@@ -27,7 +27,7 @@ const ReceiptList: React.FC = () => {
     try {
       setError('');
       const conds: QueryConstraint[] = [];
-      conds.push(where('code', '==', currentShop.code));
+      conds.push(where('shopCode', '==', currentShop.code));
       if (dateTimeFrom) {
         conds.push(where('createdAt', '>=', dateTimeFrom));
       }
@@ -197,7 +197,7 @@ const ReceiptList: React.FC = () => {
             {currentShop?.houseNumber}
             {currentShop?.buildingName}
           </p>
-          <p className="text-right text-sm mt-2">{currentShop?.name}</p>
+          <p className="text-right text-sm mt-2">{currentShop?.formalName}</p>
           <p className="text-center text-xl font-bold m-2">{sale?.status === 'Return' ? '返品' : '領収書'}</p>
           <Table border="cell" className="table-fixed w-full text-sm shadow-none">
             <Table.Head>

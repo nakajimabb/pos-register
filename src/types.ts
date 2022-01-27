@@ -156,6 +156,14 @@ export type ProductBundle = {
   productCodes: string[];
 };
 
+export type ProductBulk = {
+  parentProductCode: string;
+  parentProductName: string;
+  childProductCode: string;
+  childProductName: string;
+  quantity: number;
+};
+
 // 仕入れ情報
 export type Purchase = {
   shopCode: string; // 店舗コード
