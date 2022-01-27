@@ -21,6 +21,19 @@ const KKB_URL = 'https://ebondkkb.com';
 
 const emailFromUserCode = (userCode: string) => userCode + MAIL_DOMAIN;
 
+// 日付から文字列に変換する関数
+export const toDateString = (date: Date, format: string) => {
+  let result = format;
+  result = result.replace(/YYYY/g, String(date.getFullYear()).padStart(4, '0'));
+  result = result.replace(/YY/g, String(date.getFullYear() - 2000).padStart(2, '0'));
+  result = result.replace(/MM/g, String(date.getMonth() + 1).padStart(2, '0'));
+  result = result.replace(/DD/g, String(date.getDate()).padStart(2, '0'));
+  result = result.replace(/hh/g, String(date.getHours()).padStart(2, '0'));
+  result = result.replace(/mm/g, String(date.getMinutes()).padStart(2, '0'));
+  result = result.replace(/ss/g, String(date.getSeconds()).padStart(2, '0'));
+  return result;
+};
+
 const sleep = (msec: number) => {
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -85,7 +98,8 @@ export const updateShopsFromKKb = functions
 
         // KKBから店舗情報を取得
         const url = KKB_URL + '/departments/valid_list';
-        const params = '?only_login_user=true&except_lunar=true';
+        const day = toDateString(new Date(), 'YYYY-MM-DD');
+        const params = `?day=${day}&only_login_user=true&except_lunar=true`;
         const result = await client.fetch(url + params);
         const shops = JSON.parse(result.body);
 
