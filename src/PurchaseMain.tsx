@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Select from 'react-select';
+import { useLocation } from 'react-router-dom';
 import {
   getFirestore,
   doc,
@@ -49,10 +50,22 @@ const PurchaseMain: React.FC = () => {
   const [editIndex, setEditIndex] = useState<number>(-1);
   const { registListner, suppliers, currentShop } = useAppContext();
   const quantityRef = useRef<HTMLInputElement>(null);
+  const params = useLocation().search;
 
   useEffect(() => {
     registListner('suppliers');
   }, []);
+
+  useEffect(() => {
+    const query = new URLSearchParams(params);
+    const dateText = query.get('date');
+    const supplierCode = query.get('supplierCode');
+    if (dateText && supplierCode && currentShop) {
+      const date = new Date(dateText);
+      setTarget({ date, supplierCode });
+      loadPurchaseDetails(currentShop.code, supplierCode, date);
+    }
+  }, [currentShop, params]);
 
   useEffect(() => {
     setMessages([]);
@@ -87,7 +100,6 @@ const PurchaseMain: React.FC = () => {
       const path = purchasePath({ shopCode, supplierCode, date }) + '/purchaseDetails';
       const snap = (await getDocs(collection(db, path))) as QuerySnapshot<Item>;
       setItems(snap.docs.map((docSnap) => docSnap.data()));
-      if (snap.docs.length === 0) setMessages(['データが存在しません。']);
     }
   };
 
@@ -182,8 +194,14 @@ const PurchaseMain: React.FC = () => {
       try {
         const batch = writeBatch(db);
         // purchases
+        const supplierName = suppliers && suppliers[target.supplierCode] ? suppliers[target.supplierCode].name : '';
         const ref = doc(db, purchasePath({ ...target, shopCode: currentShop.code }));
-        batch.set(ref, { shopCode: currentShop.code, supplierCode: target.supplierCode, date: target.date });
+        batch.set(ref, {
+          shopCode: currentShop.code,
+          supplierCode: target.supplierCode,
+          supplierName,
+          date: target.date,
+        });
         // purchaseDetails
         items
           .filter((item) => item.removed)

@@ -175,6 +175,7 @@ export type FixedCostRate = {
 export type Purchase = {
   shopCode: string; // 店舗コード
   supplierCode: string;
+  supplierName: string;
   date: Timestamp; // 仕入れ日
 };
 
