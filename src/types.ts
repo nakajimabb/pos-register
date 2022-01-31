@@ -118,6 +118,7 @@ export type SaleDetail = {
   division: string;
   quantity: number;
   discount: number;
+  outputReceipt: boolean;
   status: 'Sales' | 'Cancel' | 'Return';
 };
 

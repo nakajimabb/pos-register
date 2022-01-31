@@ -99,6 +99,7 @@ const RegisterPayment: React.FC<Props> = ({
           division: item.division,
           quantity: item.quantity,
           discount: 0,
+          outputReceipt: item.outputReceipt,
           status: registerMode,
         };
         const detailRef = doc(collection(db, 'sales', saleRef.id, 'saleDetails'), index.toString());
@@ -237,7 +238,7 @@ const RegisterPayment: React.FC<Props> = ({
               {currentShop?.houseNumber}
               {currentShop?.buildingName}
             </p>
-            <p className="text-right text-sm mt-2">{currentShop?.formalName}</p>
+            <p className="text-right text-sm mt-2">{currentShop?.formalName}　　㊞</p>
             <p className="text-center text-xl font-bold m-2">{registerMode === 'Return' ? '返品' : '領収書'}</p>
             <Table border="cell" className="table-fixed w-full text-sm shadow-none">
               <Table.Head>
@@ -258,24 +259,26 @@ const RegisterPayment: React.FC<Props> = ({
                 </Table.Row>
               </Table.Head>
               <Table.Body>
-                {basketItems?.map((basketItem, index) => (
-                  <Table.Row key={index}>
-                    <Table.Cell>
-                      {basketItem.product.selfMedication ? '★' : ''}
-                      {basketItem.product.sellingTax === 8 ? '軽' : ''}
-                    </Table.Cell>
-                    <Table.Cell>{basketItem.product.name}</Table.Cell>
-                    <Table.Cell className="text-right">
-                      {basketItem.product.code ? basketItem.quantity : null}
-                    </Table.Cell>
-                    <Table.Cell className="text-right">
-                      {basketItem.product.code ? `¥${basketItem.product.sellingPrice?.toLocaleString()}` : null}
-                    </Table.Cell>
-                    <Table.Cell className="text-right">
-                      ¥{(Number(basketItem.product.sellingPrice) * basketItem.quantity)?.toLocaleString()}
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
+                {basketItems
+                  ?.filter((basketItem) => basketItem.outputReceipt)
+                  ?.map((basketItem, index) => (
+                    <Table.Row key={index}>
+                      <Table.Cell>
+                        {basketItem.product.selfMedication ? '★' : ''}
+                        {basketItem.product.sellingTax === 8 ? '軽' : ''}
+                      </Table.Cell>
+                      <Table.Cell>{basketItem.product.name}</Table.Cell>
+                      <Table.Cell className="text-right">
+                        {basketItem.product.code ? basketItem.quantity : null}
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        {basketItem.product.code ? `¥${basketItem.product.sellingPrice?.toLocaleString()}` : null}
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        ¥{(Number(basketItem.product.sellingPrice) * basketItem.quantity)?.toLocaleString()}
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
               </Table.Body>
             </Table>
 

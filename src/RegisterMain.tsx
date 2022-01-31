@@ -67,7 +67,9 @@ const RegisterMain: React.FC = () => {
     if (productCode) {
       findProduct(productCode);
     } else {
-      setOpenPayment(true);
+      if (basketItems.length > 0) {
+        setOpenPayment(true);
+      }
     }
   };
 
@@ -276,6 +278,7 @@ const RegisterMain: React.FC = () => {
                             color="none"
                             className="hover:bg-gray-300"
                             onClick={(e) => {
+                              setProductError('');
                               setBasketItemIndex(index);
                               setOpenModify(true);
                             }}
@@ -291,6 +294,7 @@ const RegisterMain: React.FC = () => {
                           color="none"
                           className="hover:bg-gray-300"
                           onClick={(e) => {
+                            setProductError('');
                             if (window.confirm('削除してもよろしいですか？')) {
                               setBasketItems(
                                 addBundleDiscount(
@@ -369,6 +373,7 @@ const RegisterMain: React.FC = () => {
                       color="info"
                       className="h-14"
                       onClick={(e) => {
+                        setProductError('');
                         setRegisterItem(registerItem);
                         setOpenInput(true);
                       }}
@@ -409,6 +414,7 @@ const RegisterMain: React.FC = () => {
                       disabled={!shortcut}
                       onClick={(e) => {
                         if (shortcut) {
+                          setProductError('');
                           const existingIndex = basketItems.findIndex(
                             (basketItem) => basketItem.product.code === shortcut.product.code
                           );

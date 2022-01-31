@@ -196,7 +196,7 @@ const ReceiptList: React.FC = () => {
             {currentShop?.houseNumber}
             {currentShop?.buildingName}
           </p>
-          <p className="text-right text-sm mt-2">{currentShop?.formalName}</p>
+          <p className="text-right text-sm mt-2">{currentShop?.formalName}　　㊞</p>
           <p className="text-center text-xl font-bold m-2">{sale?.status === 'Return' ? '返品' : '領収書'}</p>
           <Table border="cell" className="table-fixed w-full text-sm shadow-none">
             <Table.Head>
@@ -217,22 +217,26 @@ const ReceiptList: React.FC = () => {
               </Table.Row>
             </Table.Head>
             <Table.Body>
-              {saleDetails?.map((saleDetail, index) => (
-                <Table.Row key={index}>
-                  <Table.Cell>
-                    {saleDetail.product.selfMedication ? '★' : ''}
-                    {saleDetail.product.sellingTax === 8 ? '軽' : ''}
-                  </Table.Cell>
-                  <Table.Cell>{saleDetail.product.name}</Table.Cell>
-                  <Table.Cell className="text-right">{saleDetail.product.code ? saleDetail.quantity : null}</Table.Cell>
-                  <Table.Cell className="text-right">
-                    {saleDetail.product.code ? `¥${saleDetail.product.sellingPrice?.toLocaleString()}` : null}
-                  </Table.Cell>
-                  <Table.Cell className="text-right">
-                    ¥{(Number(saleDetail.product.sellingPrice) * saleDetail.quantity)?.toLocaleString()}
-                  </Table.Cell>
-                </Table.Row>
-              ))}
+              {saleDetails
+                ?.filter((saleDetail) => saleDetail.outputReceipt)
+                ?.map((saleDetail, index) => (
+                  <Table.Row key={index}>
+                    <Table.Cell>
+                      {saleDetail.product.selfMedication ? '★' : ''}
+                      {saleDetail.product.sellingTax === 8 ? '軽' : ''}
+                    </Table.Cell>
+                    <Table.Cell>{saleDetail.product.name}</Table.Cell>
+                    <Table.Cell className="text-right">
+                      {saleDetail.product.code ? saleDetail.quantity : null}
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      {saleDetail.product.code ? `¥${saleDetail.product.sellingPrice?.toLocaleString()}` : null}
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      ¥{(Number(saleDetail.product.sellingPrice) * saleDetail.quantity)?.toLocaleString()}
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
             </Table.Body>
           </Table>
 
