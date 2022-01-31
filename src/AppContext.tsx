@@ -18,9 +18,10 @@ export type ContextType = {
   productBulks: ProductBulk[];
   fixedCostRates: FixedCostRate[];
   suppliers: { [code: string]: Supplier } | null;
+  shops: { [code: string]: Shop } | null;
   addBundleDiscount: (basketItems: BasketItem[]) => BasketItem[];
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;
-  registListner: (name: 'suppliers') => void;
+  registListner: (name: 'suppliers' | 'shops') => void;
 };
 
 const AppContext = createContext({
@@ -28,12 +29,13 @@ const AppContext = createContext({
   currentShop: null,
   counters: null,
   suppliers: null,
+  shops: null,
   productBundles: [],
   productBulks: [],
   fixedCostRates: [],
   addBundleDiscount: (basketItems: BasketItem[]) => basketItems,
   loadProductOptions: async (inputText: string) => [],
-  registListner: (name: 'suppliers') => {},
+  registListner: (name: 'suppliers' | 'shops') => {},
 } as ContextType);
 
 type FullTextSearch = {
@@ -57,7 +59,11 @@ export const AppContextProvider: React.FC = ({ children }) => {
   const [productBulks, setProductBulks] = useState<ProductBulk[]>([]);
   const [fixedCostRates, setFixedCostRates] = useState<FixedCostRate[]>([]);
   const [suppliers, setSuppliers] = useState<{ [code: string]: Supplier }>({});
-  const [listeners, setListeners] = useState<{ suppliers: boolean }>({ suppliers: false });
+  const [shops, setShops] = useState<{ [code: string]: Shop }>({});
+  const [listeners, setListeners] = useState<{ suppliers: boolean; shops: boolean }>({
+    suppliers: false,
+    shops: false,
+  });
 
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
@@ -140,7 +146,21 @@ export const AppContextProvider: React.FC = ({ children }) => {
     }
   }, [listeners.suppliers]);
 
-  const registListner = (name: 'suppliers') => {
+  useEffect(() => {
+    if (listeners.shops) {
+      const unsubscribe = onSnapshot(collection(db, 'shops'), (snapshot) => {
+        const shopsData: { [code: string]: Shop } = {};
+        snapshot.docs.forEach((doc) => {
+          shopsData[doc.id] = doc.data() as Shop;
+        });
+        setShops(shopsData);
+      });
+      console.log('...start realtime listener on shops.');
+      return () => unsubscribe();
+    }
+  }, [listeners.shops]);
+
+  const registListner = (name: 'suppliers' | 'shops') => {
     setListeners((prev) => ({ ...prev, [name]: true }));
   };
 
@@ -227,6 +247,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
         currentShop,
         counters,
         suppliers,
+        shops,
         productBundles,
         productBulks,
         fixedCostRates,

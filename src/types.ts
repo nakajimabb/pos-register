@@ -171,18 +171,18 @@ export type FixedCostRate = {
   rate: number;
 };
 
-// 仕入れ情報
+// 仕入情報
 export type Purchase = {
   shopCode: string; // 店舗コード
   supplierCode: string;
   supplierName: string;
-  date: Timestamp; // 仕入れ日
+  date: Timestamp; // 仕入日
 };
 
 export const purchasePath = (data: { shopCode: string; date: Date; supplierCode: string }) =>
   `shops/${data.shopCode}/purchases/${toDateString(data.date, 'YYYY-MM-DD')}|${data.supplierCode}`;
 
-// 仕入情報
+// 仕入詳細情報
 export type PurchaseDetail = {
   productCode: string; // JANコード
   productName: string;
@@ -193,5 +193,29 @@ export type PurchaseDetail = {
 
 export const purchaseDetailPath = (data: { shopCode: string; date: Date; supplierCode: string; productCode: string }) =>
   `shops/${data.shopCode}/purchases/${toDateString(data.date, 'YYYY-MM-DD')}|${data.supplierCode}/purchaseDetails/${
+    data.productCode
+  }`;
+
+// 出庫情報
+export type Delivery = {
+  shopCode: string; // 店舗コード
+  dstShopCode: string; // 送り先店舗コード
+  dstShopName: string;
+  date: Timestamp; // 出庫日
+};
+
+export const deliveryPath = (data: { shopCode: string; date: Date; dstShopCode: string }) =>
+  `shops/${data.shopCode}/deliveries/${toDateString(data.date, 'YYYY-MM-DD')}|${data.dstShopCode}`;
+
+// 出庫詳細情報
+export type DeliveryDetail = {
+  productCode: string; // JANコード
+  productName: string;
+  quantity: number;
+  costPrice: number | null; // 原価(税抜)
+};
+
+export const deliveryDetailPath = (data: { shopCode: string; date: Date; dstShopCode: string; productCode: string }) =>
+  `shops/${data.shopCode}/deliveries/${toDateString(data.date, 'YYYY-MM-DD')}|${data.dstShopCode}/deliveryDetails/${
     data.productCode
   }`;
