@@ -16,6 +16,7 @@ import { Button, Card, Flex, Form, Grid, Table } from './components';
 import { Brand, Brands } from './components/type';
 import { useAppContext } from './AppContext';
 import { Product, ShortcutItem } from './types';
+import { toAscii } from './tools';
 import RegisterSearch from './RegisterSearch';
 
 const db = getFirestore();
@@ -56,7 +57,7 @@ const ShortcutEdit: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (productCode) {
-      findProduct(productCode);
+      findProduct(toAscii(productCode));
     }
   };
 

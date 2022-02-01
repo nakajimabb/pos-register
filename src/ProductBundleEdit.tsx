@@ -4,7 +4,7 @@ import { doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
 import { Alert, Button, Card, Flex, Form, Grid, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import { ProductBundle, Product, TaxClass } from './types';
-import { toNumber } from './tools';
+import { toNumber, toAscii } from './tools';
 import RegisterSearch from './RegisterSearch';
 
 const db = getFirestore();
@@ -107,7 +107,7 @@ const ProductBundleEdit: React.FC<Props> = (props: Props) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (productCode) {
-      findProduct(productCode);
+      findProduct(toAscii(productCode));
     }
   };
 

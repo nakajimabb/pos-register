@@ -9,7 +9,7 @@ import RegisterInput from './RegisterInput';
 import RegisterModify from './RegisterModify';
 import RegisterSearch from './RegisterSearch';
 import { Product, BasketItem, RegisterItem, ShortcutItem } from './types';
-import { OTC_DIVISION } from './tools';
+import { OTC_DIVISION, toAscii } from './tools';
 
 const db = getFirestore();
 
@@ -65,7 +65,7 @@ const RegisterMain: React.FC = () => {
     e.preventDefault();
     setProductError('');
     if (productCode) {
-      findProduct(productCode);
+      findProduct(toAscii(productCode));
     } else {
       if (basketItems.length > 0) {
         setOpenPayment(true);
