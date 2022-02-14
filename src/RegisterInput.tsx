@@ -31,35 +31,29 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
       const existingRateIndex = fixedCostRates.findIndex((rate) => rate.productCode === registerItem.code);
       const costPrice =
         existingRateIndex >= 0 ? Math.floor((price * fixedCostRates[existingRateIndex].rate) / 100) : null;
-      const existingIndex = basketItems.findIndex((item) => item.product.code === registerItem.code);
-      if (existingIndex >= 0) {
-        basketItems[existingIndex].product.sellingPrice = price;
-        setBasketItems(addBundleDiscount(basketItems));
-      } else {
-        const basketItem = {
-          product: {
-            abbr: '',
-            code: registerItem.code,
-            kana: '',
-            name: registerItem.name,
-            hidden: false,
-            costPrice: costPrice,
-            sellingPrice: price,
-            stockTaxClass: null,
-            sellingTaxClass: registerItem.taxClass,
-            stockTax: null,
-            sellingTax: registerItem.tax,
-            selfMedication: false,
-            supplierRef: null,
-            categoryRef: null,
-            note: '',
-          },
-          division: registerItem.division,
-          outputReceipt: registerItem.outputReceipt,
-          quantity: 1,
-        };
-        setBasketItems(addBundleDiscount([...basketItems, basketItem]));
-      }
+      const basketItem = {
+        product: {
+          abbr: '',
+          code: registerItem.code,
+          kana: '',
+          name: registerItem.name,
+          hidden: false,
+          costPrice: costPrice,
+          sellingPrice: price,
+          stockTaxClass: null,
+          sellingTaxClass: registerItem.taxClass,
+          stockTax: null,
+          sellingTax: registerItem.tax,
+          selfMedication: false,
+          supplierRef: null,
+          categoryRef: null,
+          note: '',
+        },
+        division: registerItem.division,
+        outputReceipt: registerItem.outputReceipt,
+        quantity: 1,
+      };
+      setBasketItems(addBundleDiscount([...basketItems, basketItem]));
     }
     setPriceText('0');
     onClose();

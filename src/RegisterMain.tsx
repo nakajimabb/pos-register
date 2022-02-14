@@ -73,22 +73,37 @@ const RegisterMain: React.FC = () => {
     }
   };
 
-  const taxTotal = ((items: BasketItem[]) => {
-    let normalTaxTotal = 0;
-    let reducedTaxTotal = 0;
+  const exclusiveTaxTotal = ((items: BasketItem[]) => {
+    let total = 0;
     items.forEach((item) => {
-      if (item.product.sellingTax === 10) {
-        normalTaxTotal += Number(item.product.sellingPrice) * item.quantity;
-      } else if (item.product.sellingTax === 8) {
-        reducedTaxTotal += Number(item.product.sellingPrice) * item.quantity;
+      if (item.product.sellingTaxClass === 'exclusive') {
+        if (item.product.sellingTax) {
+          const tax = Number(item.product.sellingTax);
+          total += Math.floor((Number(item.product.sellingPrice) * item.quantity * tax) / 100);
+        }
       }
     });
-    return Math.floor(normalTaxTotal * 0.1 + reducedTaxTotal * 0.08) * registerSign;
+    return Math.floor(total) * registerSign;
   })(basketItems);
+
+  const inclusiveTaxTotal = ((items: BasketItem[]) => {
+    let total = 0;
+    items.forEach((item) => {
+      if (item.product.sellingTaxClass === 'inclusive') {
+        if (item.product.sellingTax) {
+          const tax = Number(item.product.sellingTax);
+          total += Math.floor((Number(item.product.sellingPrice) * item.quantity * tax) / (100 + tax));
+        }
+      }
+    });
+    return Math.floor(total) * registerSign;
+  })(basketItems);
+
+  const taxTotal = exclusiveTaxTotal + inclusiveTaxTotal;
 
   const salesTotal =
     basketItems.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign +
-    taxTotal;
+    exclusiveTaxTotal;
 
   useEffect(() => {
     if (!currentShop) return;

@@ -76,15 +76,16 @@ const RegisterPayment: React.FC<Props> = ({
         createdAt: currentTimestamp,
         detailsCount: basketItems.filter((item) => !!item.product.code).length,
         salesTotal,
-        taxTotal: taxNormalTotal + taxReducedTotal,
+        taxTotal:
+          exclusiveTaxNormalTotal + inclusiveTaxNormalTotal + exclusiveTaxReducedTotal + inclusiveTaxReducedTotal,
         discountTotal: 0,
         paymentType,
         cashAmount: toNumber(cashText),
         salesTaxFreeTotal: priceTaxFreeTotal,
-        salesNormalTotal: priceNormalTotal + taxNormalTotal,
-        salesReducedTotal: priceReducedTotal + taxReducedTotal,
-        taxNormalTotal,
-        taxReducedTotal,
+        salesNormalTotal: priceNormalTotal + exclusiveTaxNormalTotal,
+        salesReducedTotal: priceReducedTotal + exclusiveTaxReducedTotal,
+        taxNormalTotal: exclusiveTaxNormalTotal + inclusiveTaxNormalTotal,
+        taxReducedTotal: exclusiveTaxReducedTotal + inclusiveTaxReducedTotal,
         status: registerMode,
       };
       const saleRef = doc(collection(db, 'sales'));
@@ -159,14 +160,55 @@ const RegisterPayment: React.FC<Props> = ({
     );
   })(basketItems);
 
-  const taxNormalTotal = Math.floor(priceNormalTotal * 0.1);
-  const taxReducedTotal = Math.floor(priceReducedTotal * 0.08);
+  const exclusiveTaxNormalTotal = ((items: BasketItem[]) => {
+    return (
+      items
+        .filter((item) => item.product.sellingTaxClass === 'exclusive' && item.product.sellingTax === 10)
+        .reduce(
+          (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 10) / 100),
+          0
+        ) * registerSign
+    );
+  })(basketItems);
+
+  const inclusiveTaxNormalTotal = ((items: BasketItem[]) => {
+    return (
+      items
+        .filter((item) => item.product.sellingTaxClass === 'inclusive' && item.product.sellingTax === 10)
+        .reduce(
+          (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 10) / (100 + 10)),
+          0
+        ) * registerSign
+    );
+  })(basketItems);
+
+  const exclusiveTaxReducedTotal = ((items: BasketItem[]) => {
+    return (
+      items
+        .filter((item) => item.product.sellingTaxClass === 'exclusive' && item.product.sellingTax === 8)
+        .reduce(
+          (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 8) / 100),
+          0
+        ) * registerSign
+    );
+  })(basketItems);
+
+  const inclusiveTaxReducedTotal = ((items: BasketItem[]) => {
+    return (
+      items
+        .filter((item) => item.product.sellingTaxClass === 'inclusive' && item.product.sellingTax === 8)
+        .reduce(
+          (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 8) / (100 + 8)),
+          0
+        ) * registerSign
+    );
+  })(basketItems);
 
   const salesTotal = ((items: BasketItem[]) => {
     return (
       items.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign +
-      taxReducedTotal +
-      taxNormalTotal
+      exclusiveTaxReducedTotal +
+      exclusiveTaxNormalTotal
     );
   })(basketItems);
 
@@ -208,7 +250,9 @@ const RegisterPayment: React.FC<Props> = ({
                     onKeyPress={(e) => {
                       if (e.key === 'Enter' && handlePrint) {
                         e.preventDefault();
-                        handlePrint();
+                        if (toNumber(cashText) >= salesTotal) {
+                          handlePrint();
+                        }
                       }
                     }}
                     onBlur={() => setCashText(toNumber(cashText).toString())}
@@ -314,16 +358,20 @@ const RegisterPayment: React.FC<Props> = ({
                   <Table.Row>
                     <Table.Cell type="th">8%対象</Table.Cell>
                     <Table.Cell className="text-right pr-4">
-                      ¥{(priceReducedTotal + taxReducedTotal + 0).toLocaleString()}
+                      ¥{(priceReducedTotal + exclusiveTaxReducedTotal + 0).toLocaleString()}
                     </Table.Cell>
-                    <Table.Cell>（内消費税等　¥{(taxReducedTotal + 0).toLocaleString()}）</Table.Cell>
+                    <Table.Cell>
+                      （内消費税等　¥{(exclusiveTaxReducedTotal + inclusiveTaxReducedTotal + 0).toLocaleString()}）
+                    </Table.Cell>
                   </Table.Row>
                   <Table.Row>
                     <Table.Cell type="th">10%対象</Table.Cell>
                     <Table.Cell className="text-right pr-4">
-                      ¥{(priceNormalTotal + taxNormalTotal + 0).toLocaleString()}
+                      ¥{(priceNormalTotal + exclusiveTaxNormalTotal + 0).toLocaleString()}
                     </Table.Cell>
-                    <Table.Cell>（内消費税等　¥{(taxNormalTotal + 0).toLocaleString()}）</Table.Cell>
+                    <Table.Cell>
+                      （内消費税等　¥{(exclusiveTaxNormalTotal + inclusiveTaxNormalTotal + 0).toLocaleString()}）
+                    </Table.Cell>
                   </Table.Row>
                   {registerMode === 'Return' ? null : (
                     <Table.Row>
