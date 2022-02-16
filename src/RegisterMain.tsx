@@ -8,7 +8,7 @@ import RegisterPayment from './RegisterPayment';
 import RegisterInput from './RegisterInput';
 import RegisterModify from './RegisterModify';
 import RegisterSearch from './RegisterSearch';
-import { Product, BasketItem, RegisterItem, ShortcutItem } from './types';
+import { Product, ProductSellingPrice, BasketItem, RegisterItem, ShortcutItem } from './types';
 import { OTC_DIVISION, toAscii } from './tools';
 
 const db = getFirestore();
@@ -43,6 +43,14 @@ const RegisterMain: React.FC = () => {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const product = docSnap.data() as Product;
+        if (currentShop) {
+          const sellingPriceref = doc(db, 'shops', currentShop.code, 'productSellingPrices', code);
+          const sellingPriceSnap = await getDoc(sellingPriceref);
+          if (sellingPriceSnap.exists()) {
+            const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
+            product.sellingPrice = sellingPrice.sellingPrice;
+          }
+        }
         const existingIndex = basketItems.findIndex((item) => item.product.code === code);
         if (existingIndex >= 0) {
           basketItems[existingIndex].quantity += 1;
@@ -134,6 +142,14 @@ const RegisterMain: React.FC = () => {
               const productSnap = await getDoc(item.productRef);
               if (productSnap.exists()) {
                 const product = productSnap.data() as Product;
+                if (currentShop) {
+                  const sellingPriceref = doc(db, 'shops', currentShop.code, 'productSellingPrices', product.code);
+                  const sellingPriceSnap = await getDoc(sellingPriceref);
+                  if (sellingPriceSnap.exists()) {
+                    const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
+                    product.sellingPrice = sellingPrice.sellingPrice;
+                  }
+                }
                 shortcutArray[item.index] = { index: item.index, color: item.color, product };
               }
             }

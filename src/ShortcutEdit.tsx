@@ -15,7 +15,7 @@ import {
 import { Button, Card, Flex, Form, Grid, Table } from './components';
 import { Brand, Brands } from './components/type';
 import { useAppContext } from './AppContext';
-import { Product, ShortcutItem } from './types';
+import { Product, ProductSellingPrice, ShortcutItem } from './types';
 import { toAscii } from './tools';
 import RegisterSearch from './RegisterSearch';
 
@@ -45,7 +45,16 @@ const ShortcutEdit: React.FC = () => {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         setProductRef(docRef as DocumentReference<DocumentData>);
-        setProduct(docSnap.data() as Product);
+        if (currentShop) {
+          const product = docSnap.data() as Product;
+          const sellingPriceref = doc(db, 'shops', currentShop.code, 'productSellingPrices', code);
+          const sellingPriceSnap = await getDoc(sellingPriceref);
+          if (sellingPriceSnap.exists()) {
+            const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
+            product.sellingPrice = sellingPrice.sellingPrice;
+          }
+        }
+        setProduct(product);
       } else {
         console.log('no such product');
       }
@@ -111,6 +120,14 @@ const ShortcutEdit: React.FC = () => {
             const productSnap = await getDoc(item.productRef);
             if (productSnap.exists()) {
               const product = productSnap.data() as Product;
+              if (currentShop) {
+                const sellingPriceref = doc(db, 'shops', currentShop.code, 'productSellingPrices', product.code);
+                const sellingPriceSnap = await getDoc(sellingPriceref);
+                if (sellingPriceSnap.exists()) {
+                  const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
+                  product.sellingPrice = sellingPrice.sellingPrice;
+                }
+              }
               shortcutArray[item.index] = { index: item.index, color: item.color as Brand, product };
             }
           }

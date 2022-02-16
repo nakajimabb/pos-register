@@ -23,7 +23,7 @@ import { useAppContext } from './AppContext';
 import { Alert, Button, Card, Flex, Form, Modal, Table } from './components';
 import firebaseError from './firebaseError';
 import { sortedProductCategories } from './tools';
-import { Product, ProductCategory } from './types';
+import { Product, ProductCategory, ProductSellingPrice } from './types';
 
 const db = getFirestore();
 const PER_PAGE = 10;
@@ -42,8 +42,9 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
   const [page, setPage] = useState(0);
   const [productCount, setProductCount] = useState<number | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
+  const [sellingPrices, setSellingPrices] = useState<{ [code: string]: number }>({});
   const [error, setError] = useState<string>('');
-  const { loadProductOptions } = useAppContext();
+  const { currentShop, loadProductOptions } = useAppContext();
 
   const existSearch = () => search.text.trim() || search.categoryId.trim();
 
@@ -108,6 +109,23 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
       }
       const q = query(collection(db, 'products'), ...conds);
       const querySnapshot = await getDocs(q);
+      const sellingPricesDic: { [code: string]: number } = {};
+      await Promise.all(
+        querySnapshot.docs.map(async (productDoc, i) => {
+          const product = productDoc.data() as Product;
+          if (currentShop) {
+            const sellingPriceref = doc(db, 'shops', currentShop.code, 'productSellingPrices', product.code);
+            const sellingPriceSnap = await getDoc(sellingPriceref);
+            if (sellingPriceSnap.exists()) {
+              const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
+              if (sellingPrice.sellingPrice) {
+                sellingPricesDic[product.code] = Number(sellingPrice.sellingPrice);
+              }
+            }
+          }
+        })
+      );
+      setSellingPrices(sellingPricesDic);
       setSnapshot(querySnapshot as QuerySnapshot<Product>);
     } catch (error) {
       console.log({ error });
@@ -225,7 +243,11 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
                         <Table.Row size="sm" className="hover:bg-gray-300" key={i}>
                           <Table.Cell>{product.code}</Table.Cell>
                           <Table.Cell className="truncate">{product.name}</Table.Cell>
-                          <Table.Cell className="text-right">{product.sellingPrice?.toLocaleString()}</Table.Cell>
+                          <Table.Cell className="text-right">
+                            {sellingPrices[product.code]
+                              ? sellingPrices[product.code].toLocaleString()
+                              : product.sellingPrice?.toLocaleString()}
+                          </Table.Cell>
                           <Table.Cell>
                             <Button
                               color="primary"
