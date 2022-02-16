@@ -1,9 +1,33 @@
 import React, { useState, useEffect, useContext, createContext } from 'react';
 
-import { collection, doc, getDoc, getFirestore, onSnapshot, Timestamp, Bytes } from 'firebase/firestore';
+import {
+  Bytes,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  onSnapshot,
+  Timestamp,
+  orderBy,
+  query,
+  QueryConstraint,
+  QuerySnapshot,
+  where,
+} from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
 import { userCodeFromEmail, OTC_DIVISION } from './tools';
-import { Supplier, Shop, CounterItem, Counters, ProductBundle, ProductBulk, BasketItem, FixedCostRate } from './types';
+import {
+  Product,
+  Supplier,
+  Shop,
+  CounterItem,
+  Counters,
+  ProductBundle,
+  ProductBulk,
+  BasketItem,
+  FixedCostRate,
+} from './types';
 
 const zlib = require('zlib');
 
@@ -21,6 +45,7 @@ export type ContextType = {
   shops: { [code: string]: Shop } | null;
   addBundleDiscount: (basketItems: BasketItem[]) => BasketItem[];
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;
+  searchProducts: (text: string) => Promise<QuerySnapshot<Product> | null>;
   registListner: (name: 'suppliers' | 'shops') => void;
 };
 
@@ -35,6 +60,7 @@ const AppContext = createContext({
   fixedCostRates: [],
   addBundleDiscount: (basketItems: BasketItem[]) => basketItems,
   loadProductOptions: async (inputText: string) => [],
+  searchProducts: async (text: string) => null,
   registListner: (name: 'suppliers' | 'shops') => {},
 } as ContextType);
 
@@ -240,6 +266,27 @@ export const AppContextProvider: React.FC = ({ children }) => {
     });
   };
 
+  const searchProducts = async (text: string) => {
+    const fullTextSearch = await updateProductTextSearch();
+    const texts = fullTextSearch.texts;
+    const targetWords = texts.filter((word) => word.indexOf(text) >= 0);
+    const codes = targetWords
+      .map((word) => {
+        return { word: word.split('|')[0], index: word.indexOf(text) };
+      })
+      .sort((item1, item2) => item1.index - item2.index)
+      .map((item) => item.word)
+      .slice(0, 10);
+    if (codes.length > 0) {
+      const conds: QueryConstraint[] = [];
+      conds.push(where('code', 'in', codes));
+      const q = query(collection(db, 'products'), ...conds);
+      return (await getDocs(q)) as QuerySnapshot<Product>;
+    } else {
+      return null;
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -253,6 +300,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
         fixedCostRates,
         addBundleDiscount,
         loadProductOptions,
+        searchProducts,
         registListner,
       }}
     >

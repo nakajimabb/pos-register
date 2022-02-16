@@ -14,7 +14,6 @@ import {
   startAfter,
   endBefore,
   startAt,
-  endAt,
   where,
   QueryConstraint,
   QuerySnapshot,
@@ -22,7 +21,6 @@ import {
   serverTimestamp,
   Bytes,
 } from 'firebase/firestore';
-import AsyncSelect from 'react-select/async';
 
 import { useAppContext } from './AppContext';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
@@ -36,7 +34,6 @@ const zlib = require('zlib');
 
 const db = getFirestore();
 const PER_PAGE = 25;
-const MAX_SEARCH = 50;
 
 type SearchType = { text: string; categoryId: string };
 
@@ -51,7 +48,7 @@ const ProductList: React.FC = () => {
   const [productCount, setProductCount] = useState<number | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
-  const { counters, loadProductOptions } = useAppContext();
+  const { counters, searchProducts } = useAppContext();
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'productCategories'), (snapshot) => {
@@ -61,7 +58,7 @@ const ProductList: React.FC = () => {
         value: id,
         label: '　'.repeat(productCategory.level) + productCategory.name,
       }));
-      options.unshift({ label: '', value: '' });
+      options.unshift({ label: '-- カテゴリ --', value: '' });
       setCategoryOptions(options);
     });
     return () => unsubscribe();
@@ -80,27 +77,14 @@ const ProductList: React.FC = () => {
   const queryProducts = (search: SearchType, action: 'head' | 'prev' | 'next' | 'current') => async () => {
     try {
       setError('');
-      const conds: QueryConstraint[] = [];
-      if (existSearch(search)) {
-        const searchText = search.text.trim();
-        const categoryId = search.categoryId.trim();
-        if (searchText) {
-          if (searchText.match(/^\d+$/)) {
-            conds.push(orderBy('code'));
-          } else {
-            conds.push(orderBy('name'));
-          }
-          conds.push(startAt(searchText));
-          conds.push(endAt(searchText + '\uf8ff'));
-        }
-        if (categoryId) {
-          const ref = doc(db, 'productCategories', categoryId);
-          conds.push(where('categoryRef', '==', ref));
-        }
-        conds.push(limit(MAX_SEARCH));
+      const searchText = search.text.trim();
+      if (searchText) {
+        const snapshot = await searchProducts(searchText);
+        setSnapshot(snapshot);
         setPage(0);
         setProductCount(null);
       } else {
+        const conds: QueryConstraint[] = [];
         setProductCount(Number(counters?.products.all));
 
         if (action === 'head') {
@@ -130,10 +114,10 @@ const ProductList: React.FC = () => {
             conds.push(limit(PER_PAGE));
           }
         }
+        const q = query(collection(db, 'products'), ...conds);
+        const querySnapshot = (await getDocs(q)) as QuerySnapshot<Product>;
+        setSnapshot(querySnapshot);
       }
-      const q = query(collection(db, 'products'), ...conds);
-      const querySnapshot = await getDocs(q);
-      setSnapshot(querySnapshot as QuerySnapshot<Product>);
     } catch (error) {
       console.log({ error });
       setError(firebaseError(error));
@@ -218,20 +202,18 @@ const ProductList: React.FC = () => {
       <Card className="mx-8 mb-4 overflow-visible">
         <Flex justify_content="between" align_items="center" className="p-4">
           <Flex>
-            <AsyncSelect
-              className="w-80 mr-2"
-              isClearable={true}
-              value={{ label: search.text, value: search.text }}
-              loadOptions={loadProductOptions}
-              onChange={(e) => {
-                const newSearch = { ...search, text: e?.label ?? '' };
-                setSearch(newSearch);
-              }}
+            <Form.Text
+              id="select"
+              size="md"
+              placeholder="PLUコード 商品名"
+              className="mr-2 w-80"
+              value={search.text}
+              onChange={(e) => setSearch({ ...search, text: e.target.value })}
             />
             <Form.Select
               id="select"
               size="md"
-              className="mr-2"
+              className="mr-2 w-64"
               value={search.categoryId}
               options={categoryOptions}
               onChange={(e) => setSearch({ ...search, categoryId: e.target.value })}

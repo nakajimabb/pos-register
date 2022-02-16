@@ -12,13 +12,10 @@ import {
   startAfter,
   endBefore,
   startAt,
-  endAt,
-  where,
   QueryConstraint,
   QuerySnapshot,
   onSnapshot,
 } from 'firebase/firestore';
-import AsyncSelect from 'react-select/async';
 import { useAppContext } from './AppContext';
 import { Alert, Button, Card, Flex, Form, Modal, Table } from './components';
 import firebaseError from './firebaseError';
@@ -27,7 +24,6 @@ import { Product, ProductCategory, ProductSellingPrice } from './types';
 
 const db = getFirestore();
 const PER_PAGE = 10;
-const MAX_SEARCH = 50;
 
 type Props = {
   open: boolean;
@@ -44,40 +40,23 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
   const [sellingPrices, setSellingPrices] = useState<{ [code: string]: number }>({});
   const [error, setError] = useState<string>('');
-  const { currentShop, loadProductOptions } = useAppContext();
+  const { counters, searchProducts, currentShop } = useAppContext();
 
   const existSearch = () => search.text.trim() || search.categoryId.trim();
 
   const queryProducts = (action: 'head' | 'prev' | 'next' | 'current') => async () => {
     try {
       setError('');
-      const conds: QueryConstraint[] = [];
-      if (existSearch()) {
-        const searchText = search.text.trim();
-        const categoryId = search.categoryId.trim();
-        if (searchText) {
-          if (searchText.match(/^\d+$/)) {
-            conds.push(orderBy('code'));
-          } else {
-            conds.push(orderBy('name'));
-          }
-          conds.push(startAt(searchText));
-          conds.push(endAt(searchText + '\uf8ff'));
-        }
-        if (categoryId) {
-          const ref = doc(db, 'productCategories', categoryId);
-          conds.push(where('categoryRef', '==', ref));
-        }
-        conds.push(limit(MAX_SEARCH));
+      const searchText = search.text.trim();
+      let querySnapshot: QuerySnapshot<Product> | null = null;
+      if (searchText) {
+        querySnapshot = await searchProducts(searchText);
+        setSnapshot(querySnapshot);
         setPage(0);
         setProductCount(null);
       } else {
-        const snap = await getDoc(doc(db, 'counters', 'products'));
-        if (snap.exists()) {
-          setProductCount(snap.data().all);
-        } else {
-          setProductCount(null);
-        }
+        const conds: QueryConstraint[] = [];
+        setProductCount(Number(counters?.products.all));
 
         if (action === 'head') {
           conds.push(orderBy('code'));
@@ -106,27 +85,30 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
             conds.push(limit(PER_PAGE));
           }
         }
+        const q = query(collection(db, 'products'), ...conds);
+        querySnapshot = (await getDocs(q)) as QuerySnapshot<Product>;
+        setSnapshot(querySnapshot);
       }
-      const q = query(collection(db, 'products'), ...conds);
-      const querySnapshot = await getDocs(q);
-      const sellingPricesDic: { [code: string]: number } = {};
-      await Promise.all(
-        querySnapshot.docs.map(async (productDoc, i) => {
-          const product = productDoc.data() as Product;
-          if (currentShop) {
-            const sellingPriceref = doc(db, 'shops', currentShop.code, 'productSellingPrices', product.code);
-            const sellingPriceSnap = await getDoc(sellingPriceref);
-            if (sellingPriceSnap.exists()) {
-              const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
-              if (sellingPrice.sellingPrice) {
-                sellingPricesDic[product.code] = Number(sellingPrice.sellingPrice);
+      if (querySnapshot) {
+        const sellingPricesDic: { [code: string]: number } = {};
+        await Promise.all(
+          querySnapshot.docs.map(async (productDoc, i) => {
+            const product = productDoc.data() as Product;
+            if (currentShop) {
+              const sellingPriceref = doc(db, 'shops', currentShop.code, 'productSellingPrices', product.code);
+              const sellingPriceSnap = await getDoc(sellingPriceref);
+              if (sellingPriceSnap.exists()) {
+                const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
+                if (sellingPrice.sellingPrice) {
+                  sellingPricesDic[product.code] = Number(sellingPrice.sellingPrice);
+                }
               }
             }
-          }
-        })
-      );
-      setSellingPrices(sellingPricesDic);
-      setSnapshot(querySnapshot as QuerySnapshot<Product>);
+          })
+        );
+        setSellingPrices(sellingPricesDic);
+        setSnapshot(querySnapshot as QuerySnapshot<Product>);
+      }
     } catch (error) {
       console.log({ error });
       setError(firebaseError(error));
@@ -147,7 +129,7 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
         value: id,
         label: '　'.repeat(productCategory.level) + productCategory.name,
       }));
-      options.unshift({ label: '', value: '' });
+      options.unshift({ label: '-- カテゴリ --', value: '' });
       setCategoryOptions(options);
     });
     document.getElementById('searchText')?.focus();
@@ -165,18 +147,18 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
           <Flex justify_content="between" align_items="center" className="p-4">
             <Form onSubmit={handleSubmit}>
               <Flex>
-                <AsyncSelect
-                  className="w-80 mr-2"
-                  value={{ label: search.text, value: search.text }}
-                  isClearable={true}
-                  loadOptions={loadProductOptions}
-                  onChange={(e) => {
-                    setSearch({ ...search, text: e?.label ?? '' });
-                  }}
+                <Form.Text
+                  id="select"
+                  size="md"
+                  placeholder="PLUコード 商品名"
+                  className="mr-2 w-64"
+                  value={search.text}
+                  onChange={(e) => setSearch({ ...search, text: e.target.value })}
                 />
                 <Form.Select
                   id="select"
-                  className="mr-2 inline"
+                  size="md"
+                  className="mr-2 w-40"
                   value={search.categoryId}
                   options={categoryOptions}
                   onChange={(e) => setSearch({ ...search, categoryId: e.target.value })}
