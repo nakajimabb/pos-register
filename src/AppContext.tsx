@@ -9,14 +9,13 @@ import {
   getFirestore,
   onSnapshot,
   Timestamp,
-  orderBy,
   query,
   QueryConstraint,
   QuerySnapshot,
   where,
 } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
-import { userCodeFromEmail, OTC_DIVISION } from './tools';
+import { userCodeFromEmail, OTC_DIVISION, hiraToKana } from './tools';
 import {
   Product,
   Supplier,
@@ -45,7 +44,7 @@ export type ContextType = {
   shops: { [code: string]: Shop } | null;
   addBundleDiscount: (basketItems: BasketItem[]) => BasketItem[];
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;
-  searchProducts: (text: string) => Promise<QuerySnapshot<Product> | null>;
+  searchProducts: (inputText: string) => Promise<QuerySnapshot<Product> | null>;
   registListner: (name: 'suppliers' | 'shops') => void;
 };
 
@@ -60,7 +59,7 @@ const AppContext = createContext({
   fixedCostRates: [],
   addBundleDiscount: (basketItems: BasketItem[]) => basketItems,
   loadProductOptions: async (inputText: string) => [],
-  searchProducts: async (text: string) => null,
+  searchProducts: async (inputText: string) => null,
   registListner: (name: 'suppliers' | 'shops') => {},
 } as ContextType);
 
@@ -250,29 +249,30 @@ export const AppContextProvider: React.FC = ({ children }) => {
   };
 
   const loadProductOptions = async (inputText: string) => {
-    inputText = inputText.trim();
-    const isNumber = inputText.match(/^\d+$/);
+    const text = hiraToKana(inputText).trim();
+    const isNumber = text.match(/^\d+$/);
     // 数字で3文字以下、数字以外で1文字以下だと空を返す
-    if ((isNumber && inputText.length < 3) || (!isNumber && inputText.length < 1)) {
+    if ((isNumber && text.length < 3) || (!isNumber && text.length < 1)) {
       return [];
     }
 
     const fullTextSearch = await updateProductTextSearch();
     const texts = fullTextSearch.texts;
-    const targetWords = texts.filter((word) => word.indexOf(inputText) >= 0);
+    const targetWords = texts.filter((word) => hiraToKana(word).indexOf(text) >= 0);
     return targetWords.map((word) => {
       const words = word.split('|');
       return { label: words[1], value: words[0] };
     });
   };
 
-  const searchProducts = async (text: string) => {
+  const searchProducts = async (inputText: string) => {
+    const text = hiraToKana(inputText).trim();
     const fullTextSearch = await updateProductTextSearch();
     const texts = fullTextSearch.texts;
-    const targetWords = texts.filter((word) => word.indexOf(text) >= 0);
+    const targetWords = texts.filter((word) => hiraToKana(word).indexOf(text) >= 0);
     const codes = targetWords
       .map((word) => {
-        return { word: word.split('|')[0], index: word.indexOf(text) };
+        return { word: word.split('|')[0], index: hiraToKana(word).indexOf(text) };
       })
       .sort((item1, item2) => item1.index - item2.index)
       .map((item) => item.word)
