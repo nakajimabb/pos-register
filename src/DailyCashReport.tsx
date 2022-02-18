@@ -64,11 +64,15 @@ const DailyCashReport: React.FC = () => {
         reportItemsData[`division${division}DiscountCountTotal`] = 0;
         reportItemsData[`division${division}DiscountAmountTotal`] = 0;
       });
+      reportItemsData[`divisionAllCountTotal`] = 0;
+      reportItemsData[`divisionAllAmountTotal`] = 0;
+      reportItemsData[`divisionAllDiscountCountTotal`] = 0;
+      reportItemsData[`divisionAllDiscountAmountTotal`] = 0;
+
       await Promise.all(
         querySnapshot.docs.map(async (doc) => {
           const sale = doc.data() as Sale;
           if (sale.status === 'Sales') {
-            reportItemsData['detailsCountTotal'] += sale.detailsCount;
             reportItemsData['customerCountTotal'] += 1;
             reportItemsData['customerAmountTotal'] += sale.salesTotal;
             if (sale.paymentType === 'Cash') {
@@ -86,9 +90,10 @@ const DailyCashReport: React.FC = () => {
             const detailsSnapshot = await getDocs(collection(db, 'sales', doc.id, 'saleDetails'));
             detailsSnapshot.docs.forEach((detailDoc) => {
               const detail = detailDoc.data() as SaleDetail;
+              reportItemsData['detailsCountTotal'] += 1;
               reportItemsData[`division${detail.division}CountTotal`] += 1;
               reportItemsData[`division${detail.division}AmountTotal`] +=
-                Number(detail.product.sellingPrice) * detail.quantity;
+                Number(detail.product.sellingPrice) * detail.quantity + detail.discount;
               if (detail.discount > 0) {
                 reportItemsData[`division${detail.division}DiscountCountTotal`] += 1;
                 reportItemsData[`division${detail.division}DiscountAmountTotal`] += detail.discount;
@@ -111,18 +116,6 @@ const DailyCashReport: React.FC = () => {
                 reportItemsData['priceTaxFreeTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
               }
             });
-            reportItemsData['exclusiveTaxNormalTotal'] = Math.floor(
-              (reportItemsData['exclusivePriceNormalTotal'] * 10) / 100
-            );
-            reportItemsData['exclusiveTaxReducedTotal'] = Math.floor(
-              (reportItemsData['exclusivePriceReducedTotal'] * 8) / 100
-            );
-            reportItemsData['inclusiveTaxNormalTotal'] = Math.floor(
-              (reportItemsData['inclusivePriceNormalTotal'] * 10) / (100 + 10)
-            );
-            reportItemsData['inclusiveTaxReducedTotal'] = Math.floor(
-              (reportItemsData['inclusivePriceReducedTotal'] * 8) / (100 + 8)
-            );
           } else if (sale.status === 'Return') {
             if (sale.paymentType === 'Cash') {
               reportItemsData['returnCashCountTotal'] += 1;
@@ -132,8 +125,26 @@ const DailyCashReport: React.FC = () => {
               reportItemsData['returnCreditAmountTotal'] += sale.salesTotal;
             }
           }
+          reportItemsData['exclusiveTaxNormalTotal'] = Math.floor(
+            (reportItemsData['exclusivePriceNormalTotal'] * 10) / 100
+          );
+          reportItemsData['exclusiveTaxReducedTotal'] = Math.floor(
+            (reportItemsData['exclusivePriceReducedTotal'] * 8) / 100
+          );
+          reportItemsData['inclusiveTaxNormalTotal'] = Math.floor(
+            (reportItemsData['inclusivePriceNormalTotal'] * 10) / (100 + 10)
+          );
+          reportItemsData['inclusiveTaxReducedTotal'] = Math.floor(
+            (reportItemsData['inclusivePriceReducedTotal'] * 8) / (100 + 8)
+          );
         })
       );
+      Object.keys(Divisions).forEach((division) => {
+        reportItemsData['divisionAllCountTotal'] += reportItemsData[`division${division}CountTotal`];
+        reportItemsData['divisionAllAmountTotal'] += reportItemsData[`division${division}AmountTotal`];
+        reportItemsData['divisionAllDiscountCountTotal'] += reportItemsData[`division${division}DiscountCountTotal`];
+        reportItemsData['divisionAllDiscountAmountTotal'] += reportItemsData[`division${division}DiscountAmountTotal`];
+      });
       setReportItems(reportItemsData);
     } catch (error) {
       console.log({ error });
@@ -435,12 +446,44 @@ const DailyCashReport: React.FC = () => {
                       <Table.Row>
                         <Table.Cell className="w-2/3">　値引金額</Table.Cell>
                         <Table.Cell className="text-right w-1/3">
-                          {`¥${reportItems[`division${division[0]}DiscountAmountTotal`]?.toLocaleString()}`}
+                          {`¥${-reportItems[`division${division[0]}DiscountAmountTotal`]?.toLocaleString()}`}
                         </Table.Cell>
                       </Table.Row>
                     </Table.Body>
                   </Table>
                 ))}
+              <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none">
+                <Table.Body>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">合計</Table.Cell>
+                    <Table.Cell className="text-right w-1/3"></Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">　個数</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`${reportItems['divisionAllCountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">　金額</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${reportItems['divisionAllAmountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">　値引件数</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`${reportItems['divisionAllDiscountCountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">　値引金額</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${-reportItems['divisionAllDiscountAmountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                </Table.Body>
+              </Table>
             </div>
           </Flex>
         </div>
