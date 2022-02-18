@@ -26,6 +26,7 @@ import PurchaseMain from './PurchaseMain';
 import PurchaseList from './PurchaseList';
 import DeliveryMain from './DeliveryMain';
 import DeliveryList from './DeliveryList';
+import DailyCashReport from './DailyCashReport';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -56,6 +57,7 @@ const App: React.FC = () => {
           <Route exact path="/shops" component={ShopList} />
           <Route exact path="/shortcut_edit" component={ShortcutEdit} />
           <Route exact path="/receipt_list" component={ReceiptList} />
+          <Route exact path="/daily_cash_report" component={DailyCashReport} />
           <Route exact path="/product_bundle_list" component={ProductBundleList} />
           <Route exact path="/product_bundle_edit" component={ProductBundleEdit} />
           <Route path="/product_bundle_edit/:id" component={ProductBundleEdit} />

@@ -432,6 +432,13 @@ const RegisterMain: React.FC = () => {
                       </Button>
                     </Link>
                   </div>
+                  <div>
+                    <Link to="/daily_cash_report">
+                      <Button color="light" size="xs" disabled={basketItems.length > 0} className="w-full">
+                        精算・点検レポート
+                      </Button>
+                    </Link>
+                  </div>
                 </Grid>
               </div>
               <div className="mt-4 p-2">

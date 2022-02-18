@@ -1,0 +1,459 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { useReactToPrint } from 'react-to-print';
+import {
+  getFirestore,
+  getDocs,
+  collection,
+  query,
+  where,
+  orderBy,
+  Timestamp,
+  QueryConstraint,
+} from 'firebase/firestore';
+import { startOfToday, startOfTomorrow } from 'date-fns';
+import { Button, Flex, Table } from './components';
+import { useAppContext } from './AppContext';
+import { Sale, SaleDetail } from './types';
+import { Divisions } from './tools';
+
+const db = getFirestore();
+
+const DailyCashReport: React.FC = () => {
+  const { currentShop } = useAppContext();
+  const [reportItems, setReportItems] = useState<{ [code: string]: number }>({});
+  const componentRef = useRef(null);
+  const currentTimestamp = Timestamp.fromDate(new Date());
+  const querySales = useCallback(async () => {
+    if (!currentShop) return;
+    try {
+      const conds: QueryConstraint[] = [];
+      conds.push(where('shopCode', '==', currentShop.code));
+      conds.push(where('createdAt', '>=', startOfToday()));
+      conds.push(where('createdAt', '<', startOfTomorrow()));
+      conds.push(orderBy('createdAt', 'desc'));
+      const q = query(collection(db, 'sales'), ...conds);
+      const querySnapshot = await getDocs(q);
+      const reportItemsData: { [code: string]: number } = {};
+      reportItemsData['detailsCountTotal'] = 0;
+      reportItemsData['detailsAmountTotal'] = 0;
+      reportItemsData['cashCountTotal'] = 0;
+      reportItemsData['cashAmountTotal'] = 0;
+      reportItemsData['creditCountTotal'] = 0;
+      reportItemsData['creditAmountTotal'] = 0;
+      reportItemsData['customerCountTotal'] = 0;
+      reportItemsData['customerAmountTotal'] = 0;
+      reportItemsData['discountCountTotal'] = 0;
+      reportItemsData['discountAmountTotal'] = 0;
+      reportItemsData['returnCashCountTotal'] = 0;
+      reportItemsData['returnCashAmountTotal'] = 0;
+      reportItemsData['returnCreditCountTotal'] = 0;
+      reportItemsData['returnCreditAmountTotal'] = 0;
+      reportItemsData['inclusivePriceNormalTotal'] = 0;
+      reportItemsData['inclusiveTaxNormalTotal'] = 0;
+      reportItemsData['exclusivePriceNormalTotal'] = 0;
+      reportItemsData['exclusiveTaxNormalTotal'] = 0;
+      reportItemsData['inclusivePriceReducedTotal'] = 0;
+      reportItemsData['inclusiveTaxReducedTotal'] = 0;
+      reportItemsData['exclusivePriceReducedTotal'] = 0;
+      reportItemsData['exclusiveTaxReducedTotal'] = 0;
+      reportItemsData['priceTaxFreeTotal'] = 0;
+      Object.keys(Divisions).forEach((division) => {
+        reportItemsData[`division${division}CountTotal`] = 0;
+        reportItemsData[`division${division}AmountTotal`] = 0;
+        reportItemsData[`division${division}DiscountCountTotal`] = 0;
+        reportItemsData[`division${division}DiscountAmountTotal`] = 0;
+      });
+      await Promise.all(
+        querySnapshot.docs.map(async (doc) => {
+          const sale = doc.data() as Sale;
+          if (sale.status === 'Sales') {
+            reportItemsData['detailsCountTotal'] += sale.detailsCount;
+            reportItemsData['customerCountTotal'] += 1;
+            reportItemsData['customerAmountTotal'] += sale.salesTotal;
+            if (sale.paymentType === 'Cash') {
+              reportItemsData['cashCountTotal'] += 1;
+              reportItemsData['cashAmountTotal'] += sale.salesTotal;
+            } else if (sale.paymentType === 'Credit') {
+              reportItemsData['creditCountTotal'] += 1;
+              reportItemsData['creditAmountTotal'] += sale.salesTotal;
+            }
+            if (sale.discountTotal > 0) {
+              reportItemsData['discountCountTotal'] += 1;
+              reportItemsData['discountAmountTotal'] += sale.discountTotal;
+            }
+
+            const detailsSnapshot = await getDocs(collection(db, 'sales', doc.id, 'saleDetails'));
+            detailsSnapshot.docs.forEach((detailDoc) => {
+              const detail = detailDoc.data() as SaleDetail;
+              reportItemsData[`division${detail.division}CountTotal`] += 1;
+              reportItemsData[`division${detail.division}AmountTotal`] +=
+                Number(detail.product.sellingPrice) * detail.quantity;
+              if (detail.discount > 0) {
+                reportItemsData[`division${detail.division}DiscountCountTotal`] += 1;
+                reportItemsData[`division${detail.division}DiscountAmountTotal`] += detail.discount;
+              }
+              if (detail.product.sellingTaxClass === 'exclusive') {
+                if (detail.product.sellingTax === 10) {
+                  reportItemsData['exclusivePriceNormalTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
+                } else if (detail.product.sellingTax === 8) {
+                  reportItemsData['exclusivePriceReducedTotal'] +=
+                    Number(detail.product.sellingPrice) * detail.quantity;
+                }
+              } else if (detail.product.sellingTaxClass === 'inclusive') {
+                if (detail.product.sellingTax === 10) {
+                  reportItemsData['inclusivePriceNormalTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
+                } else if (detail.product.sellingTax === 8) {
+                  reportItemsData['inclusivePriceReducedTotal'] +=
+                    Number(detail.product.sellingPrice) * detail.quantity;
+                }
+              } else {
+                reportItemsData['priceTaxFreeTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
+              }
+            });
+            reportItemsData['exclusiveTaxNormalTotal'] = Math.floor(
+              (reportItemsData['exclusivePriceNormalTotal'] * 10) / 100
+            );
+            reportItemsData['exclusiveTaxReducedTotal'] = Math.floor(
+              (reportItemsData['exclusivePriceReducedTotal'] * 8) / 100
+            );
+            reportItemsData['inclusiveTaxNormalTotal'] = Math.floor(
+              (reportItemsData['inclusivePriceNormalTotal'] * 10) / (100 + 10)
+            );
+            reportItemsData['inclusiveTaxReducedTotal'] = Math.floor(
+              (reportItemsData['inclusivePriceReducedTotal'] * 8) / (100 + 8)
+            );
+          } else if (sale.status === 'Return') {
+            if (sale.paymentType === 'Cash') {
+              reportItemsData['returnCashCountTotal'] += 1;
+              reportItemsData['returnCashAmountTotal'] += sale.salesTotal;
+            } else if (sale.paymentType === 'Credit') {
+              reportItemsData['returnCreditCountTotal'] += 1;
+              reportItemsData['returnCreditAmountTotal'] += sale.salesTotal;
+            }
+          }
+        })
+      );
+      setReportItems(reportItemsData);
+    } catch (error) {
+      console.log({ error });
+    }
+  }, [currentShop]);
+
+  const handlePrint = useReactToPrint({
+    content: () => componentRef.current,
+  });
+
+  useEffect(() => {
+    querySales();
+  }, [querySales]);
+
+  return (
+    <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
+      <div className="mt-16 mb-2 w-1/2">
+        <Flex justify_content="center" align_items="center">
+          精算・点検レポート
+          <Button color="primary" size="xs" className="ml-4" onClick={handlePrint}>
+            印刷
+          </Button>
+        </Flex>
+      </div>
+      <div className="w-1/2 overflow-y-scroll" style={{ height: '40rem' }}>
+        <div ref={componentRef} className="p-10 border border-solid">
+          <p className="text-right text-xs mb-4">
+            {currentShop?.formalName}　{currentTimestamp.toDate().toLocaleDateString()}{' '}
+            {currentTimestamp.toDate().toLocaleTimeString()}
+          </p>
+          <Flex>
+            <div className="w-1/2 pr-5">
+              <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none">
+                <Table.Body>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">総売上（点）</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`${reportItems['detailsCountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3"></Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${(
+                        reportItems['customerAmountTotal'] -
+                        reportItems['exclusiveTaxNormalTotal'] -
+                        reportItems['exclusiveTaxReducedTotal'] +
+                        reportItems['discountAmountTotal']
+                      )?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">総売内税抜き</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${(
+                        reportItems['customerAmountTotal'] -
+                        reportItems['exclusiveTaxNormalTotal'] -
+                        reportItems['exclusiveTaxReducedTotal'] -
+                        reportItems['inclusiveTaxNormalTotal'] -
+                        reportItems['inclusiveTaxReducedTotal'] +
+                        reportItems['discountAmountTotal']
+                      )?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">純売上（件）</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`${reportItems['customerCountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3"></Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${(
+                        reportItems['customerAmountTotal'] +
+                        reportItems['returnCashAmountTotal'] +
+                        reportItems['returnCreditAmountTotal']
+                      )?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">純売税抜き</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${(
+                        reportItems['customerAmountTotal'] +
+                        reportItems['returnCashAmountTotal'] +
+                        reportItems['returnCreditAmountTotal'] -
+                        reportItems['exclusiveTaxNormalTotal'] -
+                        reportItems['exclusiveTaxReducedTotal'] -
+                        reportItems['inclusiveTaxNormalTotal'] -
+                        reportItems['inclusiveTaxReducedTotal']
+                      )?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">現金在高</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${(reportItems['cashAmountTotal'] + reportItems['returnCashAmountTotal'])?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">現金在高申告</Table.Cell>
+                    <Table.Cell className="text-right w-1/3"></Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">現金申告過不足</Table.Cell>
+                    <Table.Cell className="text-right w-1/3"></Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">クレジット在高</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${(
+                        reportItems['creditAmountTotal'] + reportItems['returnCreditAmountTotal']
+                      )?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">クレジット在高申告</Table.Cell>
+                    <Table.Cell className="text-right w-1/3"></Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">クレジット申告過不足</Table.Cell>
+                    <Table.Cell className="text-right w-1/3"></Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">客数</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`${reportItems['customerCountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">客単価</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {reportItems['customerCountTotal'] > 0
+                        ? `¥${Math.floor(
+                            reportItems['customerAmountTotal'] / reportItems['customerCountTotal']
+                          )?.toLocaleString()}`
+                        : 0}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">値引回数</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`${reportItems['discountCountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">値引金額</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${(-reportItems['discountAmountTotal'])?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">戻回数</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`${(
+                        reportItems['returnCashCountTotal'] + reportItems['returnCreditCountTotal']
+                      )?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">戻金額</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${(
+                        reportItems['returnCashAmountTotal'] + reportItems['returnCreditAmountTotal']
+                      )?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">内税抜額</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${(
+                        reportItems['inclusivePriceNormalTotal'] - reportItems['inclusiveTaxNormalTotal']
+                      )?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">内税</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${reportItems['inclusiveTaxNormalTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">外税抜額</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${reportItems['exclusivePriceNormalTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">外税</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${reportItems['exclusiveTaxNormalTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">内税抜額※</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${(
+                        reportItems['inclusivePriceReducedTotal'] - reportItems['inclusiveTaxReducedTotal']
+                      )?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">内税※</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${reportItems['inclusiveTaxReducedTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">外税抜額※</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${reportItems['exclusivePriceReducedTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">外税※</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${reportItems['exclusiveTaxReducedTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">非課税合計</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${reportItems['priceTaxFreeTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                </Table.Body>
+              </Table>
+            </div>
+            <div className="w-1/2 pl-5">
+              <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none">
+                <Table.Body>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">現金</Table.Cell>
+                    <Table.Cell className="text-right w-1/3"></Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">　回数</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`${reportItems['cashCountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">　金額</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${reportItems['cashAmountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">クレジット</Table.Cell>
+                    <Table.Cell className="text-right w-1/3"></Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">　回数</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`${reportItems['creditCountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">　金額</Table.Cell>
+                    <Table.Cell className="text-right w-1/3">
+                      {`¥${reportItems['creditAmountTotal']?.toLocaleString()}`}
+                    </Table.Cell>
+                  </Table.Row>
+                  <Table.Row>
+                    <Table.Cell className="w-2/3">　</Table.Cell>
+                    <Table.Cell className="text-right w-1/3"></Table.Cell>
+                  </Table.Row>
+                </Table.Body>
+              </Table>
+
+              {Object.entries(Divisions)
+                .filter((division) => reportItems[`division${division[0]}CountTotal`] > 0)
+                .map((division, index) => (
+                  <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none" key={index}>
+                    <Table.Body>
+                      <Table.Row>
+                        <Table.Cell className="w-2/3">{division[1]}</Table.Cell>
+                        <Table.Cell className="text-right w-1/3"></Table.Cell>
+                      </Table.Row>
+                      <Table.Row>
+                        <Table.Cell className="w-2/3">　個数</Table.Cell>
+                        <Table.Cell className="text-right w-1/3">
+                          {`${reportItems[`division${division[0]}CountTotal`]?.toLocaleString()}`}
+                        </Table.Cell>
+                      </Table.Row>
+                      <Table.Row>
+                        <Table.Cell className="w-2/3">　金額</Table.Cell>
+                        <Table.Cell className="text-right w-1/3">
+                          {`¥${reportItems[`division${division[0]}AmountTotal`]?.toLocaleString()}`}
+                        </Table.Cell>
+                      </Table.Row>
+                      <Table.Row>
+                        <Table.Cell className="w-2/3">　値引件数</Table.Cell>
+                        <Table.Cell className="text-right w-1/3">
+                          {`${reportItems[`division${division[0]}DiscountCountTotal`]?.toLocaleString()}`}
+                        </Table.Cell>
+                      </Table.Row>
+                      <Table.Row>
+                        <Table.Cell className="w-2/3">　値引金額</Table.Cell>
+                        <Table.Cell className="text-right w-1/3">
+                          {`¥${reportItems[`division${division[0]}DiscountAmountTotal`]?.toLocaleString()}`}
+                        </Table.Cell>
+                      </Table.Row>
+                    </Table.Body>
+                  </Table>
+                ))}
+            </div>
+          </Flex>
+        </div>
+      </div>
+      <div className="m-4">
+        <Link to="/">
+          <Button color="light" size="sm">
+            戻る
+          </Button>
+        </Link>
+      </div>
+    </Flex>
+  );
+};
+
+export default DailyCashReport;

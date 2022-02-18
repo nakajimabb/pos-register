@@ -182,3 +182,15 @@ export const toDateString = (date: Date, format: string) => {
 };
 
 export const OTC_DIVISION = '5';
+
+export const Divisions: { [code: string]: string } = {
+  '1': '患者負担金',
+  '2': '小分け',
+  '3': '容器',
+  '4': '負担金調整',
+  '5': 'OTC',
+  '7': '居宅管理療養費',
+  '8': '患者負担送料',
+  '9': 'レジ袋',
+  '10': '補聴器本体',
+};

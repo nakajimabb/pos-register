@@ -10,55 +10,23 @@ const cloneChild = (children: React.ReactNode, props: object) =>
   });
 
 type Props = {
-  size?: 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md';
   border?: 'none' | 'row' | 'cell';
   hover?: boolean;
   className?: string;
 };
 
-const TableHead: React.FC<Props> = ({
-  size = 'md',
-  border = 'row',
-  className,
-  children,
-}) => {
-  return (
-    <thead className={className}>
-      {cloneChild(children, { size, hover: false, border })}
-    </thead>
-  );
+const TableHead: React.FC<Props> = ({ size = 'md', border = 'row', className, children }) => {
+  return <thead className={className}>{cloneChild(children, { size, hover: false, border })}</thead>;
 };
 
-const TableBody: React.FC<Props> = ({
-  size = 'md',
-  border = 'row',
-  hover = true,
-  className,
-  children,
-}) => {
-  return (
-    <tbody className={className}>
-      {cloneChild(children, { size, hover, border })}
-    </tbody>
-  );
+const TableBody: React.FC<Props> = ({ size = 'md', border = 'row', hover = true, className, children }) => {
+  return <tbody className={className}>{cloneChild(children, { size, hover, border })}</tbody>;
 };
 
-const TableRow: React.FC<Props> = ({
-  size = 'md',
-  border = 'row',
-  hover = true,
-  className,
-  children,
-}) => {
+const TableRow: React.FC<Props> = ({ size = 'md', border = 'row', hover = true, className, children }) => {
   return (
-    <tr
-      className={clsx(
-        'bg-white',
-        hover && 'hover:bg-opacity-10',
-        border === 'row' && 'border-b',
-        className
-      )}
-    >
+    <tr className={clsx('bg-white', hover && 'hover:bg-opacity-10', border === 'row' && 'border-b', className)}>
       {cloneChild(children, { size, hover, border: border === 'cell' })}
     </tr>
   );
@@ -66,7 +34,7 @@ const TableRow: React.FC<Props> = ({
 
 type CellProps = {
   type?: 'td' | 'th';
-  size?: 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md';
   border?: boolean;
   textAlign?: 'left' | 'center' | 'right' | 'justify';
   className?: string;
@@ -80,7 +48,7 @@ const TableCell: React.FC<CellProps> = ({
   className,
   children,
 }) => {
-  const padding = { sm: 'p-1', md: 'px-3 py-2', lg: 'px-6 py-4' };
+  const padding = { xs: 'p-1', sm: 'p-1', md: 'px-3 py-2', lg: 'px-6 py-4' };
   return (
     <Component
       className={clsx(
@@ -99,7 +67,7 @@ const TableCell: React.FC<CellProps> = ({
 };
 
 type TableProps = {
-  size?: 'sm' | 'md';
+  size?: 'xs' | 'sm' | 'md';
   border?: 'none' | 'row' | 'cell';
   hover?: boolean;
   className?: string;
@@ -112,13 +80,7 @@ type TableType = React.FC<TableProps> & {
   Cell: typeof TableCell;
 };
 
-const Table: TableType = ({
-  size = 'md',
-  border = 'row',
-  hover = true,
-  className,
-  children,
-}) => {
+const Table: TableType = ({ size = 'md', border = 'row', hover = true, className, children }) => {
   return (
     <table
       className={clsx(
