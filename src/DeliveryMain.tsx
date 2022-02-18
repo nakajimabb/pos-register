@@ -4,18 +4,19 @@ import { useLocation } from 'react-router-dom';
 import {
   getFirestore,
   doc,
+  DocumentSnapshot,
   getDoc,
   collection,
   getDocs,
-  DocumentSnapshot,
+  Timestamp,
   writeBatch,
   QuerySnapshot,
 } from 'firebase/firestore';
-import { Alert, Button, Card, Form, Icon, Table } from './components';
+import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import { useAppContext } from './AppContext';
 import { nameWithCode, toDateString } from './tools';
 import firebaseError from './firebaseError';
-import { Product, DeliveryDetail, deliveryPath, deliveryDetailPath } from './types';
+import { Product, Delivery, DeliveryDetail, deliveryPath, deliveryDetailPath } from './types';
 import DeliveryEdit from './DeliveryEdit';
 
 const db = getFirestore();
@@ -36,14 +37,13 @@ const DeliveryMain: React.FC = () => {
     costPrice: null,
   });
   const [items, setItems] = useState<Item[]>([]);
+  const [delivery, setDelivery] = useState<Delivery | undefined>(undefined);
   const [shopOptions, setShopsOptions] = useState<{ label: string; value: string }[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [editTarget, setEditTarget] = useState<number>(-1);
   const { registListner, shops, currentShop } = useAppContext();
   const quantityRef = useRef<HTMLInputElement>(null);
-  const costPriceRef = useRef<HTMLInputElement>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
   const params = useLocation().search;
 
   useEffect(() => {
@@ -90,10 +90,23 @@ const DeliveryMain: React.FC = () => {
   };
 
   const loadDeliveryDetails = async (shopCode: string, dstShopCode: string, date: Date) => {
-    if (shopCode && shopCode && date) {
-      const path = deliveryPath({ shopCode, dstShopCode, date }) + '/deliveryDetails';
-      const snap = (await getDocs(collection(db, path))) as QuerySnapshot<Item>;
-      setItems(snap.docs.map((docSnap) => docSnap.data()));
+    if (currentShop && shopCode && shopCode && date) {
+      const path = deliveryPath({ shopCode, dstShopCode, date });
+      const snap = (await getDoc(doc(db, path))) as DocumentSnapshot<Delivery>;
+      const shopName = shops && shops[target.shopCode] ? shops[target.shopCode].name : '';
+      setDelivery(
+        snap.data() || {
+          shopCode: currentShop.code,
+          dstShopCode: target.shopCode,
+          dstShopName: shopName,
+          date: Timestamp.fromDate(date),
+          fixed: false,
+        }
+      );
+
+      const detailPath = deliveryPath({ shopCode, dstShopCode, date }) + '/deliveryDetails';
+      const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
+      setItems(qSnap.docs.map((docSnap) => docSnap.data()));
     }
   };
 
@@ -139,13 +152,6 @@ const DeliveryMain: React.FC = () => {
     }
   };
 
-  const nextCursor = (ref: React.RefObject<any>) => (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      ref.current?.focus();
-    }
-  };
-
   const loadProduct = async (e: React.KeyboardEvent) => {
     if (currentItem.productCode && e.key === 'Enter') {
       e.preventDefault();
@@ -182,9 +188,8 @@ const DeliveryMain: React.FC = () => {
     }
   };
 
-  const save = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentShop && target.date && target.shopCode) {
+  const save = (fixed: boolean) => {
+    if (currentShop && target.date && target.shopCode && delivery) {
       try {
         const batch = writeBatch(db);
         // deliverys
@@ -193,13 +198,8 @@ const DeliveryMain: React.FC = () => {
           db,
           deliveryPath({ shopCode: currentShop.code, date: target.date, dstShopCode: target.shopCode })
         );
-        batch.set(ref, {
-          shopCode: currentShop.code,
-          dstShopCode: target.shopCode,
-          dstShopName: shopName,
-          date: target.date,
-        });
-        // deliveryDetails
+        const newDelivery = { ...delivery, fixed };
+        batch.set(ref, newDelivery);
         items
           .filter((item) => item.removed)
           .forEach((item) => {
@@ -231,9 +231,11 @@ const DeliveryMain: React.FC = () => {
               productName: item.productName,
               quantity: item.quantity,
               costPrice: item.costPrice,
+              fixed,
             });
           });
         batch.commit();
+        loadDeliveryDetails(currentShop.code, target.shopCode, target.date);
         alert('保存しました。');
       } catch (error) {
         console.log({ error });
@@ -260,7 +262,7 @@ const DeliveryMain: React.FC = () => {
           />
         )}
         <Card className="p-5 overflow-visible">
-          <Form className="flex space-x-2 mb-2" onSubmit={save}>
+          <div className="flex space-x-2 mb-2">
             <Form.Date
               value={toDateString(target.date, 'YYYY-MM-DD')}
               onChange={(e) => {
@@ -282,8 +284,7 @@ const DeliveryMain: React.FC = () => {
               }}
               className="mb-3 sm:mb-0 w-72"
             />
-            <Button className="w-48">登録</Button>
-          </Form>
+          </div>
           {messages.length > 0 && (
             <Alert severity="error" onClose={() => setMessages([])}>
               {messages.map((err, i) => (
@@ -292,36 +293,46 @@ const DeliveryMain: React.FC = () => {
             </Alert>
           )}
           <hr className="m-4" />
-          <Form className="flex space-x-2 mb-2" onSubmit={handleSubmit}>
-            <Form.Text
-              value={currentItem.productCode}
-              onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
-              onKeyPress={loadProduct}
-              placeholder="商品コード"
-            />
-            <Form.Number
-              value={String(currentItem.quantity)}
-              placeholder="数量"
-              innerRef={quantityRef}
-              min={1}
-              onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
-              onKeyPress={nextCursor(costPriceRef)}
-              className="w-36"
-            />
-            <Form.Text
-              value={String(currentItem.costPrice ?? '')}
-              placeholder="金額"
-              innerRef={costPriceRef}
-              onChange={(e) =>
-                setCurrentItem((prev) => ({ ...prev, costPrice: isNaN(+e.target.value) ? null : +e.target.value }))
-              }
-              onKeyPress={nextCursor(btnRef)}
-              className="w-36"
-            />
-            <Button innerRef={btnRef} onClick={addItem}>
-              確定
-            </Button>
-          </Form>
+          <Flex justify_content="between">
+            <Form className="flex space-x-2 mb-2" onSubmit={handleSubmit}>
+              <Form.Text
+                value={currentItem.productCode}
+                onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
+                onKeyPress={loadProduct}
+                placeholder="商品コード"
+              />
+              <Form.Number
+                value={String(currentItem.quantity)}
+                placeholder="数量"
+                innerRef={quantityRef}
+                min={1}
+                onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addItem();
+                  }
+                }}
+                className="w-36"
+              />
+              <Button onClick={addItem}>追加</Button>
+            </Form>
+            <div className="space-x-2">
+              <Button className="w-32" disabled={delivery && delivery.fixed} onClick={() => save(false)}>
+                保留
+              </Button>
+              <Button
+                className="w-32"
+                onClick={() => {
+                  if (window.confirm('確定しますか？')) {
+                    save(true);
+                  }
+                }}
+              >
+                確定
+              </Button>
+            </div>
+          </Flex>
           {errors.length > 0 && (
             <Alert severity="error" onClose={() => setErrors([])}>
               {errors.map((err, i) => (
@@ -351,24 +362,28 @@ const DeliveryMain: React.FC = () => {
                       <Table.Cell>{item.quantity}</Table.Cell>
                       <Table.Cell>{item.costPrice}</Table.Cell>
                       <Table.Cell>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300"
-                          onClick={() => setEditTarget(i)}
-                        >
-                          <Icon name="pencil-alt" />
-                        </Button>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300"
-                          onClick={removeItem(i)}
-                        >
-                          <Icon name="trash" />
-                        </Button>
+                        {!item.fixed && (
+                          <>
+                            <Button
+                              variant="icon"
+                              size="xs"
+                              color="none"
+                              className="hover:bg-gray-300"
+                              onClick={() => setEditTarget(i)}
+                            >
+                              <Icon name="pencil-alt" />
+                            </Button>
+                            <Button
+                              variant="icon"
+                              size="xs"
+                              color="none"
+                              className="hover:bg-gray-300"
+                              onClick={removeItem(i)}
+                            >
+                              <Icon name="trash" />
+                            </Button>
+                          </>
+                        )}
                       </Table.Cell>
                     </Table.Row>
                   )
