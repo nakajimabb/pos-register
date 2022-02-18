@@ -16,6 +16,7 @@ import { useAppContext } from './AppContext';
 import { nameWithCode, toDateString } from './tools';
 import firebaseError from './firebaseError';
 import { Product, DeliveryDetail, deliveryPath, deliveryDetailPath } from './types';
+import DeliveryEdit from './DeliveryEdit';
 
 const db = getFirestore();
 type Item = DeliveryDetail & { removed?: boolean };
@@ -38,8 +39,11 @@ const DeliveryMain: React.FC = () => {
   const [shopOptions, setShopsOptions] = useState<{ label: string; value: string }[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [editTarget, setEditTarget] = useState<number>(-1);
   const { registListner, shops, currentShop } = useAppContext();
   const quantityRef = useRef<HTMLInputElement>(null);
+  const costPriceRef = useRef<HTMLInputElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   const params = useLocation().search;
 
   useEffect(() => {
@@ -113,6 +117,7 @@ const DeliveryMain: React.FC = () => {
               productName: product.name,
               quantity: Number(currentItem.quantity),
               costPrice: Number(currentItem.costPrice),
+              fixed: false,
             },
           ]);
           resetCurrentItem();
@@ -131,6 +136,13 @@ const DeliveryMain: React.FC = () => {
   const blockEnter = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+    }
+  };
+
+  const nextCursor = (ref: React.RefObject<any>) => (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      ref.current?.focus();
     }
   };
 
@@ -162,6 +174,12 @@ const DeliveryMain: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+  };
+
+  const getTargetItem = () => {
+    if (0 <= editTarget && editTarget < items.length) {
+      return items[editTarget];
+    }
   };
 
   const save = (e: React.FormEvent) => {
@@ -228,6 +246,19 @@ const DeliveryMain: React.FC = () => {
     <div className="pt-12">
       <div className="p-4">
         <h1 className="text-xl font-bold mb-2">出庫処理</h1>
+        {editTarget >= 0 && (
+          <DeliveryEdit
+            open
+            value={getTargetItem()}
+            onClose={() => setEditTarget(-1)}
+            onUpdate={(deliveryDetail: DeliveryDetail) => {
+              if (0 <= editTarget && editTarget < items.length) {
+                items[editTarget] = deliveryDetail;
+                setItems([...items]);
+              }
+            }}
+          />
+        )}
         <Card className="p-5 overflow-visible">
           <Form className="flex space-x-2 mb-2" onSubmit={save}>
             <Form.Date
@@ -274,17 +305,22 @@ const DeliveryMain: React.FC = () => {
               innerRef={quantityRef}
               min={1}
               onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
-              onKeyPress={blockEnter}
+              onKeyPress={nextCursor(costPriceRef)}
               className="w-36"
             />
-            <Form.Number
-              value={String(currentItem.costPrice)}
+            <Form.Text
+              value={String(currentItem.costPrice ?? '')}
               placeholder="金額"
-              onChange={(e) => setCurrentItem((prev) => ({ ...prev, costPrice: +e.target.value }))}
-              onKeyPress={blockEnter}
+              innerRef={costPriceRef}
+              onChange={(e) =>
+                setCurrentItem((prev) => ({ ...prev, costPrice: isNaN(+e.target.value) ? null : +e.target.value }))
+              }
+              onKeyPress={nextCursor(btnRef)}
               className="w-36"
             />
-            <Button onClick={addItem}>確定</Button>
+            <Button innerRef={btnRef} onClick={addItem}>
+              確定
+            </Button>
           </Form>
           {errors.length > 0 && (
             <Alert severity="error" onClose={() => setErrors([])}>
@@ -315,6 +351,15 @@ const DeliveryMain: React.FC = () => {
                       <Table.Cell>{item.quantity}</Table.Cell>
                       <Table.Cell>{item.costPrice}</Table.Cell>
                       <Table.Cell>
+                        <Button
+                          variant="icon"
+                          size="xs"
+                          color="none"
+                          className="hover:bg-gray-300"
+                          onClick={() => setEditTarget(i)}
+                        >
+                          <Icon name="pencil-alt" />
+                        </Button>
                         <Button
                           variant="icon"
                           size="xs"

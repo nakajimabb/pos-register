@@ -203,6 +203,7 @@ export type Delivery = {
   dstShopCode: string; // 送り先店舗コード
   dstShopName: string;
   date: Timestamp; // 出庫日
+  fixed: boolean;
 };
 
 export const deliveryPath = (data: { shopCode: string; date: Date; dstShopCode: string }) =>
@@ -214,6 +215,7 @@ export type DeliveryDetail = {
   productName: string;
   quantity: number;
   costPrice: number | null; // 原価(税抜)
+  fixed: boolean;
 };
 
 export const deliveryDetailPath = (data: { shopCode: string; date: Date; dstShopCode: string; productCode: string }) =>

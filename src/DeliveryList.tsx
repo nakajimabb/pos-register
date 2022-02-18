@@ -57,7 +57,7 @@ const DeliveryList: React.FC = () => {
         } else {
           conds.push(orderBy('date', 'desc'));
         }
-        if (target.shopCode) conds.push(where('shopCode', '==', target.shopCode));
+        if (target.shopCode) conds.push(where('dstShopCode', '==', target.shopCode));
 
         const q = query(collection(db, 'shops', currentShop.code, 'deliveries'), ...conds) as Query<Delivery>;
         const snap = await getDocs(q);
@@ -78,7 +78,8 @@ const DeliveryList: React.FC = () => {
             <Form.Date
               value={target.date ? toDateString(target.date, 'YYYY-MM-DD') : ''}
               onChange={(e) => {
-                setTarget((prev) => ({ ...prev, date: new Date(e.target.value) }));
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setTarget((prev) => ({ ...prev, date }));
               }}
             />
             <Select

@@ -9,6 +9,7 @@ type Props = {
   color?: Brand;
   size?: Size;
   disabled?: boolean;
+  innerRef?: React.RefObject<HTMLButtonElement>;
   onClick?(e: React.MouseEvent<HTMLButtonElement>): void;
   className?: string;
 };
@@ -19,6 +20,7 @@ const Button: React.FC<Props> = ({
   size = 'md',
   onClick,
   disabled = false,
+  innerRef,
   className,
   children,
   ...other
@@ -164,6 +166,7 @@ const Button: React.FC<Props> = ({
       className={clsx(classes.join(' '), className)}
       onClick={onClick}
       disabled={disabled}
+      ref={innerRef}
       {...other}
     >
       {children}
