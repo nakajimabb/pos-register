@@ -75,7 +75,7 @@ const RegisterPayment: React.FC<Props> = ({
         shopCode: currentShop.code,
         createdAt: currentTimestamp,
         detailsCount: basketItems.filter((item) => !!item.product.code).length,
-        salesTotal,
+        salesTotal: salesExceptHidden,
         taxTotal:
           exclusiveTaxNormalTotal + inclusiveTaxNormalTotal + exclusiveTaxReducedTotal + inclusiveTaxReducedTotal,
         discountTotal: 0,
@@ -213,6 +213,14 @@ const RegisterPayment: React.FC<Props> = ({
   })(basketItems);
 
   const salesTotal = ((items: BasketItem[]) => {
+    return (
+      items.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign +
+      exclusiveTaxReducedTotal +
+      exclusiveTaxNormalTotal
+    );
+  })(basketItems);
+
+  const salesExceptHidden = ((items: BasketItem[]) => {
     return (
       items
         .filter((item) => item.outputReceipt)
@@ -358,7 +366,7 @@ const RegisterPayment: React.FC<Props> = ({
                     <Table.Cell type="th" className="text-lg">
                       {registerMode === 'Return' ? 'ご返金' : '合計'}
                     </Table.Cell>
-                    <Table.Cell className="text-right text-xl pr-4">¥{salesTotal.toLocaleString()}</Table.Cell>
+                    <Table.Cell className="text-right text-xl pr-4">¥{salesExceptHidden.toLocaleString()}</Table.Cell>
                     <Table.Cell></Table.Cell>
                   </Table.Row>
                   <Table.Row>
