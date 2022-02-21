@@ -218,6 +218,8 @@ const DailyCashReport: React.FC = () => {
                     <Table.Cell className="text-right w-1/3">
                       {`¥${(
                         reportItems['customerAmountTotal'] +
+                        reportItems['exclusiveTaxNormalTotal'] +
+                        reportItems['exclusiveTaxReducedTotal'] +
                         reportItems['returnCashAmountTotal'] +
                         reportItems['returnCreditAmountTotal']
                       )?.toLocaleString()}`}
