@@ -74,13 +74,10 @@ const DailyCashReport: React.FC = () => {
           const sale = doc.data() as Sale;
           if (sale.status === 'Sales') {
             reportItemsData['customerCountTotal'] += 1;
-            reportItemsData['customerAmountTotal'] += sale.salesTotal;
             if (sale.paymentType === 'Cash') {
               reportItemsData['cashCountTotal'] += 1;
-              reportItemsData['cashAmountTotal'] += sale.salesTotal;
             } else if (sale.paymentType === 'Credit') {
               reportItemsData['creditCountTotal'] += 1;
-              reportItemsData['creditAmountTotal'] += sale.salesTotal;
             }
             if (sale.discountTotal > 0) {
               reportItemsData['discountCountTotal'] += 1;
@@ -90,6 +87,12 @@ const DailyCashReport: React.FC = () => {
             const detailsSnapshot = await getDocs(collection(db, 'sales', doc.id, 'saleDetails'));
             detailsSnapshot.docs.forEach((detailDoc) => {
               const detail = detailDoc.data() as SaleDetail;
+              reportItemsData['customerAmountTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
+              if (sale.paymentType === 'Cash') {
+                reportItemsData['cashAmountTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
+              } else if (sale.paymentType === 'Credit') {
+                reportItemsData['creditAmountTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
+              }
               reportItemsData['detailsCountTotal'] += 1;
               reportItemsData[`division${detail.division}CountTotal`] += 1;
               reportItemsData[`division${detail.division}AmountTotal`] +=
@@ -189,10 +192,7 @@ const DailyCashReport: React.FC = () => {
                     <Table.Cell className="w-2/3"></Table.Cell>
                     <Table.Cell className="text-right w-1/3">
                       {`¥${(
-                        reportItems['customerAmountTotal'] -
-                        reportItems['exclusiveTaxNormalTotal'] -
-                        reportItems['exclusiveTaxReducedTotal'] +
-                        reportItems['discountAmountTotal']
+                        reportItems['customerAmountTotal'] + reportItems['discountAmountTotal']
                       )?.toLocaleString()}`}
                     </Table.Cell>
                   </Table.Row>
@@ -201,8 +201,6 @@ const DailyCashReport: React.FC = () => {
                     <Table.Cell className="text-right w-1/3">
                       {`¥${(
                         reportItems['customerAmountTotal'] -
-                        reportItems['exclusiveTaxNormalTotal'] -
-                        reportItems['exclusiveTaxReducedTotal'] -
                         reportItems['inclusiveTaxNormalTotal'] -
                         reportItems['inclusiveTaxReducedTotal'] +
                         reportItems['discountAmountTotal']
@@ -232,8 +230,6 @@ const DailyCashReport: React.FC = () => {
                         reportItems['customerAmountTotal'] +
                         reportItems['returnCashAmountTotal'] +
                         reportItems['returnCreditAmountTotal'] -
-                        reportItems['exclusiveTaxNormalTotal'] -
-                        reportItems['exclusiveTaxReducedTotal'] -
                         reportItems['inclusiveTaxNormalTotal'] -
                         reportItems['inclusiveTaxReducedTotal']
                       )?.toLocaleString()}`}
@@ -294,7 +290,7 @@ const DailyCashReport: React.FC = () => {
                   <Table.Row>
                     <Table.Cell className="w-2/3">値引金額</Table.Cell>
                     <Table.Cell className="text-right w-1/3">
-                      {`¥${(-reportItems['discountAmountTotal'])?.toLocaleString()}`}
+                      {`¥${(-reportItems['discountAmountTotal'] + 0)?.toLocaleString()}`}
                     </Table.Cell>
                   </Table.Row>
                   <Table.Row>

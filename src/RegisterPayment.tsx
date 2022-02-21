@@ -139,7 +139,7 @@ const RegisterPayment: React.FC<Props> = ({
   const priceNormalTotal = ((items: BasketItem[]) => {
     return (
       items
-        .filter((item) => item.product.sellingTax === 10)
+        .filter((item) => item.outputReceipt && item.product.sellingTax === 10)
         .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign
     );
   })(basketItems);
@@ -147,7 +147,7 @@ const RegisterPayment: React.FC<Props> = ({
   const priceReducedTotal = ((items: BasketItem[]) => {
     return (
       items
-        .filter((item) => item.product.sellingTax === 8)
+        .filter((item) => item.outputReceipt && item.product.sellingTax === 8)
         .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign
     );
   })(basketItems);
@@ -155,7 +155,7 @@ const RegisterPayment: React.FC<Props> = ({
   const priceTaxFreeTotal = ((items: BasketItem[]) => {
     return (
       items
-        .filter((item) => item.product.sellingTax === 0)
+        .filter((item) => item.outputReceipt && item.product.sellingTax === 0)
         .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign
     );
   })(basketItems);
@@ -163,7 +163,9 @@ const RegisterPayment: React.FC<Props> = ({
   const exclusiveTaxNormalTotal = ((items: BasketItem[]) => {
     return (
       items
-        .filter((item) => item.product.sellingTaxClass === 'exclusive' && item.product.sellingTax === 10)
+        .filter(
+          (item) => item.outputReceipt && item.product.sellingTaxClass === 'exclusive' && item.product.sellingTax === 10
+        )
         .reduce(
           (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 10) / 100),
           0
@@ -174,7 +176,9 @@ const RegisterPayment: React.FC<Props> = ({
   const inclusiveTaxNormalTotal = ((items: BasketItem[]) => {
     return (
       items
-        .filter((item) => item.product.sellingTaxClass === 'inclusive' && item.product.sellingTax === 10)
+        .filter(
+          (item) => item.outputReceipt && item.product.sellingTaxClass === 'inclusive' && item.product.sellingTax === 10
+        )
         .reduce(
           (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 10) / (100 + 10)),
           0
@@ -185,7 +189,9 @@ const RegisterPayment: React.FC<Props> = ({
   const exclusiveTaxReducedTotal = ((items: BasketItem[]) => {
     return (
       items
-        .filter((item) => item.product.sellingTaxClass === 'exclusive' && item.product.sellingTax === 8)
+        .filter(
+          (item) => item.outputReceipt && item.product.sellingTaxClass === 'exclusive' && item.product.sellingTax === 8
+        )
         .reduce(
           (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 8) / 100),
           0
@@ -196,7 +202,9 @@ const RegisterPayment: React.FC<Props> = ({
   const inclusiveTaxReducedTotal = ((items: BasketItem[]) => {
     return (
       items
-        .filter((item) => item.product.sellingTaxClass === 'inclusive' && item.product.sellingTax === 8)
+        .filter(
+          (item) => item.outputReceipt && item.product.sellingTaxClass === 'inclusive' && item.product.sellingTax === 8
+        )
         .reduce(
           (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 8) / (100 + 8)),
           0
@@ -206,7 +214,10 @@ const RegisterPayment: React.FC<Props> = ({
 
   const salesTotal = ((items: BasketItem[]) => {
     return (
-      items.reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) * registerSign +
+      items
+        .filter((item) => item.outputReceipt)
+        .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) *
+        registerSign +
       exclusiveTaxReducedTotal +
       exclusiveTaxNormalTotal
     );
@@ -373,14 +384,14 @@ const RegisterPayment: React.FC<Props> = ({
                       （内消費税等　¥{(exclusiveTaxNormalTotal + inclusiveTaxNormalTotal + 0).toLocaleString()}）
                     </Table.Cell>
                   </Table.Row>
-                  {registerMode === 'Return' ? null : (
+                  {registerMode === 'Return' || basketItems.some((item) => !item.outputReceipt) ? null : (
                     <Table.Row>
                       <Table.Cell type="th">お預かり</Table.Cell>
                       <Table.Cell className="text-right pr-4">¥{toNumber(cashText).toLocaleString()}</Table.Cell>
                       <Table.Cell></Table.Cell>
                     </Table.Row>
                   )}
-                  {registerMode === 'Return' ? null : (
+                  {registerMode === 'Return' || basketItems.some((item) => !item.outputReceipt) ? null : (
                     <Table.Row>
                       <Table.Cell type="th">お釣り</Table.Cell>
                       <Table.Cell className="text-right pr-4">

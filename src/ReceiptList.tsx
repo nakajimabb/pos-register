@@ -284,14 +284,14 @@ const ReceiptList: React.FC = () => {
                   </Table.Cell>
                   <Table.Cell>（内消費税等　¥{(Number(sale?.taxNormalTotal) + 0).toLocaleString()}）</Table.Cell>
                 </Table.Row>
-                {sale?.status === 'Return' ? null : (
+                {sale?.status === 'Return' || saleDetails.some((detail) => !detail.outputReceipt) ? null : (
                   <Table.Row>
                     <Table.Cell type="th">お預かり</Table.Cell>
                     <Table.Cell className="text-right pr-4">¥{sale?.cashAmount.toLocaleString()}</Table.Cell>
                     <Table.Cell></Table.Cell>
                   </Table.Row>
                 )}
-                {sale?.status === 'Return' ? null : (
+                {sale?.status === 'Return' || saleDetails.some((detail) => !detail.outputReceipt) ? null : (
                   <Table.Row>
                     <Table.Cell type="th">お釣り</Table.Cell>
                     <Table.Cell className="text-right pr-4">
