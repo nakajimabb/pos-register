@@ -27,7 +27,7 @@ const DeliveryList: React.FC = () => {
     shopCode: '',
     date: null,
   });
-  const [target, setTarget] = useState<{ dstShopCode: string; date: Date } | null>(null);
+  const [target, setTarget] = useState<{ dstShopCode: string; date: Date; mode: 'modal' | 'print' } | null>(null);
   const [shopOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
@@ -78,7 +78,7 @@ const DeliveryList: React.FC = () => {
         <Card className="p-5 overflow-visible">
           {target && currentShop && (
             <DeliveryPrint
-              open
+              mode={target.mode}
               shopCode={currentShop.code}
               date={target.date}
               dstShopCode={target.dstShopCode}
@@ -132,7 +132,7 @@ const DeliveryList: React.FC = () => {
                     <Table.Cell>{dateStr}</Table.Cell>
                     <Table.Cell>{item.dstShopName}</Table.Cell>
                     <Table.Cell>
-                      <Link to={`/delivery_main?date=${dateStr}&dstShopCode=${item.dstShopCode}`} className="mx-2">
+                      <Link to={`/delivery_main?date=${dateStr}&dstShopCode=${item.dstShopCode}`} className="mx-1">
                         <Button color="light" size="sm">
                           編集
                         </Button>
@@ -140,9 +140,18 @@ const DeliveryList: React.FC = () => {
                       <Button
                         color="light"
                         size="sm"
-                        onClick={() => setTarget({ dstShopCode: item.dstShopCode, date })}
+                        onClick={() => setTarget({ dstShopCode: item.dstShopCode, date, mode: 'modal' })}
+                        className="mx-1"
                       >
                         詳細
+                      </Button>
+                      <Button
+                        color="light"
+                        size="sm"
+                        onClick={() => setTarget({ dstShopCode: item.dstShopCode, date, mode: 'print' })}
+                        className="mx-1"
+                      >
+                        印刷
                       </Button>
                     </Table.Cell>
                   </Table.Row>

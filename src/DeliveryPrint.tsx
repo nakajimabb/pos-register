@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getFirestore, doc, DocumentSnapshot, getDoc, collection, getDocs, QuerySnapshot } from 'firebase/firestore';
+import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
 import { Button, Flex, Modal, Table } from './components';
 import { toDateString } from './tools';
@@ -8,16 +9,17 @@ import { Delivery, DeliveryDetail, deliveryPath } from './types';
 const db = getFirestore();
 
 type Props = {
-  open: boolean;
+  mode: 'modal' | 'print';
   shopCode: string;
   date: Date;
   dstShopCode: string;
   onClose: () => void;
 };
 
-const DeliveryPrint: React.FC<Props> = ({ open, shopCode, date, dstShopCode, onClose }) => {
+const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, date, dstShopCode, onClose }) => {
   const [items, setItems] = useState<DeliveryDetail[]>([]);
   const [delivery, setDelivery] = useState<Delivery | undefined>(undefined);
+  const [loaded, setLoaded] = useState<boolean>(false);
   const pageStyle = `
     @media print {
       @page { size: JIS-B5 portrait; }
@@ -29,6 +31,10 @@ const DeliveryPrint: React.FC<Props> = ({ open, shopCode, date, dstShopCode, onC
     loadDeliveryDetails(shopCode, date, dstShopCode);
   }, [shopCode, date, dstShopCode]);
 
+  useEffect(() => {
+    if (loaded && handlePrint && mode === 'print') handlePrint();
+  }, [loaded]);
+
   const loadDeliveryDetails = async (shopCode: string, date: Date, dstShopCode: string) => {
     if (shopCode && shopCode && date) {
       const path = deliveryPath({ shopCode, dstShopCode, date });
@@ -37,6 +43,7 @@ const DeliveryPrint: React.FC<Props> = ({ open, shopCode, date, dstShopCode, onC
       const detailPath = deliveryPath({ shopCode, dstShopCode, date }) + '/deliveryDetails';
       const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<DeliveryDetail>;
       setItems(qSnap.docs.map((docSnap) => docSnap.data()));
+      setLoaded(true);
     }
   };
 
@@ -57,7 +64,7 @@ const DeliveryPrint: React.FC<Props> = ({ open, shopCode, date, dstShopCode, onC
   });
 
   return (
-    <Modal open={open} size="none" onClose={onClose} className="w-2/3 overflow-visible">
+    <Modal open size="none" onClose={onClose} className={clsx('w-2/3 overflow-visible', mode === 'print' && 'hidden')}>
       <Modal.Body>
         <div ref={componentRef}>
           <h1 className="text-2xl font-bold mb-3">
@@ -75,9 +82,6 @@ const DeliveryPrint: React.FC<Props> = ({ open, shopCode, date, dstShopCode, onC
                   <small>{sumItemCostPrice()}円</small>
                 </div>
               </Flex>
-              <Button color="warning" className="my-2 print:hidden" onClick={handlePrint}>
-                印刷
-              </Button>
             </div>
           </Flex>
           <Table className="w-full">
