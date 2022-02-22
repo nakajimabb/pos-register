@@ -244,28 +244,12 @@ const DailyCashReport: React.FC = () => {
                     </Table.Cell>
                   </Table.Row>
                   <Table.Row>
-                    <Table.Cell className="w-2/3">現金在高申告</Table.Cell>
-                    <Table.Cell className="text-right w-1/3"></Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">現金申告過不足</Table.Cell>
-                    <Table.Cell className="text-right w-1/3"></Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
                     <Table.Cell className="w-2/3">クレジット在高</Table.Cell>
                     <Table.Cell className="text-right w-1/3">
                       {`¥${(
                         reportItems['creditAmountTotal'] + reportItems['returnCreditAmountTotal']
                       )?.toLocaleString()}`}
                     </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">クレジット在高申告</Table.Cell>
-                    <Table.Cell className="text-right w-1/3"></Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">クレジット申告過不足</Table.Cell>
-                    <Table.Cell className="text-right w-1/3"></Table.Cell>
                   </Table.Row>
                   <Table.Row>
                     <Table.Cell className="w-2/3">客数</Table.Cell>
