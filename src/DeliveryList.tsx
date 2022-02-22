@@ -15,17 +15,19 @@ import {
 } from 'firebase/firestore';
 import { Alert, Button, Card, Form, Table } from './components';
 import { useAppContext } from './AppContext';
-import { nameWithCode, toDateString } from './tools';
+import DeliveryPrint from './DeliveryPrint';
 import firebaseError from './firebaseError';
+import { nameWithCode, toDateString } from './tools';
 import { Delivery } from './types';
 
 const db = getFirestore();
 
 const DeliveryList: React.FC = () => {
-  const [target, setTarget] = useState<{ shopCode: string; date: Date | null }>({
+  const [search, setSearch] = useState<{ shopCode: string; date: Date | null }>({
     shopCode: '',
     date: null,
   });
+  const [target, setTarget] = useState<{ dstShopCode: string; date: Date } | null>(null);
   const [shopOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
@@ -52,12 +54,12 @@ const DeliveryList: React.FC = () => {
       try {
         const conds: QueryConstraint[] = [limit(30)];
 
-        if (target.date) {
-          conds.push(where('date', '==', Timestamp.fromDate(target.date)));
+        if (search.date) {
+          conds.push(where('date', '==', Timestamp.fromDate(search.date)));
         } else {
           conds.push(orderBy('date', 'desc'));
         }
-        if (target.shopCode) conds.push(where('dstShopCode', '==', target.shopCode));
+        if (search.shopCode) conds.push(where('dstShopCode', '==', search.shopCode));
 
         const q = query(collection(db, 'shops', currentShop.code, 'deliveries'), ...conds) as Query<Delivery>;
         const snap = await getDocs(q);
@@ -74,22 +76,31 @@ const DeliveryList: React.FC = () => {
       <div className="p-4">
         <h1 className="text-xl font-bold mb-2">出庫一覧</h1>
         <Card className="p-5 overflow-visible">
+          {target && currentShop && (
+            <DeliveryPrint
+              open
+              shopCode={currentShop.code}
+              date={target.date}
+              dstShopCode={target.dstShopCode}
+              onClose={() => setTarget(null)}
+            />
+          )}
           <Form className="flex space-x-2 mb-2" onSubmit={queryDeliveries}>
             <Form.Date
-              value={target.date ? toDateString(target.date, 'YYYY-MM-DD') : ''}
+              value={search.date ? toDateString(search.date, 'YYYY-MM-DD') : ''}
               onChange={(e) => {
                 const date = e.target.value ? new Date(e.target.value) : null;
-                setTarget((prev) => ({ ...prev, date }));
+                setSearch((prev) => ({ ...prev, date }));
               }}
             />
             <Select
-              value={selectValue(target.shopCode, shopOptions)}
+              value={selectValue(search.shopCode, shopOptions)}
               options={shopOptions}
               onMenuOpen={() => {
                 registListner('shops');
               }}
               onChange={(e) => {
-                setTarget((prev) => ({ ...prev, shopCode: String(e?.value) }));
+                setSearch((prev) => ({ ...prev, shopCode: String(e?.value) }));
               }}
               className="mb-3 sm:mb-0 w-72"
             />
@@ -113,18 +124,26 @@ const DeliveryList: React.FC = () => {
             </Table.Head>
             <Table.Body>
               {deliveries.map((item, i) => {
-                const date = toDateString(item.date.toDate(), 'YYYY-MM-DD');
+                const date = item.date.toDate();
+                const dateStr = toDateString(date, 'YYYY-MM-DD');
                 return (
                   <Table.Row key={i}>
                     <Table.Cell>{i + 1}</Table.Cell>
-                    <Table.Cell>{date}</Table.Cell>
+                    <Table.Cell>{dateStr}</Table.Cell>
                     <Table.Cell>{item.dstShopName}</Table.Cell>
                     <Table.Cell>
-                      <Link to={`/delivery_main?date=${date}&dstShopCode=${item.dstShopCode}`} className="mx-2">
+                      <Link to={`/delivery_main?date=${dateStr}&dstShopCode=${item.dstShopCode}`} className="mx-2">
                         <Button color="light" size="sm">
-                          詳細
+                          編集
                         </Button>
                       </Link>
+                      <Button
+                        color="light"
+                        size="sm"
+                        onClick={() => setTarget({ dstShopCode: item.dstShopCode, date })}
+                      >
+                        詳細
+                      </Button>
                     </Table.Cell>
                   </Table.Row>
                 );

@@ -23,18 +23,16 @@ const db = getFirestore();
 type Item = DeliveryDetail & { removed?: boolean };
 
 const DeliveryMain: React.FC = () => {
-  const [target, setTarget] = useState<{ shopCode: string; date: Date }>({
-    shopCode: '',
+  const [target, setTarget] = useState<{ date: Date; dstShopCode: string }>({
     date: new Date(),
+    dstShopCode: '',
   });
   const [currentItem, setCurrentItem] = useState<{
     productCode: string;
     quantity: number | null;
-    costPrice: number | null;
   }>({
     productCode: '',
     quantity: null,
-    costPrice: null,
   });
   const [items, setItems] = useState<Item[]>([]);
   const [delivery, setDelivery] = useState<Delivery | undefined>(undefined);
@@ -56,15 +54,15 @@ const DeliveryMain: React.FC = () => {
     const dstShopCode = query.get('dstShopCode');
     if (dateText && dstShopCode && currentShop) {
       const date = new Date(dateText);
-      setTarget({ date, shopCode: dstShopCode });
+      setTarget({ date, dstShopCode });
       loadDeliveryDetails(currentShop.code, dstShopCode, date);
     }
   }, [currentShop, params]);
 
   useEffect(() => {
     setMessages([]);
-    if (!target.shopCode) setMessages((prev) => [...prev, '送り先を指定してください。']);
-  }, [target.shopCode]);
+    if (!target.dstShopCode) setMessages((prev) => [...prev, '送り先を指定してください。']);
+  }, [target.dstShopCode]);
 
   useEffect(() => {
     if (shops) {
@@ -85,24 +83,21 @@ const DeliveryMain: React.FC = () => {
     setCurrentItem({
       productCode: '',
       quantity: null,
-      costPrice: null,
     });
   };
 
   const loadDeliveryDetails = async (shopCode: string, dstShopCode: string, date: Date) => {
-    if (currentShop && shopCode && shopCode && date) {
-      const path = deliveryPath({ shopCode, dstShopCode, date });
-      const snap = (await getDoc(doc(db, path))) as DocumentSnapshot<Delivery>;
-      const shopName = shops && shops[target.shopCode] ? shops[target.shopCode].name : '';
-      setDelivery(
-        snap.data() || {
-          shopCode: currentShop.code,
-          dstShopCode: target.shopCode,
-          dstShopName: shopName,
-          date: Timestamp.fromDate(date),
-          fixed: false,
-        }
-      );
+    if (shopCode && shopCode && date) {
+      const shopName = shops && shops[shopCode] ? shops[shopCode].name : '';
+      const dstShopName = shops && shops[dstShopCode] ? shops[dstShopCode].name : '';
+      setDelivery({
+        shopCode,
+        shopName,
+        dstShopCode,
+        dstShopName,
+        date: Timestamp.fromDate(date),
+        fixed: false,
+      });
 
       const detailPath = deliveryPath({ shopCode, dstShopCode, date }) + '/deliveryDetails';
       const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
@@ -111,7 +106,8 @@ const DeliveryMain: React.FC = () => {
   };
 
   const addItem = async () => {
-    if (currentItem.productCode && currentItem.quantity && currentItem.costPrice) {
+    console.log({ currentItem });
+    if (currentItem.productCode && currentItem.quantity) {
       const ref = doc(db, 'products', currentItem.productCode);
       const snap = (await getDoc(ref)) as DocumentSnapshot<Product>;
       const product = snap.data();
@@ -120,6 +116,7 @@ const DeliveryMain: React.FC = () => {
         if (index >= 0) {
           const newItems = [...items];
           newItems[index].quantity += +currentItem.quantity;
+          newItems[index].fixed = false;
           setItems(newItems);
           resetCurrentItem();
         } else {
@@ -129,7 +126,7 @@ const DeliveryMain: React.FC = () => {
               productCode: currentItem.productCode,
               productName: product.name,
               quantity: Number(currentItem.quantity),
-              costPrice: Number(currentItem.costPrice),
+              costPrice: Number(product.costPrice),
               fixed: false,
             },
           ]);
@@ -158,7 +155,7 @@ const DeliveryMain: React.FC = () => {
       setErrors([]);
       if (currentShop) {
         if (!target.date) setErrors((prev) => [...prev, '日付を指定してください。']);
-        if (!target.shopCode) setErrors((prev) => [...prev, '送り先を指定してください。']);
+        if (!target.dstShopCode) setErrors((prev) => [...prev, '送り先を指定してください。']);
         const snap = (await getDoc(doc(db, 'products', currentItem.productCode))) as DocumentSnapshot<Product>;
         const product = snap.data();
         if (product) {
@@ -189,17 +186,18 @@ const DeliveryMain: React.FC = () => {
   };
 
   const save = (fixed: boolean) => {
-    if (currentShop && target.date && target.shopCode && delivery) {
+    if (currentShop && target.date && target.dstShopCode && delivery) {
       try {
         const batch = writeBatch(db);
         // deliverys
-        const shopName = shops && shops[target.shopCode] ? shops[target.shopCode].name : '';
+        const shopName = shops && shops[target.dstShopCode] ? shops[target.dstShopCode].name : '';
         const ref = doc(
           db,
-          deliveryPath({ shopCode: currentShop.code, date: target.date, dstShopCode: target.shopCode })
+          deliveryPath({ shopCode: currentShop.code, date: target.date, dstShopCode: target.dstShopCode })
         );
         const newDelivery = { ...delivery, fixed };
         batch.set(ref, newDelivery);
+        console.log({ newDelivery });
         items
           .filter((item) => item.removed)
           .forEach((item) => {
@@ -208,7 +206,7 @@ const DeliveryMain: React.FC = () => {
               deliveryDetailPath({
                 shopCode: currentShop.code,
                 date: target.date,
-                dstShopCode: target.shopCode,
+                dstShopCode: target.dstShopCode,
                 productCode: item.productCode,
               })
             );
@@ -222,7 +220,7 @@ const DeliveryMain: React.FC = () => {
               deliveryDetailPath({
                 shopCode: currentShop.code,
                 date: target.date,
-                dstShopCode: target.shopCode,
+                dstShopCode: target.dstShopCode,
                 productCode: item.productCode,
               })
             );
@@ -235,13 +233,19 @@ const DeliveryMain: React.FC = () => {
             });
           });
         batch.commit();
-        loadDeliveryDetails(currentShop.code, target.shopCode, target.date);
+        loadDeliveryDetails(currentShop.code, target.dstShopCode, target.date);
         alert('保存しました。');
       } catch (error) {
         console.log({ error });
         alert(firebaseError(error));
       }
     }
+  };
+
+  console.log({ delivery });
+
+  const existUnfixed = () => {
+    return items.filter((item) => !item.removed && !item.fixed).length > 0;
   };
 
   return (
@@ -269,15 +273,16 @@ const DeliveryMain: React.FC = () => {
                 const date = new Date(e.target.value);
                 setTarget((prev) => ({ ...prev, date }));
                 if (currentShop && e.target.value) {
-                  loadDeliveryDetails(currentShop.code, target.shopCode, date);
+                  loadDeliveryDetails(currentShop.code, target.dstShopCode, date);
                 }
               }}
             />
             <Select
-              value={selectValue(target.shopCode, shopOptions)}
+              value={selectValue(target.dstShopCode, shopOptions)}
               options={shopOptions}
               onChange={(e) => {
-                setTarget((prev) => ({ ...prev, shopCode: String(e?.value) }));
+                const dstShopCode = String(e?.value);
+                setTarget((prev) => ({ ...prev, dstShopCode }));
                 if (currentShop && e?.value) {
                   loadDeliveryDetails(currentShop.code, String(e?.value), target.date);
                 }
@@ -318,11 +323,12 @@ const DeliveryMain: React.FC = () => {
               <Button onClick={addItem}>追加</Button>
             </Form>
             <div className="space-x-2">
-              <Button className="w-32" disabled={delivery && delivery.fixed} onClick={() => save(false)}>
+              <Button className="w-32" disabled={!existUnfixed()} onClick={() => save(false)}>
                 保留
               </Button>
               <Button
                 className="w-32"
+                disabled={!existUnfixed()}
                 onClick={() => {
                   if (window.confirm('確定しますか？')) {
                     save(true);

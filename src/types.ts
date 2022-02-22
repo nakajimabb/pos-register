@@ -200,6 +200,7 @@ export const purchaseDetailPath = (data: { shopCode: string; date: Date; supplie
 // 出庫情報
 export type Delivery = {
   shopCode: string; // 店舗コード
+  shopName: string; // 店舗コード
   dstShopCode: string; // 送り先店舗コード
   dstShopName: string;
   date: Timestamp; // 出庫日
