@@ -12,9 +12,11 @@ import {
   writeBatch,
   QuerySnapshot,
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import { useAppContext } from './AppContext';
 import { nameWithCode, toDateString } from './tools';
+import app from './firebase';
 import firebaseError from './firebaseError';
 import { Product, Delivery, DeliveryDetail, deliveryPath, deliveryDetailPath } from './types';
 import DeliveryEdit from './DeliveryEdit';
@@ -87,21 +89,28 @@ const DeliveryMain: React.FC = () => {
   };
 
   const loadDeliveryDetails = async (shopCode: string, dstShopCode: string, date: Date) => {
-    if (shopCode && shopCode && date) {
-      const shopName = shops && shops[shopCode] ? shops[shopCode].name : '';
-      const dstShopName = shops && shops[dstShopCode] ? shops[dstShopCode].name : '';
-      setDelivery({
-        shopCode,
-        shopName,
-        dstShopCode,
-        dstShopName,
-        date: Timestamp.fromDate(date),
-        fixed: false,
-      });
+    if (shopCode && dstShopCode && date && shops) {
+      try {
+        const dPath = deliveryPath({ shopCode, dstShopCode, date });
+        const snap = (await getDoc(doc(db, dPath))) as DocumentSnapshot<Delivery>;
+        const deliv = snap.data();
+        setDelivery({
+          deliveryNumber: deliv?.deliveryNumber ?? -1,
+          shopCode,
+          shopName: deliv?.shopName ?? shops[shopCode].name,
+          dstShopCode,
+          dstShopName: deliv?.dstShopName ?? shops[dstShopCode].name,
+          date: Timestamp.fromDate(date),
+          fixed: !!deliv?.fixed,
+        });
 
-      const detailPath = deliveryPath({ shopCode, dstShopCode, date }) + '/deliveryDetails';
-      const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
-      setItems(qSnap.docs.map((docSnap) => docSnap.data()));
+        const detailPath = dPath + '/deliveryDetails';
+        const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
+        setItems(qSnap.docs.map((docSnap) => docSnap.data()));
+      } catch (error) {
+        console.log({ error });
+        alert(firebaseError(error));
+      }
     }
   };
 
@@ -185,7 +194,7 @@ const DeliveryMain: React.FC = () => {
     }
   };
 
-  const save = (fixed: boolean) => {
+  const save = async (fixed: boolean) => {
     if (currentShop && target.date && target.dstShopCode && delivery) {
       try {
         const batch = writeBatch(db);
@@ -195,9 +204,13 @@ const DeliveryMain: React.FC = () => {
           db,
           deliveryPath({ shopCode: currentShop.code, date: target.date, dstShopCode: target.dstShopCode })
         );
-        const newDelivery = { ...delivery, fixed };
-        batch.set(ref, newDelivery);
-        console.log({ newDelivery });
+        const deliv = { ...delivery, fixed };
+        if (deliv.deliveryNumber < 0) {
+          const functions = getFunctions(app, 'asia-northeast1');
+          const result = await httpsCallable(functions, 'getSequence')({ docId: 'deliveries' });
+          deliv.deliveryNumber = Number(result.data);
+        }
+        batch.set(ref, deliv);
         items
           .filter((item) => item.removed)
           .forEach((item) => {
@@ -241,8 +254,6 @@ const DeliveryMain: React.FC = () => {
       }
     }
   };
-
-  console.log({ delivery });
 
   const existUnfixed = () => {
     return items.filter((item) => !item.removed && !item.fixed).length > 0;

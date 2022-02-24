@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getFirestore, doc, DocumentSnapshot, getDoc, collection, getDocs, QuerySnapshot } from 'firebase/firestore';
 import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
-import { Button, Flex, Modal, Table } from './components';
-import { toDateString } from './tools';
-import { Delivery, DeliveryDetail, deliveryPath } from './types';
+import { Flex, Modal, Table } from './components';
+import { toDateString, genJanCode, checkDigit } from './tools';
+import { Delivery, DeliveryDetail, deliveryPath, DELIV_LOCATION_CODE } from './types';
+var JsBarcode = require('jsbarcode');
 
 const db = getFirestore();
 
@@ -32,6 +33,11 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, date, dstShopCode, onC
   }, [shopCode, date, dstShopCode]);
 
   useEffect(() => {
+    try {
+      JsBarcode('.barcode').init();
+    } catch (err) {
+      console.log({ err });
+    }
     if (loaded && handlePrint && mode === 'print') handlePrint();
   }, [loaded]);
 
@@ -67,11 +73,11 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, date, dstShopCode, onC
     <Modal open size="none" onClose={onClose} className={clsx('w-2/3 overflow-visible', mode === 'print' && 'hidden')}>
       <Modal.Body>
         <div ref={componentRef}>
-          <h1 className="text-2xl font-bold mb-3">
-            出庫リスト {toDateString(date, 'MM/DD')} {delivery?.shopName} → {delivery?.dstShopName}
-          </h1>
-          <Flex>
+          <Flex justify_content="between">
             <div>
+              <h1 className="text-2xl font-bold mb-3">
+                出庫リスト {toDateString(date, 'MM/DD')} {delivery?.shopName} → {delivery?.dstShopName}
+              </h1>
               <Flex>
                 <div className="bold border border-gray-300 text-center w-16 py-1">種類</div>
                 <div className="bold border border-gray-300 text-center w-16 py-1">{items.length}</div>
@@ -82,6 +88,19 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, date, dstShopCode, onC
                   <small>{sumItemCostPrice()}円</small>
                 </div>
               </Flex>
+            </div>
+            <div className="text-center">
+              <small>出庫リスト番号</small>
+              <svg
+                id="barcode"
+                className="barcode"
+                jsbarcode-format="EAN13"
+                jsbarcode-width="1"
+                jsbarcode-height="40"
+                jsbarcode-value={genJanCode(String(delivery?.deliveryNumber), DELIV_LOCATION_CODE)}
+                jsbarcode-textmargin="0"
+                jsbarcode-fontoptions="bold"
+              ></svg>
             </div>
           </Flex>
           <Table className="w-full">

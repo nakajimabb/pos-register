@@ -134,20 +134,36 @@ export const toNumber = (str: string) => {
   return isNaN(num) ? 0 : num;
 };
 
-// JANコードのチェックデジット
-export const checkDigit = (str: string) => {
-  if (str.match(/^\d{8}$|^\d{13}$/)) {
-    const jan = str.padStart(13, '0'); // 13桁
-    const nums = Array.from(jan)
+// JANCODE 生成
+export const genJanCode = (val: string, locationCode: string) => {
+  if (val.match(/^\d+$/) && val.length <= 9 && locationCode.match(/^\d+$/) && locationCode.length === 3) {
+    const jan = (val + locationCode).padStart(12, '0'); // 12桁
+    const digit = genCheckDigit(jan);
+    return jan + digit;
+  }
+}
+
+// チェックデジット生成(str => 12桁dijit桁なし)
+export const genCheckDigit = (str: string) => {
+  if (str.match(/^\d{12}$/)) {
+    const nums = Array.from(str)
       .reverse()
       .map((i) => +i); // 逆順にして、数値の配列に変換
-    const sum_evens = nums.filter((_, i) => i % 2 === 1).reduce((sum, i) => sum + i); // 偶数の桁の数字の和
+    const sum_evens = nums.filter((_, i) => i % 2 === 0).reduce((sum, i) => sum + i); // 偶数の桁の数字の和
     const sum_odds = nums
-      .slice(1)
       .filter((_, i) => i % 2 === 1)
       .reduce((sum, i) => sum + i); // CD(0桁)を除く奇数の桁の数字の和
     const sum = 3 * sum_evens + sum_odds;
-    return (10 - (sum % 10)) % 10 === nums[0]; // 合計数の下1桁の数字の補数（10から引いた数）がチェックデジット
+    const digit = (10 - (sum % 10)) % 10
+    return String(digit);
+  }
+}
+
+// JANコードのチェックデジット(str => 8 or 13桁)
+export const checkDigit = (str: string) => {
+  if (str.match(/^\d{8}$|^\d{13}$/)) {
+    const jan = str.padStart(13, '0'); // 13桁
+    return genCheckDigit(jan.slice(0, 12)) === jan.slice(-1);
   }
 };
 

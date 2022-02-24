@@ -199,6 +199,7 @@ export const purchaseDetailPath = (data: { shopCode: string; date: Date; supplie
 
 // 出庫情報
 export type Delivery = {
+  deliveryNumber: number;
   shopCode: string; // 店舗コード
   shopName: string; // 店舗コード
   dstShopCode: string; // 送り先店舗コード
@@ -223,3 +224,5 @@ export const deliveryDetailPath = (data: { shopCode: string; date: Date; dstShop
   `shops/${data.shopCode}/deliveries/${toDateString(data.date, 'YYYY-MM-DD')}|${data.dstShopCode}/deliveryDetails/${
     data.productCode
   }`;
+
+export const DELIV_LOCATION_CODE = '001';
