@@ -170,6 +170,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
             <Form.Label>商品名称</Form.Label>
             <Form.Text
               placeholder="商品名称"
+              required
               value={product.name}
               onChange={(e) => setProduct({ ...product, name: e.target.value })}
             />
@@ -195,12 +196,14 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
             <Form.Label>売価税抜</Form.Label>
             <Form.Number
               placeholder="売価"
+              required
               value={String(product.sellingPrice)}
               onChange={(e) => setProduct({ ...product, sellingPrice: +e.target.value })}
             />
             <Form.Label>原価税抜</Form.Label>
             <Form.Number
               placeholder="原価"
+              required
               value={String(product.costPrice)}
               onChange={(e) => setProduct({ ...product, costPrice: +e.target.value })}
             />
@@ -208,6 +211,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
             <Form.Select
               className="mb-3 sm:mb-0"
               value={String(product.sellingTaxClass)}
+              required
               options={TAX_CLASS_OPTIONS}
               onChange={(e) => setProduct({ ...product, sellingTaxClass: e.target.value as TaxClass })}
             />
@@ -215,6 +219,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
             <Form.Select
               className="mb-3 sm:mb-0"
               value={String(product.stockTaxClass)}
+              required
               options={TAX_CLASS_OPTIONS}
               onChange={(e) => setProduct({ ...product, stockTaxClass: e.target.value as TaxClass })}
             />
@@ -222,6 +227,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
             <Form.Select
               className="mb-3 sm:mb-0"
               value={String(product.sellingTax)}
+              required
               options={TAX_OPTIONS}
               onChange={(e) => setProduct({ ...product, sellingTax: e.target.value ? +e.target.value : null })}
             />
@@ -229,6 +235,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
             <Form.Select
               className="mb-3 sm:mb-0"
               value={String(product.stockTax)}
+              required
               options={TAX_OPTIONS}
               onChange={(e) => setProduct({ ...product, stockTax: e.target.value ? +e.target.value : null })}
             />

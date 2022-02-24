@@ -109,6 +109,7 @@ type SelectProps = {
   name?: string;
   value?: string;
   label?: string;
+  required?: boolean;
   options: { label: string; value: string }[] | string[];
   size?: 'sm' | 'md' | 'lg';
   onChange?: React.ChangeEventHandler<HTMLSelectElement>;
@@ -121,6 +122,7 @@ const Select: React.FC<SelectProps> = ({
   name,
   value,
   label,
+  required,
   options,
   size = 'md',
   onChange,
@@ -136,6 +138,7 @@ const Select: React.FC<SelectProps> = ({
       id={id}
       name={name}
       value={value}
+      required={required}
       onChange={onChange}
       className={clsx(baseClass, padding[size], textSize[size], className)}
       style={style}
