@@ -10,7 +10,7 @@ type Props = {
   onUpdate: (deliveryDetail: DeliveryDetail) => void;
 };
 
-const DeliveryEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }) => {
+const DeliveryDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }) => {
   const [deliveryDetail, setDeliveryDetail] = useState<DeliveryDetail>(
     value || {
       productCode: '',
@@ -70,4 +70,4 @@ const DeliveryEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }) => {
   );
 };
 
-export default DeliveryEdit;
+export default DeliveryDetailEdit;

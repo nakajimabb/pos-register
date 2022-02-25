@@ -85,7 +85,7 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, date, dstShopCode, onC
                 <div className="bold border border-gray-300 text-center w-16 py-1">{sumItemQuantity()}</div>
                 <div className="bold border border-gray-300 text-center w-16 py-1">金額</div>
                 <div className="bold border border-gray-300 text-center w-16 py-1">
-                  <small>{sumItemCostPrice()}円</small>
+                  <small>{sumItemCostPrice().toLocaleString()}円</small>
                 </div>
               </Flex>
             </div>
