@@ -403,12 +403,16 @@ const DeliveryMain: React.FC = () => {
               <Button onClick={addItem}>追加</Button>
             </Form>
             <div className="space-x-2">
-              <Button className="w-32" disabled={delivery?.fixed} onClick={() => save(false)}>
+              <Button
+                className="w-32"
+                disabled={!target.dstShopCode || sumItemQuantity() === 0 || delivery?.fixed}
+                onClick={() => save(false)}
+              >
                 保留
               </Button>
               <Button
                 className="w-32"
-                disabled={!existUnfixedItems()}
+                disabled={!target.dstShopCode || !existUnfixedItems()}
                 onClick={() => {
                   if (window.confirm('確定しますか？')) {
                     save(true);
