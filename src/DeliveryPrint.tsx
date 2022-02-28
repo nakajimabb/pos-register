@@ -12,12 +12,11 @@ const db = getFirestore();
 type Props = {
   mode: 'modal' | 'print';
   shopCode: string;
-  date: Date;
-  dstShopCode: string;
+  deliveryNumber: number;
   onClose: () => void;
 };
 
-const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, date, dstShopCode, onClose }) => {
+const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClose }) => {
   const [items, setItems] = useState<DeliveryDetail[]>([]);
   const [delivery, setDelivery] = useState<Delivery | undefined>(undefined);
   const [loaded, setLoaded] = useState<boolean>(false);
@@ -29,8 +28,8 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, date, dstShopCode, onC
   const componentRef = useRef(null);
 
   useEffect(() => {
-    loadDeliveryDetails(shopCode, date, dstShopCode);
-  }, [shopCode, date, dstShopCode]);
+    loadDeliveryDetails(shopCode, deliveryNumber);
+  }, [shopCode, deliveryNumber]);
 
   useEffect(() => {
     try {
@@ -41,12 +40,12 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, date, dstShopCode, onC
     if (loaded && handlePrint && mode === 'print') handlePrint();
   }, [loaded]);
 
-  const loadDeliveryDetails = async (shopCode: string, date: Date, dstShopCode: string) => {
-    if (shopCode && shopCode && date) {
-      const path = deliveryPath({ shopCode, dstShopCode, date });
-      const snap = (await getDoc(doc(db, path))) as DocumentSnapshot<Delivery>;
+  const loadDeliveryDetails = async (shopCode: string, deliveryNumber: number) => {
+    if (shopCode && deliveryNumber) {
+      const delivPath = deliveryPath(shopCode, deliveryNumber);
+      const snap = (await getDoc(doc(db, delivPath))) as DocumentSnapshot<Delivery>;
       setDelivery(snap.data());
-      const detailPath = deliveryPath({ shopCode, dstShopCode, date }) + '/deliveryDetails';
+      const detailPath = delivPath + '/deliveryDetails';
       const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<DeliveryDetail>;
       setItems(qSnap.docs.map((docSnap) => docSnap.data()));
       setLoaded(true);
@@ -76,7 +75,8 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, date, dstShopCode, onC
           <Flex justify_content="between">
             <div>
               <h1 className="text-2xl font-bold mb-3">
-                出庫リスト {toDateString(date, 'MM/DD')} {delivery?.shopName} → {delivery?.dstShopName}
+                出庫リスト {delivery?.date ? toDateString(delivery?.date?.toDate(), 'MM/DD') : ''} {delivery?.shopName}{' '}
+                → {delivery?.dstShopName}
               </h1>
               <Flex>
                 <div className="bold border border-gray-300 text-center w-16 py-1">種類</div>

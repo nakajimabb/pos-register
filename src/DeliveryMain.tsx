@@ -27,10 +27,6 @@ const db = getFirestore();
 type Item = DeliveryDetail & { removed?: boolean };
 
 const DeliveryMain: React.FC = () => {
-  const [target, setTarget] = useState<{ date: Date; dstShopCode: string }>({
-    date: new Date(),
-    dstShopCode: '',
-  });
   const [currentItem, setCurrentItem] = useState<{
     productCode: string;
     quantity: number | null;
@@ -39,7 +35,15 @@ const DeliveryMain: React.FC = () => {
     quantity: null,
   });
   const [items, setItems] = useState<Map<string, Item>>(new Map());
-  const [delivery, setDelivery] = useState<Delivery | undefined>(undefined);
+  const [delivery, setDelivery] = useState<Delivery>({
+    deliveryNumber: -1,
+    shopCode: '',
+    shopName: '',
+    dstShopCode: '',
+    dstShopName: '',
+    date: Timestamp.fromDate(new Date()),
+    fixed: false,
+  });
   const [shopOptions, setShopsOptions] = useState<{ label: string; value: string }[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
@@ -54,19 +58,23 @@ const DeliveryMain: React.FC = () => {
 
   useEffect(() => {
     const query = new URLSearchParams(params);
-    const dateText = query.get('date');
-    const dstShopCode = query.get('dstShopCode');
-    if (dateText && dstShopCode && currentShop) {
-      const date = new Date(dateText);
-      setTarget({ date, dstShopCode });
-      loadDeliveryDetails(currentShop.code, dstShopCode, date);
+    const shopCode = query.get('shopCode');
+    const deliveryNumber = query.get('deliveryNumber');
+    if (shopCode && deliveryNumber) {
+      loadDeliveryDetails(shopCode, +deliveryNumber);
     }
-  }, [currentShop, params]);
+  }, [params]);
+
+  useEffect(() => {
+    if (currentShop) {
+      setDelivery((prev) => ({ ...prev, shopCode: currentShop.code, shopName: currentShop.name }));
+    }
+  }, [currentShop]);
 
   useEffect(() => {
     setMessages([]);
-    if (!target.dstShopCode) setMessages((prev) => [...prev, '送り先を指定してください。']);
-  }, [target.dstShopCode]);
+    if (!delivery.dstShopCode) setMessages((prev) => [...prev, '送り先を指定してください。']);
+  }, [delivery.dstShopCode]);
 
   useEffect(() => {
     if (shops) {
@@ -90,29 +98,37 @@ const DeliveryMain: React.FC = () => {
     });
   };
 
-  const loadDeliveryDetails = async (shopCode: string, dstShopCode: string, date: Date) => {
-    if (shopCode && dstShopCode && date && shops) {
-      try {
-        const dPath = deliveryPath({ shopCode, dstShopCode, date });
-        const snap = (await getDoc(doc(db, dPath))) as DocumentSnapshot<Delivery>;
-        const deliv = snap.data();
-        setDelivery({
-          deliveryNumber: deliv?.deliveryNumber ?? -1,
-          shopCode,
-          shopName: deliv?.shopName ?? shops[shopCode].name,
-          dstShopCode,
-          dstShopName: deliv?.dstShopName ?? shops[dstShopCode].name,
-          date: Timestamp.fromDate(date),
-          fixed: !!deliv?.fixed,
-        });
+  const resetDelivery = () => {
+    if (currentShop) {
+      setDelivery({
+        deliveryNumber: -1,
+        shopCode: currentShop.code,
+        shopName: currentShop.name,
+        dstShopCode: '',
+        dstShopName: '',
+        date: Timestamp.fromDate(new Date()),
+        fixed: false,
+      });
+      setItems(new Map());
+    }
+  };
 
-        const detailPath = dPath + '/deliveryDetails';
-        const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
-        const newItems = new Map<string, Item>();
-        qSnap.docs.forEach((docSnap) => {
-          newItems.set(docSnap.id, docSnap.data());
-        });
-        setItems(newItems);
+  const loadDeliveryDetails = async (shopCode: string, deliveryNumber: number) => {
+    if (shopCode && deliveryNumber && shops) {
+      try {
+        const delivPath = deliveryPath(shopCode, deliveryNumber);
+        const snap = (await getDoc(doc(db, delivPath))) as DocumentSnapshot<Delivery>;
+        const deliv = snap.data();
+        if (deliv) {
+          setDelivery(deliv);
+          const detailPath = delivPath + '/deliveryDetails';
+          const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
+          const newItems = new Map<string, Item>();
+          qSnap.docs.forEach((docSnap) => {
+            newItems.set(docSnap.id, docSnap.data());
+          });
+          setItems(newItems);
+        }
       } catch (error) {
         console.log({ error });
         alert(firebaseError(error));
@@ -166,8 +182,8 @@ const DeliveryMain: React.FC = () => {
       e.preventDefault();
       setErrors([]);
       if (currentShop) {
-        if (!target.date) setErrors((prev) => [...prev, '日付を指定してください。']);
-        if (!target.dstShopCode) setErrors((prev) => [...prev, '送り先を指定してください。']);
+        if (!delivery.date) setErrors((prev) => [...prev, '日付を指定してください。']);
+        if (!delivery.dstShopCode) setErrors((prev) => [...prev, '送り先を指定してください。']);
         const snap = (await getDoc(doc(db, 'products', currentItem.productCode))) as DocumentSnapshot<Product>;
         const product = snap.data();
         if (product) {
@@ -194,55 +210,46 @@ const DeliveryMain: React.FC = () => {
   const save = async (fixed: boolean) => {
     if (delivery && shops) {
       try {
+        const deliv = { ...delivery, fixed };
         await runTransaction(db, async (transaction) => {
-          const date = delivery.date.toDate();
           // get existing Data
           const details = new Map<string, DeliveryDetail>();
           const notFoundStockCodes = new Set<string>();
           const productCodes = Array.from(items.keys());
-          for await (const productCode of productCodes) {
-            const ref2 = doc(
-              db,
-              deliveryDetailPath({
-                shopCode: delivery.shopCode,
-                date,
-                dstShopCode: delivery.dstShopCode,
-                productCode,
-              })
-            );
-            const snap = (await transaction.get(ref2)) as DocumentSnapshot<DeliveryDetail>;
-            if (snap.exists()) {
-              details.set(productCode, snap.data());
-            }
-            const stockRef = doc(db, 'shops', delivery.shopCode, 'stocks', productCode);
-            const stockSnap = (await transaction.get(stockRef)) as DocumentSnapshot<Stock>;
-            if (!stockSnap.exists()) {
-              notFoundStockCodes.add(productCode);
+          if (deliv.deliveryNumber > 0) {
+            for await (const productCode of productCodes) {
+              const ref2 = doc(db, deliveryDetailPath(deliv.shopCode, deliv.deliveryNumber, productCode));
+              const snap = (await transaction.get(ref2)) as DocumentSnapshot<DeliveryDetail>;
+              if (snap.exists()) {
+                details.set(productCode, snap.data());
+              }
+              const stockRef = doc(db, 'shops', deliv.shopCode, 'stocks', productCode);
+              const stockSnap = (await transaction.get(stockRef)) as DocumentSnapshot<Stock>;
+              if (!stockSnap.exists()) {
+                notFoundStockCodes.add(productCode);
+              }
             }
           }
 
           // deliverys
-          const ref = doc(db, deliveryPath({ ...delivery, date }));
-          const deliv = { ...delivery, fixed };
-          if (deliv.deliveryNumber < 0) {
+          if (deliv.deliveryNumber <= 0) {
             const functions = getFunctions(app, 'asia-northeast1');
-            const result = await httpsCallable(functions, 'getSequence')({ docId: 'deliveries' });
-            deliv.deliveryNumber = Number(result.data);
+            // deliveries と purchases のドキュメントIDは同一にする
+            const result = await httpsCallable(functions, 'getSequence')({ docId: 'purchases' });
+            if (Number(result.data) > 0) {
+              deliv.deliveryNumber = Number(result.data);
+            } else {
+              throw Error('不正な出庫番号。');
+            }
           }
+          const ref = doc(db, deliveryPath(deliv.shopCode, deliv.deliveryNumber));
           transaction.set(ref, deliv);
+
           // remove DeliveryDetail
           const removedItems = getRemovedItems();
 
           removedItems.forEach((item) => {
-            const ref2 = doc(
-              db,
-              deliveryDetailPath({
-                shopCode: delivery.shopCode,
-                date,
-                dstShopCode: delivery.dstShopCode,
-                productCode: item.productCode,
-              })
-            );
+            const ref2 = doc(db, deliveryDetailPath(deliv.shopCode, deliv.deliveryNumber, item.productCode));
             const detail = details.get(item.productCode);
             if (detail?.fixed) throw new Error(`確定済データは削除できません。${item.productName}`);
             transaction.delete(ref2);
@@ -251,15 +258,7 @@ const DeliveryMain: React.FC = () => {
           const unfixedItems = getUnfixedItems();
           for await (const item of unfixedItems) {
             const detail = details.get(item.productCode);
-            const ref2 = doc(
-              db,
-              deliveryDetailPath({
-                shopCode: delivery.shopCode,
-                date,
-                dstShopCode: delivery.dstShopCode,
-                productCode: item.productCode,
-              })
-            );
+            const ref2 = doc(db, deliveryDetailPath(deliv.shopCode, deliv.deliveryNumber, item.productCode));
             if (item.quantity === 0) {
               transaction.delete(ref2);
             } else {
@@ -269,14 +268,15 @@ const DeliveryMain: React.FC = () => {
                 quantity: item.quantity,
                 costPrice: item.costPrice,
                 fixed,
+                updatedAt: serverTimestamp(),
               });
             }
             if (fixed) {
               const diff = detail?.fixed ? detail?.quantity - item.quantity : -item.quantity;
-              const stockRef = doc(db, 'shops', delivery.shopCode, 'stocks', item.productCode);
+              const stockRef = doc(db, 'shops', deliv.shopCode, 'stocks', item.productCode);
               if (notFoundStockCodes.has(item.productCode)) {
                 transaction.set(stockRef, {
-                  shopCode: delivery.shopCode,
+                  shopCode: deliv.shopCode,
                   productCode: item.productCode,
                   productName: item.productName,
                   quantity: diff,
@@ -284,7 +284,7 @@ const DeliveryMain: React.FC = () => {
                 });
               } else {
                 transaction.update(stockRef, {
-                  shopCode: delivery.shopCode,
+                  shopCode: deliv.shopCode,
                   productCode: item.productCode,
                   productName: item.productName,
                   quantity: increment(diff),
@@ -296,7 +296,7 @@ const DeliveryMain: React.FC = () => {
             }
           }
         });
-        loadDeliveryDetails(delivery.shopCode, delivery.dstShopCode, target.date);
+        loadDeliveryDetails(deliv.shopCode, deliv.deliveryNumber);
         alert('保存しました。');
       } catch (error) {
         console.log({ error });
@@ -349,23 +349,19 @@ const DeliveryMain: React.FC = () => {
         <Card className="p-5 overflow-visible">
           <div className="flex space-x-2 mb-2">
             <Form.Date
-              value={toDateString(target.date, 'YYYY-MM-DD')}
+              value={toDateString(delivery.date.toDate(), 'YYYY-MM-DD')}
               onChange={(e) => {
                 const date = new Date(e.target.value);
-                setTarget((prev) => ({ ...prev, date }));
-                if (currentShop && e.target.value) {
-                  loadDeliveryDetails(currentShop.code, target.dstShopCode, date);
-                }
+                setDelivery((prev) => ({ ...prev, date: Timestamp.fromDate(date) }));
               }}
             />
             <Select
-              value={selectValue(target.dstShopCode, shopOptions)}
+              value={selectValue(delivery.dstShopCode, shopOptions)}
               options={shopOptions}
               onChange={(e) => {
                 const dstShopCode = String(e?.value);
-                setTarget((prev) => ({ ...prev, dstShopCode }));
-                if (currentShop && e?.value) {
-                  loadDeliveryDetails(currentShop.code, String(e?.value), target.date);
+                if (shops) {
+                  setDelivery((prev) => ({ ...prev, dstShopCode, dstShopName: shops[dstShopCode]?.name }));
                 }
               }}
               className="mb-3 sm:mb-0 w-72"
@@ -405,14 +401,14 @@ const DeliveryMain: React.FC = () => {
             <div className="space-x-2">
               <Button
                 className="w-32"
-                disabled={!target.dstShopCode || sumItemQuantity() === 0 || delivery?.fixed}
+                disabled={!delivery.dstShopCode || sumItemQuantity() === 0 || delivery?.fixed}
                 onClick={() => save(false)}
               >
                 保留
               </Button>
               <Button
                 className="w-32"
-                disabled={!target.dstShopCode || !existUnfixedItems()}
+                disabled={!delivery.dstShopCode || !existUnfixedItems()}
                 onClick={() => {
                   if (window.confirm('確定しますか？')) {
                     save(true);
@@ -446,7 +442,12 @@ const DeliveryMain: React.FC = () => {
               </div>
             </Flex>
             <div>
-              <span className="text-xl">{shops && target.dstShopCode && nameWithCode(shops[target.dstShopCode])}</span>
+              <span className="text-xl">
+                {shops &&
+                  delivery.dstShopCode &&
+                  shops[delivery.dstShopCode] &&
+                  nameWithCode(shops[delivery.dstShopCode])}
+              </span>
               行き
             </div>
           </Flex>

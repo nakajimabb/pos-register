@@ -27,7 +27,7 @@ const DeliveryList: React.FC = () => {
     shopCode: '',
     date: null,
   });
-  const [target, setTarget] = useState<{ dstShopCode: string; date: Date; mode: 'modal' | 'print' } | null>(null);
+  const [target, setTarget] = useState<{ delivery: Delivery; mode: 'modal' | 'print' } | null>(null);
   const [shopOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
@@ -79,9 +79,8 @@ const DeliveryList: React.FC = () => {
           {target && currentShop && (
             <DeliveryPrint
               mode={target.mode}
-              shopCode={currentShop.code}
-              date={target.date}
-              dstShopCode={target.dstShopCode}
+              shopCode={target.delivery.shopCode}
+              deliveryNumber={target.delivery.deliveryNumber}
               onClose={() => setTarget(null)}
             />
           )}
@@ -128,11 +127,14 @@ const DeliveryList: React.FC = () => {
                 const dateStr = toDateString(date, 'YYYY-MM-DD');
                 return (
                   <Table.Row key={i}>
-                    <Table.Cell>{i + 1}</Table.Cell>
+                    <Table.Cell>{item.deliveryNumber}</Table.Cell>
                     <Table.Cell>{dateStr}</Table.Cell>
                     <Table.Cell>{item.dstShopName}</Table.Cell>
                     <Table.Cell>
-                      <Link to={`/delivery_main?date=${dateStr}&dstShopCode=${item.dstShopCode}`} className="mx-1">
+                      <Link
+                        to={`/delivery_main?shopCode=${item.shopCode}&deliveryNumber=${item.deliveryNumber}`}
+                        className="mx-1"
+                      >
                         <Button color="light" size="sm">
                           編集
                         </Button>
@@ -140,7 +142,7 @@ const DeliveryList: React.FC = () => {
                       <Button
                         color="light"
                         size="sm"
-                        onClick={() => setTarget({ dstShopCode: item.dstShopCode, date, mode: 'modal' })}
+                        onClick={() => setTarget({ delivery: item, mode: 'modal' })}
                         className="mx-1"
                       >
                         詳細
@@ -148,7 +150,7 @@ const DeliveryList: React.FC = () => {
                       <Button
                         color="light"
                         size="sm"
-                        onClick={() => setTarget({ dstShopCode: item.dstShopCode, date, mode: 'print' })}
+                        onClick={() => setTarget({ delivery: item, mode: 'print' })}
                         className="mx-1"
                       >
                         印刷

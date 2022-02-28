@@ -209,8 +209,8 @@ export type Delivery = {
   fixed: boolean;
 };
 
-export const deliveryPath = (data: { shopCode: string; date: Date; dstShopCode: string }) =>
-  `shops/${data.shopCode}/deliveries/${toDateString(data.date, 'YYYY-MM-DD')}|${data.dstShopCode}`;
+export const deliveryPath = (shopCode: string, deliveryNumber: number) =>
+  `shops/${shopCode}/deliveries/${deliveryNumber}`;
 
 // 出庫詳細情報
 export type DeliveryDetail = {
@@ -221,9 +221,7 @@ export type DeliveryDetail = {
   fixed: boolean;
 };
 
-export const deliveryDetailPath = (data: { shopCode: string; date: Date; dstShopCode: string; productCode: string }) =>
-  `shops/${data.shopCode}/deliveries/${toDateString(data.date, 'YYYY-MM-DD')}|${data.dstShopCode}/deliveryDetails/${
-    data.productCode
-  }`;
+export const deliveryDetailPath = (shopCode: string, deliveryNumber: number, productCode: string) =>
+deliveryPath(shopCode, deliveryNumber) + '/deliveryDetails/' + productCode;
 
 export const CLASS_DELIV = '01';
