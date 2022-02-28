@@ -3,8 +3,8 @@ import { getFirestore, doc, DocumentSnapshot, getDoc, collection, getDocs, Query
 import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
 import { Flex, Modal, Table } from './components';
-import { toDateString, genJanCode, checkDigit } from './tools';
-import { Delivery, DeliveryDetail, deliveryPath, DELIV_LOCATION_CODE } from './types';
+import { toDateString, genBarcode } from './tools';
+import { Delivery, DeliveryDetail, deliveryPath, CLASS_DELIV } from './types';
 var JsBarcode = require('jsbarcode');
 
 const db = getFirestore();
@@ -97,7 +97,7 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, date, dstShopCode, onC
                 jsbarcode-format="EAN13"
                 jsbarcode-width="1"
                 jsbarcode-height="40"
-                jsbarcode-value={genJanCode(String(delivery?.deliveryNumber), DELIV_LOCATION_CODE)}
+                jsbarcode-value={genBarcode(String(delivery?.deliveryNumber), CLASS_DELIV)}
                 jsbarcode-textmargin="0"
                 jsbarcode-fontoptions="bold"
               ></svg>

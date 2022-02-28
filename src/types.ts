@@ -175,6 +175,7 @@ export type FixedCostRate = {
 // 仕入情報
 export type Purchase = {
   shopCode: string; // 店舗コード
+  srcShopCode: string; // 発送元店舗コード
   supplierCode: string;
   supplierName: string;
   date: Timestamp; // 仕入日
@@ -225,4 +226,4 @@ export const deliveryDetailPath = (data: { shopCode: string; date: Date; dstShop
     data.productCode
   }`;
 
-export const DELIV_LOCATION_CODE = '001';
+export const CLASS_DELIV = '01';

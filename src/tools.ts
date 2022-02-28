@@ -134,12 +134,23 @@ export const toNumber = (str: string) => {
   return isNaN(num) ? 0 : num;
 };
 
-// JANCODE 生成
-export const genJanCode = (val: string, locationCode: string) => {
-  if (val.match(/^\d+$/) && val.length <= 9 && locationCode.match(/^\d+$/) && locationCode.length === 3) {
-    const jan = (val + locationCode).padStart(12, '0'); // 12桁
-    const digit = genCheckDigit(jan);
-    return jan + digit;
+// val: データ[1〜10桁]
+// classCode: 種別[2桁]
+// 戻り値: バーコード[13桁]
+export const genBarcode = (val: string, classCode: string) => {
+  if (val.match(/^\d{1,10}$/) && classCode.match(/^\d{2}$/)) {
+    const data = val.padStart(10, '0') + classCode; // 10桁
+    const digit = genCheckDigit(data);
+    return data + digit;
+  }
+}
+
+// barcode: バーコード[13桁]
+// classCode: 種別[2桁]
+export const getBarcodeValue = (barcode: string, classCode: string) => {
+  console.log({check1: barcode.match(/^\d{13}$/), check2: barcode.slice(10,12), class: barcode.slice(10,12), digit: checkDigit(barcode)})
+  if(barcode.match(/^\d{13}$/) && barcode.slice(10,12) === classCode && checkDigit(barcode)) {
+    return barcode.slice(0, 10);
   }
 }
 
