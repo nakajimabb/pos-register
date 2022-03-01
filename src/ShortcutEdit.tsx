@@ -53,8 +53,8 @@ const ShortcutEdit: React.FC = () => {
             const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
             product.sellingPrice = sellingPrice.sellingPrice;
           }
+          setProduct(product);
         }
-        setProduct(product);
       } else {
         console.log('no such product');
       }
