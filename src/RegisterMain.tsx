@@ -82,29 +82,39 @@ const RegisterMain: React.FC = () => {
   };
 
   const exclusiveTaxTotal = ((items: BasketItem[]) => {
-    let total = 0;
+    let normalTotal = 0;
+    let reducedTotal = 0;
     items.forEach((item) => {
       if (item.product.sellingTaxClass === 'exclusive') {
         if (item.product.sellingTax) {
-          const tax = Number(item.product.sellingTax);
-          total += Math.floor((Number(item.product.sellingPrice) * item.quantity * tax) / 100);
+          if (item.product.sellingTax === 10) {
+            normalTotal += Number(item.product.sellingPrice) * item.quantity;
+          } else if (item.product.sellingTax === 8) {
+            reducedTotal += Number(item.product.sellingPrice) * item.quantity;
+          }
         }
       }
     });
-    return Math.floor(total) * registerSign;
+    const total = Math.floor((normalTotal * 10) / 100) + Math.floor((reducedTotal * 8) / 100);
+    return total * registerSign;
   })(basketItems);
 
   const inclusiveTaxTotal = ((items: BasketItem[]) => {
-    let total = 0;
+    let normalTotal = 0;
+    let reducedTotal = 0;
     items.forEach((item) => {
       if (item.product.sellingTaxClass === 'inclusive') {
         if (item.product.sellingTax) {
-          const tax = Number(item.product.sellingTax);
-          total += Math.floor((Number(item.product.sellingPrice) * item.quantity * tax) / (100 + tax));
+          if (item.product.sellingTax === 10) {
+            normalTotal += Number(item.product.sellingPrice) * item.quantity;
+          } else if (item.product.sellingTax === 8) {
+            reducedTotal += Number(item.product.sellingPrice) * item.quantity;
+          }
         }
       }
     });
-    return Math.floor(total) * registerSign;
+    const total = Math.floor((normalTotal * 10) / (100 + 10)) + Math.floor((reducedTotal * 8) / (100 + 8));
+    return total * registerSign;
   })(basketItems);
 
   const taxTotal = exclusiveTaxTotal + inclusiveTaxTotal;

@@ -162,53 +162,61 @@ const RegisterPayment: React.FC<Props> = ({
 
   const exclusiveTaxNormalTotal = ((items: BasketItem[]) => {
     return (
-      items
-        .filter(
-          (item) => item.outputReceipt && item.product.sellingTaxClass === 'exclusive' && item.product.sellingTax === 10
-        )
-        .reduce(
-          (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 10) / 100),
-          0
-        ) * registerSign
+      Math.floor(
+        (items
+          .filter(
+            (item) =>
+              item.outputReceipt && item.product.sellingTaxClass === 'exclusive' && item.product.sellingTax === 10
+          )
+          .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) *
+          10) /
+          100
+      ) * registerSign
     );
   })(basketItems);
 
   const inclusiveTaxNormalTotal = ((items: BasketItem[]) => {
     return (
-      items
-        .filter(
-          (item) => item.outputReceipt && item.product.sellingTaxClass === 'inclusive' && item.product.sellingTax === 10
-        )
-        .reduce(
-          (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 10) / (100 + 10)),
-          0
-        ) * registerSign
+      Math.floor(
+        (items
+          .filter(
+            (item) =>
+              item.outputReceipt && item.product.sellingTaxClass === 'inclusive' && item.product.sellingTax === 10
+          )
+          .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) *
+          10) /
+          (100 + 10)
+      ) * registerSign
     );
   })(basketItems);
 
   const exclusiveTaxReducedTotal = ((items: BasketItem[]) => {
     return (
-      items
-        .filter(
-          (item) => item.outputReceipt && item.product.sellingTaxClass === 'exclusive' && item.product.sellingTax === 8
-        )
-        .reduce(
-          (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 8) / 100),
-          0
-        ) * registerSign
+      Math.floor(
+        (items
+          .filter(
+            (item) =>
+              item.outputReceipt && item.product.sellingTaxClass === 'exclusive' && item.product.sellingTax === 8
+          )
+          .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) *
+          8) /
+          100
+      ) * registerSign
     );
   })(basketItems);
 
   const inclusiveTaxReducedTotal = ((items: BasketItem[]) => {
     return (
-      items
-        .filter(
-          (item) => item.outputReceipt && item.product.sellingTaxClass === 'inclusive' && item.product.sellingTax === 8
-        )
-        .reduce(
-          (result, item) => result + Math.floor((Number(item.product.sellingPrice) * item.quantity * 8) / (100 + 8)),
-          0
-        ) * registerSign
+      Math.floor(
+        (items
+          .filter(
+            (item) =>
+              item.outputReceipt && item.product.sellingTaxClass === 'inclusive' && item.product.sellingTax === 8
+          )
+          .reduce((result, item) => result + Number(item.product.sellingPrice) * item.quantity, 0) *
+          8) /
+          (100 + 8)
+      ) * registerSign
     );
   })(basketItems);
 
