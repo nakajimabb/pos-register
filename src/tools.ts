@@ -180,8 +180,8 @@ export const checkDigit = (str: string) => {
 
 export const nameWithCode = (obj: { code: string; name: string }) => {
   let result = '';
-  if ('name' in obj) result += obj['name'];
-  if ('code' in obj) result += '(' + obj['code'] + ')';
+  if (obj['name']) result += obj['name'];
+  if (obj['code']) result += '(' + obj['code'] + ')';
   return result;
 };
 

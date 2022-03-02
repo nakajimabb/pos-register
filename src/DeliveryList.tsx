@@ -118,6 +118,7 @@ const DeliveryList: React.FC = () => {
                 <Table.Cell>No</Table.Cell>
                 <Table.Cell>出庫日</Table.Cell>
                 <Table.Cell>送り先</Table.Cell>
+                <Table.Cell>ｽﾃｰﾀｽ</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -130,6 +131,7 @@ const DeliveryList: React.FC = () => {
                     <Table.Cell>{item.deliveryNumber}</Table.Cell>
                     <Table.Cell>{dateStr}</Table.Cell>
                     <Table.Cell>{item.dstShopName}</Table.Cell>
+                    <Table.Cell>{item.fixed ? '確定済' : '保留'}</Table.Cell>
                     <Table.Cell>
                       <Link
                         to={`/delivery_main?shopCode=${item.shopCode}&deliveryNumber=${item.deliveryNumber}`}

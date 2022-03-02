@@ -25,6 +25,7 @@ import DeliveryDetailEdit from './DeliveryDetailEdit';
 
 const db = getFirestore();
 type Item = DeliveryDetail & { removed?: boolean };
+const MIN_SUM_COST_PRICE = 5000;
 
 const DeliveryMain: React.FC = () => {
   const [currentItem, setCurrentItem] = useState<{
@@ -45,9 +46,9 @@ const DeliveryMain: React.FC = () => {
     fixed: false,
   });
   const [shopOptions, setShopsOptions] = useState<{ label: string; value: string }[]>([]);
-  const [messages, setMessages] = useState<string[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [targetProductCode, setTargetProductCode] = useState<string>('');
+  const [processing, setProcessing] = useState<boolean>(false);
   const { registListner, shops, currentShop } = useAppContext();
   const quantityRef = useRef<HTMLInputElement>(null);
   const params = useLocation().search;
@@ -72,8 +73,8 @@ const DeliveryMain: React.FC = () => {
   }, [currentShop]);
 
   useEffect(() => {
-    setMessages([]);
-    if (!delivery.dstShopCode) setMessages((prev) => [...prev, '送り先を指定してください。']);
+    setErrors([]);
+    if (!delivery.dstShopCode) setErrors((prev) => [...prev, '送り先を指定してください。']);
   }, [delivery.dstShopCode]);
 
   useEffect(() => {
@@ -98,23 +99,23 @@ const DeliveryMain: React.FC = () => {
     });
   };
 
-  const resetDelivery = () => {
-    if (currentShop) {
-      setDelivery({
-        deliveryNumber: -1,
-        shopCode: currentShop.code,
-        shopName: currentShop.name,
-        dstShopCode: '',
-        dstShopName: '',
-        date: Timestamp.fromDate(new Date()),
-        fixed: false,
-      });
-      setItems(new Map());
-    }
-  };
+  // const resetDelivery = () => {
+  //   if (currentShop) {
+  //     setDelivery({
+  //       deliveryNumber: -1,
+  //       shopCode: currentShop.code,
+  //       shopName: currentShop.name,
+  //       dstShopCode: '',
+  //       dstShopName: '',
+  //       date: Timestamp.fromDate(new Date()),
+  //       fixed: false,
+  //     });
+  //     setItems(new Map());
+  //   }
+  // };
 
   const loadDeliveryDetails = async (shopCode: string, deliveryNumber: number) => {
-    if (shopCode && deliveryNumber && shops) {
+    if (shopCode && deliveryNumber) {
       try {
         const delivPath = deliveryPath(shopCode, deliveryNumber);
         const snap = (await getDoc(doc(db, delivPath))) as DocumentSnapshot<Delivery>;
@@ -210,24 +211,31 @@ const DeliveryMain: React.FC = () => {
   const save = async (fixed: boolean) => {
     if (delivery && shops) {
       try {
+        if (sumItemCostPrice() < MIN_SUM_COST_PRICE)
+          throw Error(`金額が${MIN_SUM_COST_PRICE}円以上でければ確定できません。`);
         const deliv = { ...delivery, fixed };
+        setProcessing(true);
         await runTransaction(db, async (transaction) => {
           // get existing Data
           const details = new Map<string, DeliveryDetail>();
           const notFoundStockCodes = new Set<string>();
           const productCodes = Array.from(items.keys());
           if (deliv.deliveryNumber > 0) {
+            // 既存詳細データの読み込み
             for await (const productCode of productCodes) {
               const ref2 = doc(db, deliveryDetailPath(deliv.shopCode, deliv.deliveryNumber, productCode));
               const snap = (await transaction.get(ref2)) as DocumentSnapshot<DeliveryDetail>;
               if (snap.exists()) {
                 details.set(productCode, snap.data());
               }
-              const stockRef = doc(db, 'shops', deliv.shopCode, 'stocks', productCode);
-              const stockSnap = (await transaction.get(stockRef)) as DocumentSnapshot<Stock>;
-              if (!stockSnap.exists()) {
-                notFoundStockCodes.add(productCode);
-              }
+            }
+          }
+          // 既存在庫データの読み込み
+          for await (const productCode of productCodes) {
+            const stockRef = doc(db, 'shops', deliv.shopCode, 'stocks', productCode);
+            const stockSnap = (await transaction.get(stockRef)) as DocumentSnapshot<Stock>;
+            if (!stockSnap.exists()) {
+              notFoundStockCodes.add(productCode);
             }
           }
 
@@ -297,8 +305,10 @@ const DeliveryMain: React.FC = () => {
           }
         });
         loadDeliveryDetails(deliv.shopCode, deliv.deliveryNumber);
+        setProcessing(false);
         alert('保存しました。');
       } catch (error) {
+        setProcessing(false);
         console.log({ error });
         alert(firebaseError(error));
       }
@@ -340,7 +350,6 @@ const DeliveryMain: React.FC = () => {
             onClose={() => setTargetProductCode('')}
             onUpdate={(deliveryDetail: DeliveryDetail) => {
               const newItems = new Map(items);
-              const item = newItems.get(currentItem.productCode);
               newItems.set(targetProductCode, deliveryDetail);
               setItems(newItems);
             }}
@@ -367,9 +376,9 @@ const DeliveryMain: React.FC = () => {
               className="mb-3 sm:mb-0 w-72"
             />
           </div>
-          {messages.length > 0 && (
-            <Alert severity="error" onClose={() => setMessages([])}>
-              {messages.map((err, i) => (
+          {errors.length > 0 && (
+            <Alert severity="error" onClose={() => setErrors([])}>
+              {errors.map((err, i) => (
                 <p key={i}>{err}</p>
               ))}
             </Alert>
@@ -401,14 +410,14 @@ const DeliveryMain: React.FC = () => {
             <div className="space-x-2">
               <Button
                 className="w-32"
-                disabled={!delivery.dstShopCode || sumItemQuantity() === 0 || delivery?.fixed}
+                disabled={!delivery.dstShopCode || sumItemQuantity() === 0 || delivery?.fixed || processing}
                 onClick={() => save(false)}
               >
                 保留
               </Button>
               <Button
                 className="w-32"
-                disabled={!delivery.dstShopCode || !existUnfixedItems()}
+                disabled={!delivery.dstShopCode || !existUnfixedItems() || sumItemCostPrice() < 0 || processing}
                 onClick={() => {
                   if (window.confirm('確定しますか？')) {
                     save(true);
@@ -419,13 +428,6 @@ const DeliveryMain: React.FC = () => {
               </Button>
             </div>
           </Flex>
-          {errors.length > 0 && (
-            <Alert severity="error" onClose={() => setErrors([])}>
-              {errors.map((err, i) => (
-                <p key={i}>{err}</p>
-              ))}
-            </Alert>
-          )}
           <Flex justify_content="between" className="my-2">
             <Flex>
               <div className="bold px-2">
