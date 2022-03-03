@@ -3,8 +3,8 @@ import { getFirestore, doc, DocumentSnapshot, getDoc, collection, getDocs, Query
 import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
 import { Flex, Modal, Table } from './components';
-import { toDateString, genBarcode } from './tools';
-import { Delivery, DeliveryDetail, deliveryPath, CLASS_DELIV } from './types';
+import { toDateString } from './tools';
+import { Purchase, PurchaseDetail, purchasePath, CLASS_DELIV } from './types';
 var JsBarcode = require('jsbarcode');
 
 const db = getFirestore();
@@ -12,13 +12,13 @@ const db = getFirestore();
 type Props = {
   mode: 'modal' | 'print';
   shopCode: string;
-  deliveryNumber: number;
+  purchaseNumber: number;
   onClose: () => void;
 };
 
-const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClose }) => {
-  const [items, setItems] = useState<DeliveryDetail[]>([]);
-  const [delivery, setDelivery] = useState<Delivery | undefined>(undefined);
+const PurchasePrint: React.FC<Props> = ({ mode, shopCode, purchaseNumber, onClose }) => {
+  const [items, setItems] = useState<PurchaseDetail[]>([]);
+  const [purchase, setPurchase] = useState<Purchase | undefined>(undefined);
   const [loaded, setLoaded] = useState<boolean>(false);
   const pageStyle = `
     @media print {
@@ -28,8 +28,8 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClos
   const componentRef = useRef(null);
 
   useEffect(() => {
-    loadDeliveryDetails(shopCode, deliveryNumber);
-  }, [shopCode, deliveryNumber]);
+    loadPurchaseDetails(shopCode, purchaseNumber);
+  }, [shopCode, purchaseNumber]);
 
   useEffect(() => {
     try {
@@ -40,13 +40,13 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClos
     if (loaded && handlePrint && mode === 'print') handlePrint();
   }, [loaded]);
 
-  const loadDeliveryDetails = async (shopCode: string, deliveryNumber: number) => {
-    if (shopCode && deliveryNumber) {
-      const delivPath = deliveryPath(shopCode, deliveryNumber);
-      const snap = (await getDoc(doc(db, delivPath))) as DocumentSnapshot<Delivery>;
-      setDelivery(snap.data());
-      const detailPath = delivPath + '/deliveryDetails';
-      const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<DeliveryDetail>;
+  const loadPurchaseDetails = async (shopCode: string, purchaseNumber: number) => {
+    if (shopCode && purchaseNumber) {
+      const delivPath = purchasePath(shopCode, purchaseNumber);
+      const snap = (await getDoc(doc(db, delivPath))) as DocumentSnapshot<Purchase>;
+      setPurchase(snap.data());
+      const detailPath = delivPath + '/purchaseDetails';
+      const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<PurchaseDetail>;
       setItems(qSnap.docs.map((docSnap) => docSnap.data()));
       setLoaded(true);
     }
@@ -72,35 +72,18 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClos
     <Modal open size="none" onClose={onClose} className={clsx('w-2/3 overflow-visible', mode === 'print' && 'hidden')}>
       <Modal.Body>
         <div ref={componentRef}>
-          <Flex justify_content="between">
-            <div>
-              <h1 className="text-2xl font-bold mb-3">
-                出庫リスト {delivery?.date ? toDateString(delivery?.date?.toDate(), 'MM/DD') : ''} {delivery?.shopName}→
-                {delivery?.dstShopName}
-              </h1>
-              <Flex>
-                <div className="bold border border-gray-300 text-center w-16 py-1">種類</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">{items.length}</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">商品数</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">{sumItemQuantity()}</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">金額</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">
-                  <small>{sumItemCostPrice().toLocaleString()}円</small>
-                </div>
-              </Flex>
-            </div>
-            <div className="text-center">
-              <small>出庫リスト番号</small>
-              <svg
-                id="barcode"
-                className="barcode"
-                jsbarcode-format="EAN13"
-                jsbarcode-width="1"
-                jsbarcode-height="40"
-                jsbarcode-value={genBarcode(String(delivery?.deliveryNumber), CLASS_DELIV)}
-                jsbarcode-textmargin="0"
-                jsbarcode-fontoptions="bold"
-              ></svg>
+          <h1 className="text-2xl font-bold mb-3">
+            出庫リスト {purchase?.date ? toDateString(purchase?.date?.toDate(), 'MM/DD') : ''} {purchase?.shopName} →
+            {purchase?.srcName}
+          </h1>
+          <Flex>
+            <div className="bold border border-gray-300 text-center w-16 py-1">種類</div>
+            <div className="bold border border-gray-300 text-center w-16 py-1">{items.length}</div>
+            <div className="bold border border-gray-300 text-center w-16 py-1">商品数</div>
+            <div className="bold border border-gray-300 text-center w-16 py-1">{sumItemQuantity()}</div>
+            <div className="bold border border-gray-300 text-center w-16 py-1">金額</div>
+            <div className="bold border border-gray-300 text-center w-16 py-1">
+              <small>{sumItemCostPrice().toLocaleString()}円</small>
             </div>
           </Flex>
           <Table className="w-full">
@@ -131,4 +114,4 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClos
   );
 };
 
-export default DeliveryPrint;
+export default PurchasePrint;

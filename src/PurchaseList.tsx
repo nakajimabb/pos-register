@@ -14,6 +14,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { Alert, Button, Card, Form, Table } from './components';
+import PurchasePrint from './PurchasePrint';
 import { useAppContext } from './AppContext';
 import { nameWithCode, toDateString } from './tools';
 import firebaseError from './firebaseError';
@@ -22,10 +23,10 @@ import { Purchase } from './types';
 const db = getFirestore();
 
 const PurchaseList: React.FC = () => {
-  const [target, setTarget] = useState<{ supplierCode: string; date: Date | null }>({
-    supplierCode: '',
+  const [search, setSearch] = useState<{ date: Date | null }>({
     date: null,
   });
+  const [target, setTarget] = useState<{ purchase: Purchase; mode: 'modal' | 'print' } | null>(null);
   const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -52,12 +53,11 @@ const PurchaseList: React.FC = () => {
       try {
         const conds: QueryConstraint[] = [limit(30)];
 
-        if (target.date) {
-          conds.push(where('date', '==', Timestamp.fromDate(target.date)));
+        if (search.date) {
+          conds.push(where('date', '==', Timestamp.fromDate(search.date)));
         } else {
           conds.push(orderBy('date', 'desc'));
         }
-        if (target.supplierCode) conds.push(where('supplierCode', '==', target.supplierCode));
 
         const q = query(collection(db, 'shops', currentShop.code, 'purchases'), ...conds) as Query<Purchase>;
         const snap = await getDocs(q);
@@ -74,23 +74,20 @@ const PurchaseList: React.FC = () => {
       <div className="p-4">
         <h1 className="text-xl font-bold mb-2">仕入一覧</h1>
         <Card className="p-5 overflow-visible">
+          {target && currentShop && (
+            <PurchasePrint
+              mode={target.mode}
+              shopCode={target.purchase.shopCode}
+              purchaseNumber={target.purchase.purchaseNumber}
+              onClose={() => setTarget(null)}
+            />
+          )}
           <Form className="flex space-x-2 mb-2" onSubmit={queryPurchases}>
             <Form.Date
-              value={target.date ? toDateString(target.date, 'YYYY-MM-DD') : ''}
+              value={search.date ? toDateString(search.date, 'YYYY-MM-DD') : ''}
               onChange={(e) => {
-                setTarget((prev) => ({ ...prev, date: new Date(e.target.value) }));
+                setSearch((prev) => ({ ...prev, date: new Date(e.target.value) }));
               }}
-            />
-            <Select
-              value={selectValue(target.supplierCode, supplierOptions)}
-              options={supplierOptions}
-              onMenuOpen={() => {
-                registListner('suppliers');
-              }}
-              onChange={(e) => {
-                setTarget((prev) => ({ ...prev, supplierCode: String(e?.value) }));
-              }}
-              className="mb-3 sm:mb-0 w-72"
             />
             <Button className="w-48">検索</Button>
           </Form>
@@ -104,7 +101,7 @@ const PurchaseList: React.FC = () => {
           <Table className="w-full">
             <Table.Head>
               <Table.Row>
-                <Table.Cell>No</Table.Cell>
+                <Table.Cell>仕入番号</Table.Cell>
                 <Table.Cell>仕入日</Table.Cell>
                 <Table.Cell>仕入先</Table.Cell>
                 <Table.Cell></Table.Cell>
@@ -115,7 +112,7 @@ const PurchaseList: React.FC = () => {
                 const date = toDateString(item.date.toDate(), 'YYYY-MM-DD');
                 return (
                   <Table.Row key={i}>
-                    <Table.Cell>{i + 1}</Table.Cell>
+                    <Table.Cell>{item.purchaseNumber}</Table.Cell>
                     <Table.Cell>{date}</Table.Cell>
                     <Table.Cell>{item.srcName}</Table.Cell>
                     <Table.Cell>
@@ -127,6 +124,22 @@ const PurchaseList: React.FC = () => {
                           編集
                         </Button>
                       </Link>
+                      <Button
+                        color="light"
+                        size="sm"
+                        onClick={() => setTarget({ purchase: item, mode: 'modal' })}
+                        className="mx-1"
+                      >
+                        詳細
+                      </Button>
+                      <Button
+                        color="light"
+                        size="sm"
+                        onClick={() => setTarget({ purchase: item, mode: 'print' })}
+                        className="mx-1"
+                      >
+                        印刷
+                      </Button>
                     </Table.Cell>
                   </Table.Row>
                 );

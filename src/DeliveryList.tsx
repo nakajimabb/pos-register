@@ -115,7 +115,7 @@ const DeliveryList: React.FC = () => {
           <Table className="w-full">
             <Table.Head>
               <Table.Row>
-                <Table.Cell>No</Table.Cell>
+                <Table.Cell>出庫番号</Table.Cell>
                 <Table.Cell>出庫日</Table.Cell>
                 <Table.Cell>送り先</Table.Cell>
                 <Table.Cell>ｽﾃｰﾀｽ</Table.Cell>
