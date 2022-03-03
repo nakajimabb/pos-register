@@ -1,20 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Select from 'react-select';
-import { useLocation } from 'react-router-dom';
 import {
-  getFirestore,
   doc,
   getDoc,
-  collection,
   getDocs,
+  getFirestore,
+  collection,
+  collectionGroup,
   DocumentSnapshot,
-  writeBatch,
+  increment,
+  query,
   QuerySnapshot,
+  runTransaction,
+  serverTimestamp,
+  Timestamp,
+  where,
 } from 'firebase/firestore';
-import { Alert, Button, Card, Form, Icon, Table } from './components';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import { useAppContext } from './AppContext';
+import app from './firebase';
 import PurchaseDetailEdit from './PurchaseDetailEdit';
-import { nameWithCode, toDateString } from './tools';
+import { nameWithCode, toDateString, getBarcodeValue } from './tools';
 import firebaseError from './firebaseError';
 import {
   Product,
@@ -23,16 +30,20 @@ import {
   purchaseDetailPath,
   productCostPricePath,
   ProductCostPrice,
+  CLASS_DELIV,
+  Purchase,
+  Stock,
 } from './types';
 
 const db = getFirestore();
 type Item = PurchaseDetail & { removed?: boolean };
 
-const PurchaseMain: React.FC = () => {
-  const [target, setTarget] = useState<{ supplierCode: string; date: Date }>({
-    supplierCode: '',
-    date: new Date(),
-  });
+type Props = {
+  shopCode: string;
+  purchaseNumber?: number;
+};
+
+const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
   const [currentItem, setCurrentItem] = useState<{
     productCode: string;
     quantity: number | null;
@@ -42,35 +53,43 @@ const PurchaseMain: React.FC = () => {
     quantity: null,
     costPrice: null,
   });
-  const [items, setItems] = useState<Item[]>([]);
+  const [purchase, setPurchase] = useState<Purchase>({
+    shopCode,
+    purchaseNumber: purchaseNumber ?? -1,
+    shopName: '',
+    srcType: 'supplier',
+    srcCode: '',
+    srcName: '',
+    date: Timestamp.fromDate(new Date()),
+    fixed: false,
+  });
+  const [barcode, setBarcode] = useState<string>('');
+  const [items, setItems] = useState<Map<string, Item>>(new Map());
   const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [shopOptions, setShopOptions] = useState<{ label: string; value: string }[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
-  const [open, setOpen] = useState<boolean>(false);
-  const [editIndex, setEditIndex] = useState<number>(-1);
-  const { registListner, suppliers, currentShop } = useAppContext();
+  const [targetProductCode, setTargetProductCode] = useState<string>('');
+  const [processing, setProcessing] = useState<boolean>(false);
+  const { registListner, shops, suppliers } = useAppContext();
   const quantityRef = useRef<HTMLInputElement>(null);
-  const params = useLocation().search;
 
   useEffect(() => {
+    registListner('shops');
     registListner('suppliers');
   }, []);
 
   useEffect(() => {
-    const query = new URLSearchParams(params);
-    const dateText = query.get('date');
-    const supplierCode = query.get('supplierCode');
-    if (dateText && supplierCode && currentShop) {
-      const date = new Date(dateText);
-      setTarget({ date, supplierCode });
-      loadPurchaseDetails(currentShop.code, supplierCode, date);
+    if (shopCode && purchaseNumber > 0) {
+      loadPurchaseDetails(shopCode, purchaseNumber);
     }
-  }, [currentShop, params]);
+  }, [shopCode, purchaseNumber]);
 
   useEffect(() => {
-    setMessages([]);
-    if (!target.supplierCode) setMessages((prev) => [...prev, '仕入先を指定してください。']);
-  }, [target.supplierCode]);
+    if (purchaseNumber === -1) {
+      setErrors([]);
+      if (!purchase.srcCode) setErrors((prev) => [...prev, '仕入先を指定してください。']);
+    }
+  }, [purchase.srcCode, purchaseNumber]);
 
   useEffect(() => {
     if (suppliers) {
@@ -82,6 +101,18 @@ const PurchaseMain: React.FC = () => {
       setSuppliersOptions(options);
     }
   }, [suppliers]);
+
+  useEffect(() => {
+    if (shops) {
+      const options = Object.entries(shops).map(([code, shop]) => ({
+        value: code,
+        label: nameWithCode(shop),
+      }));
+      options.unshift({ label: '', value: '' });
+      setShopOptions(options);
+      setPurchase((prev) => ({ ...prev, shopName: shops[prev.shopCode]?.name }));
+    }
+  }, [shops]);
 
   const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
     return value ? options.find((option) => option.value === value) : { label: '', value: '' };
@@ -95,11 +126,21 @@ const PurchaseMain: React.FC = () => {
     });
   };
 
-  const loadPurchaseDetails = async (shopCode: string, supplierCode: string, date: Date) => {
-    if (shopCode && supplierCode && date) {
-      const path = purchasePath({ shopCode, supplierCode, date }) + '/purchaseDetails';
-      const snap = (await getDocs(collection(db, path))) as QuerySnapshot<Item>;
-      setItems(snap.docs.map((docSnap) => docSnap.data()));
+  const loadPurchaseDetails = async (shopCode: string, purchaseNumber: number) => {
+    if (shopCode && purchaseNumber && shops && suppliers) {
+      const purchPath = purchasePath(shopCode, purchaseNumber);
+      const snap = (await getDoc(doc(db, purchPath))) as DocumentSnapshot<Purchase>;
+      const purch = snap.data();
+      if (purch) {
+        setPurchase(purch);
+        const detailPath = purchPath + '/purchaseDetails';
+        const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
+        const newItems = new Map<string, Item>();
+        qSnap.docs.forEach((docSnap) => {
+          newItems.set(docSnap.id, docSnap.data());
+        });
+        setItems(newItems);
+      }
     }
   };
 
@@ -109,43 +150,55 @@ const PurchaseMain: React.FC = () => {
       const snap = (await getDoc(ref)) as DocumentSnapshot<Product>;
       const product = snap.data();
       if (product) {
-        const index = items.findIndex((item) => !item.removed && item.productCode === currentItem.productCode);
-        if (index >= 0) {
-          const newItems = [...items];
-          newItems[index].quantity += +currentItem.quantity;
-          setItems(newItems);
-          resetCurrentItem();
+        const newItems = new Map(items);
+        const item = newItems.get(currentItem.productCode);
+        if (item) {
+          const quantity = item.removed ? currentItem.quantity : item.quantity + currentItem.quantity;
+          newItems.set(currentItem.productCode, {
+            ...item,
+            removed: false,
+            fixed: false,
+            quantity,
+          });
         } else {
-          setItems((prev) => [
-            ...prev,
-            {
-              productCode: currentItem.productCode,
-              productName: product.name,
-              quantity: Number(currentItem.quantity),
-              costPrice: Number(currentItem.costPrice),
-            },
-          ]);
-          resetCurrentItem();
+          newItems.set(currentItem.productCode, {
+            productCode: currentItem.productCode,
+            productName: product.name,
+            quantity: currentItem.quantity,
+            costPrice: currentItem.costPrice,
+            fixed: false,
+          });
         }
+        setItems(newItems);
+        resetCurrentItem();
         quantityRef.current?.focus();
       }
     }
   };
 
-  const removeItem = (i: number) => async (e: React.FormEvent) => {
-    const newItems = [...items];
-    newItems[i].removed = true;
-    setItems(newItems);
+  const removeItem = (productCode: string) => async (e: React.FormEvent) => {
+    const newItems = new Map(items);
+    const item = newItems.get(productCode);
+    if (item) {
+      newItems.set(productCode, { ...item, removed: true, quantity: 0, fixed: false });
+      setItems(newItems);
+    }
   };
 
-  const editPurchaseDetail = (i: number) => async (e: React.FormEvent) => {
-    setOpen(true);
-    setEditIndex(i);
-  };
-
-  const blockEnter = async (e: React.KeyboardEvent) => {
+  const blockEnter = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
+    }
+  };
+
+  const parseBarcode = async (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const deliveryNumber = Number(barcode.slice(0, 9));
+      const q = query(collectionGroup(db, 'deliveries'), where('deliveryNumber', '==', deliveryNumber));
+      const snap = await getDocs(q);
+      const items = snap.docs.map((item) => item.data());
+      console.log({ items });
     }
   };
 
@@ -153,22 +206,27 @@ const PurchaseMain: React.FC = () => {
     if (currentItem.productCode && e.key === 'Enter') {
       e.preventDefault();
       setErrors([]);
-      if (currentShop) {
-        if (!target.date) setErrors((prev) => [...prev, '日付を指定してください。']);
-        if (!target.supplierCode) setErrors((prev) => [...prev, '仕入先を指定してください。']);
-        const snap = (await getDoc(
-          doc(
-            db,
-            productCostPricePath({
-              shopCode: currentShop.code,
-              productCode: currentItem.productCode,
-              supplierCode: target.supplierCode,
-            })
-          )
-        )) as DocumentSnapshot<ProductCostPrice>;
-        const productCostPrice = snap.data();
-        if (productCostPrice) {
-          setCurrentItem((prev) => ({ ...prev, costPrice: productCostPrice.costPrice }));
+      if (shopCode) {
+        if (!purchase.date) setErrors((prev) => [...prev, '日付を指定してください。']);
+        if (!purchase.srcCode) setErrors((prev) => [...prev, '仕入先を指定してください。']);
+        let costPrice: number | null = null;
+        if (purchase.srcType === 'supplier') {
+          const snap = (await getDoc(
+            doc(
+              db,
+              productCostPricePath({
+                shopCode: purchase.shopCode,
+                productCode: currentItem.productCode,
+                supplierCode: purchase.srcCode,
+              })
+            )
+          )) as DocumentSnapshot<ProductCostPrice>;
+          if (snap.exists()) {
+            costPrice = snap.data().costPrice;
+          }
+        }
+        if (costPrice) {
+          setCurrentItem((prev) => ({ ...prev, costPrice }));
           quantityRef.current?.focus();
         } else {
           const snapProduct = (await getDoc(doc(db, 'products', currentItem.productCode))) as DocumentSnapshot<Product>;
@@ -188,115 +246,199 @@ const PurchaseMain: React.FC = () => {
     e.preventDefault();
   };
 
-  const save = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentShop && target.date && target.supplierCode) {
+  const save = async () => {
+    if (shops && suppliers) {
       try {
-        const batch = writeBatch(db);
-        // purchases
-        const supplierName = suppliers && suppliers[target.supplierCode] ? suppliers[target.supplierCode].name : '';
-        const ref = doc(db, purchasePath({ ...target, shopCode: currentShop.code }));
-        batch.set(ref, {
-          shopCode: currentShop.code,
-          supplierCode: target.supplierCode,
-          supplierName,
-          date: target.date,
+        setProcessing(true);
+        const purch = { ...purchase, fixed: true };
+        await runTransaction(db, async (transaction) => {
+          // get existing Data
+          const details = new Map<string, PurchaseDetail>();
+          const notFoundStockCodes = new Set<string>();
+          const productCodes = Array.from(items.keys());
+          if (purch.purchaseNumber > 0) {
+            // 既存詳細データの読み込み
+            for await (const productCode of productCodes) {
+              const ref2 = doc(db, purchaseDetailPath(purch.shopCode, purch.purchaseNumber, productCode));
+              const snap = (await transaction.get(ref2)) as DocumentSnapshot<PurchaseDetail>;
+              if (snap.exists()) {
+                details.set(productCode, snap.data());
+              }
+            }
+          }
+          // 既存在庫データの読み込み
+          for await (const productCode of productCodes) {
+            const stockRef = doc(db, 'shops', purch.shopCode, 'stocks', productCode);
+            const stockSnap = (await transaction.get(stockRef)) as DocumentSnapshot<Stock>;
+            if (!stockSnap.exists()) {
+              notFoundStockCodes.add(productCode);
+            }
+          }
+
+          // purchase
+          if (purch.purchaseNumber <= 0) {
+            const functions = getFunctions(app, 'asia-northeast1');
+            // deliveries と purchases のドキュメントIDは同一にする
+            const result = await httpsCallable(functions, 'getSequence')({ docId: 'purchases' });
+            if (Number(result.data) > 0) {
+              purch.purchaseNumber = Number(result.data);
+              setPurchase(purch);
+            } else {
+              throw Error('不正な仕入番号。');
+            }
+          }
+          const ref = doc(db, purchasePath(purch.shopCode, purch.purchaseNumber));
+          transaction.set(ref, purch);
+
+          // 詳細データ保存 => fixしていないデータのみ(削除データ含む)保存
+          const unfixedItems = getUnfixedItems();
+          for await (const item of unfixedItems) {
+            const detail = details.get(item.productCode);
+            const ref2 = doc(db, purchaseDetailPath(purch.shopCode, purch.purchaseNumber, item.productCode));
+            if (item.quantity === 0) {
+              transaction.delete(ref2);
+            } else {
+              transaction.set(ref2, {
+                productCode: item.productCode,
+                productName: item.productName,
+                quantity: item.quantity,
+                costPrice: item.costPrice,
+                fixed: true,
+              });
+            }
+            const diff = detail ? item.quantity - detail.quantity : item.quantity;
+            const stockRef = doc(db, 'shops', purch.shopCode, 'stocks', item.productCode);
+            if (notFoundStockCodes.has(item.productCode)) {
+              transaction.set(stockRef, {
+                shopCode: purch.shopCode,
+                productCode: item.productCode,
+                productName: item.productName,
+                quantity: diff,
+              });
+            } else {
+              if (diff !== 0) {
+                transaction.update(stockRef, {
+                  shopCode: purch.shopCode,
+                  productCode: item.productCode,
+                  productName: item.productName,
+                  quantity: increment(diff),
+                });
+              }
+            }
+          }
         });
-        // purchaseDetails
-        items
-          .filter((item) => item.removed)
-          .forEach((item) => {
-            const ref2 = doc(
-              db,
-              purchaseDetailPath({ ...target, shopCode: currentShop.code, productCode: item.productCode })
-            );
-            batch.delete(ref2);
-          });
-        items
-          .filter((item) => !item.removed)
-          .forEach((item) => {
-            const ref2 = doc(
-              db,
-              purchaseDetailPath({ ...target, shopCode: currentShop.code, productCode: item.productCode })
-            );
-            batch.set(ref2, {
-              productCode: item.productCode,
-              productName: item.productName,
-              quantity: item.quantity,
-              costPrice: item.costPrice,
-            });
-          });
-        batch.commit();
+        loadPurchaseDetails(purch.shopCode, purch.purchaseNumber);
+        setProcessing(false);
         alert('保存しました。');
       } catch (error) {
+        setProcessing(false);
         console.log({ error });
         alert(firebaseError(error));
       }
     }
   };
 
+  const readBarcode = () => {
+    const barcode = window.prompt('バーコード入力');
+    if (barcode) {
+      const value = getBarcodeValue(String(barcode), CLASS_DELIV);
+      if (value) {
+        alert(value);
+      } else {
+        alert('不正なバーコードです。');
+      }
+    }
+  };
+
+  const getSrcName = (srcType: 'supplier' | 'shop', srcCode: string) => {
+    if (srcType === 'supplier') {
+      if (suppliers) {
+        return suppliers[srcCode]?.name;
+      }
+    } else {
+      if (shops) return shops[srcCode]?.name;
+    }
+  };
+
+  const getTargetItems = () => {
+    return Array.from(items.values()).filter((item) => !item.removed);
+  };
+
+  const sumItemQuantity = () => {
+    return getTargetItems().reduce((acc, item) => acc + item.quantity, 0);
+  };
+
+  const sumItemCostPrice = () => {
+    return getTargetItems().reduce((acc, item) => acc + item.quantity * Number(item.costPrice), 0);
+  };
+
+  const existUnfixedItems = () => {
+    return Array.from(items.values()).some((item) => !item.fixed);
+  };
+
+  const getUnfixedItems = () => {
+    return Array.from(items.values()).filter((item) => !item.fixed);
+  };
+
   return (
     <div className="pt-12">
       <div className="p-4">
         <h1 className="text-xl font-bold mb-2">仕入処理</h1>
+        {targetProductCode && (
+          <PurchaseDetailEdit
+            open
+            value={items.get(targetProductCode)}
+            onClose={() => setTargetProductCode('')}
+            onUpdate={(purchaseDetail: PurchaseDetail) => {
+              const newItems = new Map(items);
+              newItems.set(targetProductCode, purchaseDetail);
+              setItems(newItems);
+            }}
+          />
+        )}
         <Card className="p-5 overflow-visible">
-          <Form className="flex space-x-2 mb-2" onSubmit={save}>
+          <Flex className="space-x-2 mb-2">
+            <Flex>
+              <Button
+                variant={purchase.srcType === 'supplier' ? 'contained' : 'outlined'}
+                color={purchase.srcType === 'supplier' ? 'info' : 'light'}
+                size="xs"
+                disabled={purchaseNumber > 0}
+                className="w-16"
+                onClick={() => setPurchase((prev) => ({ ...prev, srcType: 'supplier', srcCode: '' }))}
+              >
+                社外
+              </Button>
+              <Button
+                variant={purchase.srcType === 'shop' ? 'contained' : 'outlined'}
+                color={purchase.srcType === 'shop' ? 'info' : 'light'}
+                size="xs"
+                disabled={purchaseNumber > 0}
+                className="w-16"
+                onClick={() => setPurchase((prev) => ({ ...prev, srcType: 'shop', srcCode: '' }))}
+              >
+                社内
+              </Button>
+            </Flex>
             <Form.Date
-              value={toDateString(target.date, 'YYYY-MM-DD')}
+              value={toDateString(purchase.date.toDate(), 'YYYY-MM-DD')}
+              disabled={purchaseNumber > 0}
               onChange={(e) => {
                 const date = new Date(e.target.value);
-                setTarget((prev) => ({ ...prev, date }));
-                if (currentShop && e.target.value) {
-                  loadPurchaseDetails(currentShop.code, target.supplierCode, date);
-                }
+                setPurchase((prev) => ({ ...prev, date: Timestamp.fromDate(date) }));
               }}
             />
             <Select
-              value={selectValue(target.supplierCode, supplierOptions)}
-              options={supplierOptions}
+              value={selectValue(purchase.srcCode, 'supplier' ? supplierOptions : shopOptions)}
+              options={purchase.srcType === 'supplier' ? supplierOptions : shopOptions}
+              isDisabled={purchaseNumber > 0}
               onChange={(e) => {
-                setTarget((prev) => ({ ...prev, supplierCode: String(e?.value) }));
-                if (currentShop && e?.value) {
-                  loadPurchaseDetails(currentShop.code, String(e?.value), target.date);
-                }
+                const srcCode = String(e?.value);
+                setPurchase((prev) => ({ ...prev, srcCode, srcName: getSrcName(purchase.srcType, srcCode) ?? '' }));
               }}
               className="mb-3 sm:mb-0 w-72"
             />
-            <Button className="w-48">登録</Button>
-          </Form>
-          {messages.length > 0 && (
-            <Alert severity="error" onClose={() => setMessages([])}>
-              {messages.map((err, i) => (
-                <p key={i}>{err}</p>
-              ))}
-            </Alert>
-          )}
-          <hr className="m-4" />
-          <Form className="flex space-x-2 mb-2" onSubmit={handleSubmit}>
-            <Form.Text
-              value={currentItem.productCode}
-              onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
-              onKeyPress={loadProduct}
-              placeholder="商品コード"
-            />
-            <Form.Number
-              value={String(currentItem.quantity)}
-              placeholder="数量"
-              innerRef={quantityRef}
-              min={1}
-              onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
-              onKeyPress={blockEnter}
-              className="w-36"
-            />
-            <Form.Number
-              value={String(currentItem.costPrice)}
-              placeholder="金額"
-              onChange={(e) => setCurrentItem((prev) => ({ ...prev, costPrice: +e.target.value }))}
-              onKeyPress={blockEnter}
-              className="w-36"
-            />
-            <Button onClick={addItem}>確定</Button>
-          </Form>
+          </Flex>
           {errors.length > 0 && (
             <Alert severity="error" onClose={() => setErrors([])}>
               {errors.map((err, i) => (
@@ -304,6 +446,77 @@ const PurchaseMain: React.FC = () => {
               ))}
             </Alert>
           )}
+          <hr className="m-4" />
+          <Flex justify_content="between" className="mb-2">
+            <Form className="flex space-x-2" onSubmit={handleSubmit}>
+              <Form.Text
+                value={currentItem.productCode}
+                onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
+                onKeyPress={loadProduct}
+                placeholder="商品コード"
+              />
+              <Form.Number
+                value={String(currentItem.quantity)}
+                placeholder="数量"
+                innerRef={quantityRef}
+                min={1}
+                onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addItem();
+                  }
+                }}
+                className="w-36"
+              />
+              <Form.Number
+                value={String(currentItem.costPrice)}
+                placeholder="金額"
+                onChange={(e) => setCurrentItem((prev) => ({ ...prev, costPrice: +e.target.value }))}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addItem();
+                  }
+                }}
+                className="w-36"
+              />
+              <Button onClick={addItem}>追加</Button>
+            </Form>
+            <Button
+              className="w-32"
+              disabled={!purchase.srcCode || !existUnfixedItems() || sumItemQuantity() === 0 || processing}
+              onClick={() => {
+                if (window.confirm('確定しますか？')) {
+                  save();
+                }
+              }}
+            >
+              登録
+            </Button>
+          </Flex>
+          <Flex justify_content="between" className="my-2">
+            <Flex>
+              <div className="bold px-2">
+                商品種&nbsp;
+                <span className="text-2xl">{items.size}</span>
+              </div>
+              <div className="bold px-2">
+                商品数&nbsp;
+                <span className="text-2xl">{sumItemQuantity()}</span>
+              </div>
+              <div className="bold px-2">
+                金額&nbsp;
+                <span className="text-2xl">{sumItemCostPrice().toLocaleString()}</span>円
+              </div>
+            </Flex>
+            <div>
+              <span className="text-xl">
+                {nameWithCode({ code: purchase.srcCode, name: getSrcName(purchase.srcType, purchase.srcCode) ?? '' })}
+              </span>
+              行き
+            </div>
+          </Flex>
           <Table className="w-full">
             <Table.Head>
               <Table.Row>
@@ -316,7 +529,7 @@ const PurchaseMain: React.FC = () => {
               </Table.Row>
             </Table.Head>
             <Table.Body>
-              {items.map(
+              {getTargetItems().map(
                 (item, i) =>
                   !item.removed && (
                     <Table.Row key={i}>
@@ -326,45 +539,34 @@ const PurchaseMain: React.FC = () => {
                       <Table.Cell>{item.quantity}</Table.Cell>
                       <Table.Cell>{item.costPrice}</Table.Cell>
                       <Table.Cell>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300 "
-                          onClick={editPurchaseDetail(i)}
-                        >
-                          <Icon name="pencil-alt" />
-                        </Button>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300"
-                          onClick={removeItem(i)}
-                        >
-                          <Icon name="trash" />
-                        </Button>
+                        {!item.fixed && (
+                          <>
+                            <Button
+                              variant="icon"
+                              size="xs"
+                              color="none"
+                              className="hover:bg-gray-300 "
+                              onClick={() => setTargetProductCode(item.productCode)}
+                            >
+                              <Icon name="pencil-alt" />
+                            </Button>
+                            <Button
+                              variant="icon"
+                              size="xs"
+                              color="none"
+                              className="hover:bg-gray-300"
+                              onClick={removeItem(item.productCode)}
+                            >
+                              <Icon name="trash" />
+                            </Button>
+                          </>
+                        )}
                       </Table.Cell>
                     </Table.Row>
                   )
               )}
             </Table.Body>
           </Table>
-          {open && editIndex >= 0 && (
-            <PurchaseDetailEdit
-              open={open}
-              item={items[editIndex]}
-              onClose={() => {
-                setOpen(false);
-                setEditIndex(-1);
-              }}
-              setItem={(item: PurchaseDetail) => {
-                const newItems = [...items];
-                if (editIndex >= 0) newItems[editIndex] = item;
-                setItems(newItems);
-              }}
-            />
-          )}
         </Card>
       </div>
     </div>

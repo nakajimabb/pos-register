@@ -117,11 +117,14 @@ const PurchaseList: React.FC = () => {
                   <Table.Row key={i}>
                     <Table.Cell>{i + 1}</Table.Cell>
                     <Table.Cell>{date}</Table.Cell>
-                    <Table.Cell>{item.supplierName}</Table.Cell>
+                    <Table.Cell>{item.srcName}</Table.Cell>
                     <Table.Cell>
-                      <Link to={`/purchase_main?date=${date}&supplierCode=${item.supplierCode}`} className="mx-2">
+                      <Link
+                        to={`/purchase_edit?shopCode=${item.shopCode}&purchaseNumber=${item.purchaseNumber}`}
+                        className="mx-2"
+                      >
                         <Button color="light" size="sm">
-                          詳細
+                          編集
                         </Button>
                       </Link>
                     </Table.Cell>

@@ -1,5 +1,4 @@
 import { DocumentReference, Timestamp } from 'firebase/firestore';
-import { toDateString } from './tools';
 
 export type Shop = {
   code: string;
@@ -174,15 +173,18 @@ export type FixedCostRate = {
 
 // 仕入情報
 export type Purchase = {
+  purchaseNumber: number;   // 社内時 => purchaseNumber <=> deliveryNumber
   shopCode: string; // 店舗コード
-  srcShopCode: string; // 発送元店舗コード
-  supplierCode: string;
-  supplierName: string;
+  shopName: string; // 店舗名
+  srcType: 'supplier' | 'shop';
+  srcCode: string; // 仕入元店舗コード、または仕入コード
+  srcName: string; // 仕入元店舗名、または仕入先名称
   date: Timestamp; // 仕入日
+  fixed: boolean;
 };
 
-export const purchasePath = (data: { shopCode: string; date: Date; supplierCode: string }) =>
-  `shops/${data.shopCode}/purchases/${toDateString(data.date, 'YYYY-MM-DD')}|${data.supplierCode}`;
+export const purchasePath = (shopCode: string, purchaseyNumber: number) =>
+`shops/${shopCode}/purchases/${purchaseyNumber}`;
 
 // 仕入詳細情報
 export type PurchaseDetail = {
@@ -191,12 +193,11 @@ export type PurchaseDetail = {
   quantity: number;
   costPrice: number | null; // 原価(税抜)
   noReturn?: boolean; // 返品不可
+  fixed: boolean;
 };
 
-export const purchaseDetailPath = (data: { shopCode: string; date: Date; supplierCode: string; productCode: string }) =>
-  `shops/${data.shopCode}/purchases/${toDateString(data.date, 'YYYY-MM-DD')}|${data.supplierCode}/purchaseDetails/${
-    data.productCode
-  }`;
+export const purchaseDetailPath = (shopCode: string, purchaseyNumber: number, productCode: string) =>
+purchasePath(shopCode, purchaseyNumber) + '/purchaseDetails/' + productCode;
 
 // 出庫情報
 export type Delivery = {

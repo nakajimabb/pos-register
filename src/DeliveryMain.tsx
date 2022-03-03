@@ -173,7 +173,7 @@ const DeliveryMain: React.FC = () => {
     const newItems = new Map(items);
     const item = newItems.get(productCode);
     if (item) {
-      newItems.set(productCode, { ...item, removed: true });
+      newItems.set(productCode, { ...item, removed: true, quantity: 0, fixed: false });
       setItems(newItems);
     }
   };
@@ -209,12 +209,12 @@ const DeliveryMain: React.FC = () => {
   };
 
   const save = async (fixed: boolean) => {
-    if (delivery && shops) {
+    if (shops) {
       try {
         if (sumItemCostPrice() < MIN_SUM_COST_PRICE)
           throw Error(`金額が${MIN_SUM_COST_PRICE}円以上でければ確定できません。`);
-        const deliv = { ...delivery, fixed };
         setProcessing(true);
+        const deliv = { ...delivery, fixed };
         await runTransaction(db, async (transaction) => {
           // get existing Data
           const details = new Map<string, DeliveryDetail>();
@@ -246,6 +246,7 @@ const DeliveryMain: React.FC = () => {
             const result = await httpsCallable(functions, 'getSequence')({ docId: 'purchases' });
             if (Number(result.data) > 0) {
               deliv.deliveryNumber = Number(result.data);
+              setDelivery(deliv);
             } else {
               throw Error('不正な出庫番号。');
             }
@@ -255,7 +256,6 @@ const DeliveryMain: React.FC = () => {
 
           // remove DeliveryDetail
           const removedItems = getRemovedItems();
-
           removedItems.forEach((item) => {
             const ref2 = doc(db, deliveryDetailPath(deliv.shopCode, deliv.deliveryNumber, item.productCode));
             const detail = details.get(item.productCode);
@@ -417,7 +417,9 @@ const DeliveryMain: React.FC = () => {
               </Button>
               <Button
                 className="w-32"
-                disabled={!delivery.dstShopCode || !existUnfixedItems() || sumItemCostPrice() < 0 || processing}
+                disabled={
+                  !delivery.dstShopCode || !existUnfixedItems() || sumItemCostPrice() < MIN_SUM_COST_PRICE || processing
+                }
                 onClick={() => {
                   if (window.confirm('確定しますか？')) {
                     save(true);

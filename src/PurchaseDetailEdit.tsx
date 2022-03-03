@@ -1,35 +1,36 @@
 import React, { useState } from 'react';
 
 import { Alert, Button, Form, Grid, Modal } from './components';
-import firebaseError from './firebaseError';
 import { PurchaseDetail } from './types';
 
 type Props = {
   open: boolean;
-  item: PurchaseDetail;
+  value: PurchaseDetail | undefined;
   onClose: () => void;
-  setItem: (item: PurchaseDetail) => void;
+  onUpdate: (deliveryDetail: PurchaseDetail) => void;
 };
 
-const PurchaseDetailEdit: React.FC<Props> = ({ open, item, onClose, setItem }) => {
-  const [purchaseDetail, setPurchaseDetail] = useState<PurchaseDetail>(item);
+const PurchaseDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }) => {
+  const [purchaseDetail, setPurchaseDetail] = useState<PurchaseDetail>(
+    value || {
+      productCode: '',
+      productName: '',
+      quantity: 0,
+      costPrice: null,
+      fixed: false,
+    }
+  );
   const [error, setError] = useState('');
 
-  const update = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    try {
-      setItem(purchaseDetail);
-      onClose();
-    } catch (error) {
-      console.log({ error });
-      setError(firebaseError(error));
-    }
+    onUpdate(purchaseDetail);
+    onClose();
   };
 
   return (
     <Modal open={open} size="md" onClose={onClose}>
-      <Form onSubmit={update} className="space-y-2">
+      <Form onSubmit={submit} className="space-y-2">
         <Modal.Header centered={false} onClose={onClose}>
           仕入編集
         </Modal.Header>

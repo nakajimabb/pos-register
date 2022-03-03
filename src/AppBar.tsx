@@ -97,7 +97,7 @@ const AppBar: React.FC = () => {
           align="left"
           className="mx-2"
         >
-          <Dropdown.Item title="仕入処理" to="/purchase_main" />
+          <Dropdown.Item title="仕入処理" to="/purchase_new" />
           <Dropdown.Item title="仕入一覧" to="/purchase_list" />
         </Dropdown>
         <Dropdown

@@ -22,7 +22,8 @@ import ProductBundleList from './ProductBundleList';
 import ProductBundleEdit from './ProductBundleEdit';
 import ProductBulkList from './ProductBulkList';
 import ProductBulkEdit from './ProductBulkEdit';
-import PurchaseMain from './PurchaseMain';
+import PurchaseNew from './PurchaseNew';
+import PurchaseEdit from './PurchaseEdit';
 import PurchaseList from './PurchaseList';
 import DeliveryMain from './DeliveryMain';
 import DeliveryList from './DeliveryList';
@@ -64,7 +65,8 @@ const App: React.FC = () => {
           <Route exact path="/product_bulk_list" component={ProductBulkList} />
           <Route exact path="/product_bulk_edit" component={ProductBulkEdit} />
           <Route path="/product_bulk_edit/:id" component={ProductBulkEdit} />
-          <Route path="/purchase_main" component={PurchaseMain} />
+          <Route path="/purchase_new" component={PurchaseNew} />
+          <Route path="/purchase_edit" component={PurchaseEdit} />
           <Route path="/purchase_list" component={PurchaseList} />
           <Route path="/delivery_main" component={DeliveryMain} />
           <Route path="/delivery_list" component={DeliveryList} />
