@@ -45,18 +45,20 @@ const DailyCashReport: React.FC = () => {
       reportItemsData['customerAmountTotal'] = 0;
       reportItemsData['discountCountTotal'] = 0;
       reportItemsData['discountAmountTotal'] = 0;
-      reportItemsData['returnCashCountTotal'] = 0;
-      reportItemsData['returnCashAmountTotal'] = 0;
-      reportItemsData['returnCreditCountTotal'] = 0;
-      reportItemsData['returnCreditAmountTotal'] = 0;
+      reportItemsData['returnCountTotal'] = 0;
+      reportItemsData['returnAmountTotal'] = 0;
       reportItemsData['inclusivePriceNormalTotal'] = 0;
       reportItemsData['inclusiveTaxNormalTotal'] = 0;
-      reportItemsData['exclusivePriceNormalTotal'] = 0;
-      reportItemsData['exclusiveTaxNormalTotal'] = 0;
       reportItemsData['inclusivePriceReducedTotal'] = 0;
       reportItemsData['inclusiveTaxReducedTotal'] = 0;
+      reportItemsData['exclusivePriceNormalTotal'] = 0;
+      reportItemsData['exclusiveTaxNormalTotal'] = 0;
       reportItemsData['exclusivePriceReducedTotal'] = 0;
       reportItemsData['exclusiveTaxReducedTotal'] = 0;
+      reportItemsData['exclusiveTaxNormalCashTotal'] = 0;
+      reportItemsData['exclusiveTaxReducedCashTotal'] = 0;
+      reportItemsData['exclusiveTaxNormalCreditTotal'] = 0;
+      reportItemsData['exclusiveTaxReducedCreditTotal'] = 0;
       reportItemsData['priceTaxFreeTotal'] = 0;
       Object.keys(Divisions).forEach((division) => {
         reportItemsData[`division${division}CountTotal`] = 0;
@@ -72,74 +74,95 @@ const DailyCashReport: React.FC = () => {
       await Promise.all(
         querySnapshot.docs.map(async (doc) => {
           const sale = doc.data() as Sale;
-          if (sale.status === 'Sales') {
-            reportItemsData['customerCountTotal'] += 1;
-            if (sale.paymentType === 'Cash') {
-              reportItemsData['cashCountTotal'] += 1;
-            } else if (sale.paymentType === 'Credit') {
-              reportItemsData['creditCountTotal'] += 1;
-            }
-            if (sale.discountTotal > 0) {
-              reportItemsData['discountCountTotal'] += 1;
-              reportItemsData['discountAmountTotal'] += sale.discountTotal;
-            }
 
-            const detailsSnapshot = await getDocs(collection(db, 'sales', doc.id, 'saleDetails'));
-            detailsSnapshot.docs.forEach((detailDoc) => {
-              const detail = detailDoc.data() as SaleDetail;
-              reportItemsData['customerAmountTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
-              if (sale.paymentType === 'Cash') {
-                reportItemsData['cashAmountTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
-              } else if (sale.paymentType === 'Credit') {
-                reportItemsData['creditAmountTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
-              }
-              reportItemsData['detailsCountTotal'] += 1;
-              reportItemsData[`division${detail.division}CountTotal`] += 1;
-              reportItemsData[`division${detail.division}AmountTotal`] +=
-                Number(detail.product.sellingPrice) * detail.quantity + detail.discount;
-              if (detail.discount > 0) {
-                reportItemsData[`division${detail.division}DiscountCountTotal`] += 1;
-                reportItemsData[`division${detail.division}DiscountAmountTotal`] += detail.discount;
-              }
-              if (detail.product.sellingTaxClass === 'exclusive') {
-                if (detail.product.sellingTax === 10) {
-                  reportItemsData['exclusivePriceNormalTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
-                } else if (detail.product.sellingTax === 8) {
-                  reportItemsData['exclusivePriceReducedTotal'] +=
-                    Number(detail.product.sellingPrice) * detail.quantity;
-                }
-              } else if (detail.product.sellingTaxClass === 'inclusive') {
-                if (detail.product.sellingTax === 10) {
-                  reportItemsData['inclusivePriceNormalTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
-                } else if (detail.product.sellingTax === 8) {
-                  reportItemsData['inclusivePriceReducedTotal'] +=
-                    Number(detail.product.sellingPrice) * detail.quantity;
-                }
-              } else {
-                reportItemsData['priceTaxFreeTotal'] += Number(detail.product.sellingPrice) * detail.quantity;
-              }
-            });
-          } else if (sale.status === 'Return') {
-            if (sale.paymentType === 'Cash') {
-              reportItemsData['returnCashCountTotal'] += 1;
-              reportItemsData['returnCashAmountTotal'] += sale.salesTotal;
-            } else if (sale.paymentType === 'Credit') {
-              reportItemsData['returnCreditCountTotal'] += 1;
-              reportItemsData['returnCreditAmountTotal'] += sale.salesTotal;
-            }
+          const registerSign = sale.status === 'Return' ? -1 : 1;
+
+          let exclusivePriceNormalTotal = 0;
+          let exclusivePriceReducedTotal = 0;
+          let inclusivePriceNormalTotal = 0;
+          let inclusivePriceReducedTotal = 0;
+          let priceTaxFreeTotal = 0;
+
+          reportItemsData['customerCountTotal'] += 1;
+
+          if (sale.status === 'Return') {
+            reportItemsData['returnCountTotal'] += 1;
           }
-          reportItemsData['exclusiveTaxNormalTotal'] = Math.floor(
-            (reportItemsData['exclusivePriceNormalTotal'] * 10) / 100
-          );
-          reportItemsData['exclusiveTaxReducedTotal'] = Math.floor(
-            (reportItemsData['exclusivePriceReducedTotal'] * 8) / 100
-          );
-          reportItemsData['inclusiveTaxNormalTotal'] = Math.floor(
-            (reportItemsData['inclusivePriceNormalTotal'] * 10) / (100 + 10)
-          );
-          reportItemsData['inclusiveTaxReducedTotal'] = Math.floor(
-            (reportItemsData['inclusivePriceReducedTotal'] * 8) / (100 + 8)
-          );
+
+          if (sale.paymentType === 'Cash') {
+            reportItemsData['cashCountTotal'] += 1;
+          } else if (sale.paymentType === 'Credit') {
+            reportItemsData['creditCountTotal'] += 1;
+          }
+
+          if (sale.discountTotal > 0) {
+            reportItemsData['discountCountTotal'] += 1;
+            reportItemsData['discountAmountTotal'] += sale.discountTotal;
+          }
+
+          const detailsSnapshot = await getDocs(collection(db, 'sales', doc.id, 'saleDetails'));
+          detailsSnapshot.docs.forEach((detailDoc) => {
+            const detail = detailDoc.data() as SaleDetail;
+            const amount = Number(detail.product.sellingPrice) * detail.quantity * registerSign;
+            reportItemsData['customerAmountTotal'] += amount;
+            if (sale.paymentType === 'Cash') {
+              reportItemsData['cashAmountTotal'] += amount;
+            } else if (sale.paymentType === 'Credit') {
+              reportItemsData['creditAmountTotal'] += amount;
+            }
+            reportItemsData['detailsCountTotal'] += 1;
+            reportItemsData[`division${detail.division}CountTotal`] += 1;
+            reportItemsData[`division${detail.division}AmountTotal`] += amount + detail.discount * registerSign;
+            if (detail.discount !== 0) {
+              reportItemsData[`division${detail.division}DiscountCountTotal`] += 1;
+              reportItemsData[`division${detail.division}DiscountAmountTotal`] += detail.discount * registerSign;
+            }
+            if (detail.product.sellingTaxClass === 'exclusive') {
+              if (detail.product.sellingTax === 10) {
+                exclusivePriceNormalTotal += amount;
+              } else if (detail.product.sellingTax === 8) {
+                exclusivePriceReducedTotal += amount;
+              }
+            } else if (detail.product.sellingTaxClass === 'inclusive') {
+              if (detail.product.sellingTax === 10) {
+                inclusivePriceNormalTotal += amount;
+              } else if (detail.product.sellingTax === 8) {
+                inclusivePriceReducedTotal += amount;
+              }
+            } else {
+              priceTaxFreeTotal += amount;
+            }
+          });
+
+          reportItemsData['exclusivePriceNormalTotal'] += exclusivePriceNormalTotal;
+          reportItemsData['exclusivePriceReducedTotal'] += exclusivePriceReducedTotal;
+          reportItemsData['inclusivePriceNormalTotal'] += inclusivePriceNormalTotal;
+          reportItemsData['inclusivePriceReducedTotal'] += inclusivePriceReducedTotal;
+          reportItemsData['priceTaxFreeTotal'] += priceTaxFreeTotal;
+          reportItemsData['exclusiveTaxNormalTotal'] += Math.floor((exclusivePriceNormalTotal * 10) / 100);
+          reportItemsData['exclusiveTaxReducedTotal'] += Math.floor((exclusivePriceReducedTotal * 8) / 100);
+          reportItemsData['inclusiveTaxNormalTotal'] += Math.floor((inclusivePriceNormalTotal * 10) / (100 + 10));
+          reportItemsData['inclusiveTaxReducedTotal'] += Math.floor((inclusivePriceReducedTotal * 8) / (100 + 8));
+          if (sale.paymentType === 'Cash') {
+            reportItemsData['exclusiveTaxNormalCashTotal'] += Math.floor((exclusivePriceNormalTotal * 10) / 100);
+            reportItemsData['exclusiveTaxReducedCashTotal'] += Math.floor((exclusivePriceReducedTotal * 8) / 100);
+          } else if (sale.paymentType === 'Credit') {
+            reportItemsData['exclusiveTaxNormalCreditTotal'] += Math.floor((exclusivePriceNormalTotal * 10) / 100);
+            reportItemsData['exclusiveTaxReducedCreditTotal'] += Math.floor((exclusivePriceReducedTotal * 8) / 100);
+          }
+
+          if (sale.status === 'Return') {
+            reportItemsData['returnAmountTotal'] +=
+              exclusivePriceNormalTotal +
+              exclusivePriceReducedTotal +
+              inclusivePriceNormalTotal +
+              inclusivePriceReducedTotal +
+              priceTaxFreeTotal +
+              Math.floor((exclusivePriceNormalTotal * 10) / 100) +
+              Math.floor((exclusivePriceReducedTotal * 8) / 100) +
+              Math.floor((inclusivePriceNormalTotal * 10) / (100 + 10)) +
+              Math.floor((inclusivePriceReducedTotal * 8) / (100 + 8));
+          }
         })
       );
       Object.keys(Divisions).forEach((division) => {
@@ -219,9 +242,7 @@ const DailyCashReport: React.FC = () => {
                       {`¥${(
                         reportItems['customerAmountTotal'] +
                         reportItems['exclusiveTaxNormalTotal'] +
-                        reportItems['exclusiveTaxReducedTotal'] +
-                        reportItems['returnCashAmountTotal'] +
-                        reportItems['returnCreditAmountTotal']
+                        reportItems['exclusiveTaxReducedTotal']
                       )?.toLocaleString()}`}
                     </Table.Cell>
                   </Table.Row>
@@ -229,9 +250,7 @@ const DailyCashReport: React.FC = () => {
                     <Table.Cell className="w-2/3">純売税抜き</Table.Cell>
                     <Table.Cell className="text-right w-1/3">
                       {`¥${(
-                        reportItems['customerAmountTotal'] +
-                        reportItems['returnCashAmountTotal'] +
-                        reportItems['returnCreditAmountTotal'] -
+                        reportItems['customerAmountTotal'] -
                         reportItems['inclusiveTaxNormalTotal'] -
                         reportItems['inclusiveTaxReducedTotal']
                       )?.toLocaleString()}`}
@@ -240,14 +259,20 @@ const DailyCashReport: React.FC = () => {
                   <Table.Row>
                     <Table.Cell className="w-2/3">現金在高</Table.Cell>
                     <Table.Cell className="text-right w-1/3">
-                      {`¥${(reportItems['cashAmountTotal'] + reportItems['returnCashAmountTotal'])?.toLocaleString()}`}
+                      {`¥${(
+                        reportItems['cashAmountTotal'] +
+                        reportItems['exclusiveTaxNormalCashTotal'] +
+                        reportItems['exclusiveTaxReducedCashTotal']
+                      )?.toLocaleString()}`}
                     </Table.Cell>
                   </Table.Row>
                   <Table.Row>
                     <Table.Cell className="w-2/3">クレジット在高</Table.Cell>
                     <Table.Cell className="text-right w-1/3">
                       {`¥${(
-                        reportItems['creditAmountTotal'] + reportItems['returnCreditAmountTotal']
+                        reportItems['creditAmountTotal'] +
+                        reportItems['exclusiveTaxNormalCreditTotal'] +
+                        reportItems['exclusiveTaxReducedCreditTotal']
                       )?.toLocaleString()}`}
                     </Table.Cell>
                   </Table.Row>
@@ -282,17 +307,13 @@ const DailyCashReport: React.FC = () => {
                   <Table.Row>
                     <Table.Cell className="w-2/3">戻回数</Table.Cell>
                     <Table.Cell className="text-right w-1/3">
-                      {`${(
-                        reportItems['returnCashCountTotal'] + reportItems['returnCreditCountTotal']
-                      )?.toLocaleString()}`}
+                      {`${reportItems['returnCountTotal']?.toLocaleString()}`}
                     </Table.Cell>
                   </Table.Row>
                   <Table.Row>
                     <Table.Cell className="w-2/3">戻金額</Table.Cell>
                     <Table.Cell className="text-right w-1/3">
-                      {`¥${(
-                        reportItems['returnCashAmountTotal'] + reportItems['returnCreditAmountTotal']
-                      )?.toLocaleString()}`}
+                      {`¥${reportItems['returnAmountTotal']?.toLocaleString()}`}
                     </Table.Cell>
                   </Table.Row>
                   <Table.Row>
@@ -372,7 +393,11 @@ const DailyCashReport: React.FC = () => {
                   <Table.Row>
                     <Table.Cell className="w-2/3">　金額</Table.Cell>
                     <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['cashAmountTotal']?.toLocaleString()}`}
+                      {`¥${(
+                        reportItems['cashAmountTotal'] +
+                        reportItems['exclusiveTaxNormalCashTotal'] +
+                        reportItems['exclusiveTaxReducedCashTotal']
+                      )?.toLocaleString()}`}
                     </Table.Cell>
                   </Table.Row>
                   <Table.Row>
@@ -388,7 +413,11 @@ const DailyCashReport: React.FC = () => {
                   <Table.Row>
                     <Table.Cell className="w-2/3">　金額</Table.Cell>
                     <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['creditAmountTotal']?.toLocaleString()}`}
+                      {`¥${(
+                        reportItems['creditAmountTotal'] +
+                        reportItems['exclusiveTaxNormalCreditTotal'] +
+                        reportItems['exclusiveTaxReducedCreditTotal']
+                      )?.toLocaleString()}`}
                     </Table.Cell>
                   </Table.Row>
                   <Table.Row>
@@ -399,7 +428,7 @@ const DailyCashReport: React.FC = () => {
               </Table>
 
               {Object.entries(Divisions)
-                .filter((division) => reportItems[`division${division[0]}CountTotal`] > 0)
+                .filter((division) => reportItems[`division${division[0]}CountTotal`] !== 0)
                 .map((division, index) => (
                   <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none" key={index}>
                     <Table.Body>
