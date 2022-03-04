@@ -10,6 +10,7 @@ import {
   DocumentSnapshot,
   increment,
   query,
+  Query,
   QuerySnapshot,
   runTransaction,
   serverTimestamp,
@@ -33,6 +34,8 @@ import {
   CLASS_DELIV,
   Purchase,
   Stock,
+  Delivery,
+  DeliveryDetail,
 } from './types';
 
 const db = getFirestore();
@@ -190,23 +193,6 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
     }
   };
 
-  const blockEnter = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-    }
-  };
-
-  const parseBarcode = async (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const deliveryNumber = Number(barcode.slice(0, 9));
-      const q = query(collectionGroup(db, 'deliveries'), where('deliveryNumber', '==', deliveryNumber));
-      const snap = await getDocs(q);
-      const items = snap.docs.map((item) => item.data());
-      console.log({ items });
-    }
-  };
-
   const loadProduct = async (e: React.KeyboardEvent) => {
     if (currentItem.productCode && e.key === 'Enter') {
       e.preventDefault();
@@ -348,14 +334,66 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
     }
   };
 
-  const readBarcode = () => {
-    const barcode = window.prompt('バーコード入力');
-    if (barcode) {
-      const value = getBarcodeValue(String(barcode), CLASS_DELIV);
-      if (value) {
-        alert(value);
-      } else {
-        alert('不正なバーコードです。');
+  const parseBarcode = async (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const deliveryNumber = Number(barcode.slice(0, 9));
+      const q = query(collectionGroup(db, 'deliveries'), where('deliveryNumber', '==', deliveryNumber));
+      const snap = await getDocs(q);
+      const items = snap.docs.map((item) => item.data());
+      console.log({ items });
+    }
+  };
+
+  const loadDelivery = async (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (shopCode && shops) {
+        try {
+          const value = getBarcodeValue(String(barcode), CLASS_DELIV);
+          const deliveryNumber = value ? +value : +barcode;
+          if (isNaN(deliveryNumber)) {
+            throw Error(`不正な出庫番号です。`);
+          } else {
+            const q = query(
+              collectionGroup(db, 'deliveries'),
+              where('deliveryNumber', '==', deliveryNumber)
+            ) as Query<Delivery>;
+            const snap = await getDocs(q);
+            const deliv = snap.docs.length > 0 ? snap.docs[0].data() : null;
+            if (deliv) {
+              if (deliv.dstShopCode !== shopCode)
+                throw Error(`指定された出庫情報の宛先は${shops[shopCode]?.name}に指定されていません。`);
+              setPurchase((prev) => ({
+                ...prev,
+                purchaseNumber: deliveryNumber,
+                date: deliv.date,
+                srcCode: deliv.shopCode,
+                srcName: deliv.shopName,
+              }));
+              const detailPath = snap.docs[0].ref.path + '/deliveryDetails';
+              const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<DeliveryDetail>;
+              const newItems = new Map<string, PurchaseDetail>();
+              qSnap.docs.forEach((docSnap) => {
+                const item = docSnap.data();
+                newItems.set(item.productCode, {
+                  productCode: item.productCode,
+                  productName: item.productName,
+                  costPrice: item.costPrice,
+                  quantity: item.quantity,
+                  fixed: false,
+                });
+              });
+              setItems(newItems);
+              setBarcode('');
+            } else {
+              setErrors((prev) => [...prev, '指定された出庫番号のデータが存在しません。']);
+            }
+          }
+        } catch (error) {
+          console.log({ error });
+          alert(firebaseError(error));
+        }
       }
     }
   };
@@ -439,7 +477,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
               }}
             />
             <Select
-              value={selectValue(purchase.srcCode, 'supplier' ? supplierOptions : shopOptions)}
+              value={selectValue(purchase.srcCode, purchase.srcType === 'supplier' ? supplierOptions : shopOptions)}
               options={purchase.srcType === 'supplier' ? supplierOptions : shopOptions}
               isDisabled={purchaseNumber > 0}
               onChange={(e) => {
@@ -448,6 +486,14 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
               }}
               className="mb-3 sm:mb-0 w-72"
             />
+            {purchase.srcType === 'shop' && (
+              <Form.Text
+                value={barcode}
+                onChange={(e) => setBarcode(String(e.target.value))}
+                onKeyPress={loadDelivery}
+                placeholder="ﾊﾞｰｺｰﾄﾞ読取 or 出庫番号"
+              />
+            )}
           </Flex>
           {errors.length > 0 && (
             <Alert severity="error" onClose={() => setErrors([])}>
