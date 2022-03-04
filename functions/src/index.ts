@@ -204,3 +204,24 @@ export const updateSupplierCounts = functions
       return countsRef.update({ lastUpdatedAt: FieldValue.serverTimestamp() });
     }
   });
+
+export const createAccount = functions
+  .runWith({ timeoutSeconds: 300 })
+  .region('asia-northeast1')
+  .https.onCall(async (data) => {
+    const f = async () => {
+      try {
+        const email = emailFromUserCode(data.uid);
+        const userParams = {
+          email,
+          disabled: false,
+          password: 'password',
+        };
+        const userRecord = await auth.createUser(userParams);
+        return { userRecord };
+      } catch (error) {
+        throw new functions.https.HttpsError('unknown', 'error in createAccount', error);
+      }
+    };
+    return await f();
+  });

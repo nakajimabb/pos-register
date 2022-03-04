@@ -41,13 +41,11 @@ export const httpsErrorMessage = (error: any): string | undefined => {
 
 // Admin Authentication API エラー
 // https://firebase.google.com/docs/auth/admin/errors?hl=ja
-export const adminAuthenticationAPIMessage = (
-  error: any
-): string | undefined => {
+export const adminAuthenticationAPIMessage = (error: any): string | undefined => {
   switch (error.code) {
     case 'auth/email-already-exists':
-      // メールアドレス => 社員番号
-      return '指定された社員番号はすでに既存のユーザーによって使用されています。';
+      // メールアドレス => 店舗番号
+      return '指定されたUIDはすでに既存のユーザーによって使用されています。';
     case 'auth/id-token-expired':
       return '指定された Firebase ID トークンは期限切れです。';
     case 'auth/id-token-revoked':

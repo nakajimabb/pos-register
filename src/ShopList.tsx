@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   collection,
+  doc,
   query,
   getDocs,
   getFirestore,
@@ -11,6 +12,7 @@ import {
   endBefore,
   startAt,
   endAt,
+  setDoc,
   QueryConstraint,
   QuerySnapshot,
 } from 'firebase/firestore';
@@ -118,6 +120,27 @@ const ShopList: React.FC = () => {
     }
   };
 
+  const createAccount = (shopCode: string) => async () => {
+    if (window.confirm('ログインアカウントを作成しますか？')) {
+      try {
+        setLoading(true);
+        const functions = getFunctions(app, 'asia-northeast1');
+        const result = await httpsCallable(functions, 'createAccount')({ uid: shopCode });
+        console.log({ result });
+
+        const ref = doc(db, 'shops', shopCode);
+        setDoc(ref, { role: 'shop' }, { merge: true });
+
+        setLoading(false);
+        alert('アカウントを作成しました。');
+      } catch (error) {
+        console.log({ error });
+        setError(firebaseError(error));
+        setLoading(false);
+      }
+    }
+  };
+
   return (
     <div className="pt-12">
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">店舗一覧</h1>
@@ -177,6 +200,8 @@ const ShopList: React.FC = () => {
                 <Table.Cell type="th">TEL</Table.Cell>
                 <Table.Cell type="th">郵便番号</Table.Cell>
                 <Table.Cell type="th">都道府県</Table.Cell>
+                <Table.Cell type="th">ﾛｸﾞｲﾝ</Table.Cell>
+                <Table.Cell type="th"></Table.Cell>
               </Table.Row>
             </Table.Head>
             <Table.Body>
@@ -192,6 +217,20 @@ const ShopList: React.FC = () => {
                       <Table.Cell>{shop.tel}</Table.Cell>
                       <Table.Cell>{shop.zip}</Table.Cell>
                       <Table.Cell>{prefectureName(shop.prefecture)}</Table.Cell>
+                      <Table.Cell className="text-center">{shop.role ? '○' : '×'}</Table.Cell>
+                      <Table.Cell>
+                        {!shop.role && (
+                          <Button
+                            color="primary"
+                            size="xs"
+                            className="mr-2"
+                            disabled={loading}
+                            onClick={createAccount(shop.code)}
+                          >
+                            ｱｶｳﾝﾄ
+                          </Button>
+                        )}
+                      </Table.Cell>
                     </Table.Row>
                   );
                 })}

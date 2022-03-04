@@ -15,6 +15,7 @@ export type Shop = {
   buildingName: string;
   tel: string;
   fax: string;
+  role?: | 'shop' | 'manager' | 'admin';
 };
 
 export type TaxClass = 'exclusive' | 'inclusive' | 'free'; // 外税、内税、非課税
