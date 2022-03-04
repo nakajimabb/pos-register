@@ -134,7 +134,7 @@ const DeliveryList: React.FC = () => {
                     <Table.Cell>{item.fixed ? '確定済' : '保留'}</Table.Cell>
                     <Table.Cell>
                       <Link
-                        to={`/delivery_main?shopCode=${item.shopCode}&deliveryNumber=${item.deliveryNumber}`}
+                        to={`/delivery_edit?shopCode=${item.shopCode}&deliveryNumber=${item.deliveryNumber}`}
                         className="mx-1"
                       >
                         <Button color="light" size="sm">

@@ -25,7 +25,8 @@ import ProductBulkEdit from './ProductBulkEdit';
 import PurchaseNew from './PurchaseNew';
 import PurchaseEdit from './PurchaseEdit';
 import PurchaseList from './PurchaseList';
-import DeliveryMain from './DeliveryMain';
+import DeliveryNew from './DeliveryNew';
+import DeliveryEdit from './DeliveryEdit';
 import DeliveryList from './DeliveryList';
 import DailyCashReport from './DailyCashReport';
 
@@ -68,7 +69,8 @@ const App: React.FC = () => {
           <Route path="/purchase_new" component={PurchaseNew} />
           <Route path="/purchase_edit" component={PurchaseEdit} />
           <Route path="/purchase_list" component={PurchaseList} />
-          <Route path="/delivery_main" component={DeliveryMain} />
+          <Route path="/delivery_new" component={DeliveryNew} />
+          <Route path="/delivery_edit" component={DeliveryEdit} />
           <Route path="/delivery_list" component={DeliveryList} />
           <Route exact path="/tailwind" component={Tailwind} />
         </Router>

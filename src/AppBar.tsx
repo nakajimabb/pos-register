@@ -110,7 +110,7 @@ const AppBar: React.FC = () => {
           align="left"
           className="mx-2"
         >
-          <Dropdown.Item title="出庫処理" to="/delivery_main" />
+          <Dropdown.Item title="出庫処理" to="/delivery_new" />
           <Dropdown.Item title="出庫一覧" to="/delivery_list" />
         </Dropdown>
         <Dropdown

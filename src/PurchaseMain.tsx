@@ -127,19 +127,24 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
   };
 
   const loadPurchaseDetails = async (shopCode: string, purchaseNumber: number) => {
-    if (shopCode && purchaseNumber && shops && suppliers) {
-      const purchPath = purchasePath(shopCode, purchaseNumber);
-      const snap = (await getDoc(doc(db, purchPath))) as DocumentSnapshot<Purchase>;
-      const purch = snap.data();
-      if (purch) {
-        setPurchase(purch);
-        const detailPath = purchPath + '/purchaseDetails';
-        const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
-        const newItems = new Map<string, Item>();
-        qSnap.docs.forEach((docSnap) => {
-          newItems.set(docSnap.id, docSnap.data());
-        });
-        setItems(newItems);
+    if (shopCode && purchaseNumber > 0) {
+      try {
+        const purchPath = purchasePath(shopCode, purchaseNumber);
+        const snap = (await getDoc(doc(db, purchPath))) as DocumentSnapshot<Purchase>;
+        const purch = snap.data();
+        if (purch) {
+          setPurchase(purch);
+          const detailPath = purchPath + '/purchaseDetails';
+          const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
+          const newItems = new Map<string, Item>();
+          qSnap.docs.forEach((docSnap) => {
+            newItems.set(docSnap.id, docSnap.data());
+          });
+          setItems(newItems);
+        }
+      } catch (error) {
+        console.log({ error });
+        alert(firebaseError(error));
       }
     }
   };
@@ -209,6 +214,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
       if (shopCode) {
         if (!purchase.date) setErrors((prev) => [...prev, '日付を指定してください。']);
         if (!purchase.srcCode) setErrors((prev) => [...prev, '仕入先を指定してください。']);
+
         let costPrice: number | null = null;
         if (purchase.srcType === 'supplier') {
           const snap = (await getDoc(
@@ -295,6 +301,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
           for await (const item of unfixedItems) {
             const detail = details.get(item.productCode);
             const ref2 = doc(db, purchaseDetailPath(purch.shopCode, purch.purchaseNumber, item.productCode));
+            // 詳細データ更新
             if (item.quantity === 0) {
               transaction.delete(ref2);
             } else {
@@ -306,6 +313,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
                 fixed: true,
               });
             }
+            // 在庫更新
             const diff = detail ? item.quantity - detail.quantity : item.quantity;
             const stockRef = doc(db, 'shops', purch.shopCode, 'stocks', item.productCode);
             if (notFoundStockCodes.has(item.productCode)) {
@@ -314,6 +322,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
                 productCode: item.productCode,
                 productName: item.productName,
                 quantity: diff,
+                updatedAt: serverTimestamp(),
               });
             } else {
               if (diff !== 0) {
@@ -322,6 +331,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
                   productCode: item.productCode,
                   productName: item.productName,
                   quantity: increment(diff),
+                  updatedAt: serverTimestamp(),
                 });
               }
             }
@@ -364,20 +374,20 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
     return Array.from(items.values()).filter((item) => !item.removed);
   };
 
-  const sumItemQuantity = () => {
-    return getTargetItems().reduce((acc, item) => acc + item.quantity, 0);
-  };
-
-  const sumItemCostPrice = () => {
-    return getTargetItems().reduce((acc, item) => acc + item.quantity * Number(item.costPrice), 0);
+  const getUnfixedItems = () => {
+    return Array.from(items.values()).filter((item) => !item.fixed);
   };
 
   const existUnfixedItems = () => {
     return Array.from(items.values()).some((item) => !item.fixed);
   };
 
-  const getUnfixedItems = () => {
-    return Array.from(items.values()).filter((item) => !item.fixed);
+  const sumItemQuantity = () => {
+    return getTargetItems().reduce((acc, item) => acc + item.quantity, 0);
+  };
+
+  const sumItemCostPrice = () => {
+    return getTargetItems().reduce((acc, item) => acc + item.quantity * Number(item.costPrice), 0);
   };
 
   return (

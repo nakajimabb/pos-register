@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Select from 'react-select';
-import { useLocation } from 'react-router-dom';
 import {
   getFirestore,
   doc,
@@ -27,7 +26,12 @@ const db = getFirestore();
 type Item = DeliveryDetail & { removed?: boolean };
 const MIN_SUM_COST_PRICE = 5000;
 
-const DeliveryMain: React.FC = () => {
+type Props = {
+  shopCode: string;
+  deliveryNumber?: number;
+};
+
+const DeliveryMain: React.FC<Props> = ({ shopCode, deliveryNumber = -1 }) => {
   const [currentItem, setCurrentItem] = useState<{
     productCode: string;
     quantity: number | null;
@@ -37,8 +41,8 @@ const DeliveryMain: React.FC = () => {
   });
   const [items, setItems] = useState<Map<string, Item>>(new Map());
   const [delivery, setDelivery] = useState<Delivery>({
-    deliveryNumber: -1,
-    shopCode: '',
+    shopCode,
+    deliveryNumber: deliveryNumber ?? -1,
     shopName: '',
     dstShopCode: '',
     dstShopName: '',
@@ -49,28 +53,18 @@ const DeliveryMain: React.FC = () => {
   const [errors, setErrors] = useState<string[]>([]);
   const [targetProductCode, setTargetProductCode] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
-  const { registListner, shops, currentShop } = useAppContext();
+  const { registListner, shops } = useAppContext();
   const quantityRef = useRef<HTMLInputElement>(null);
-  const params = useLocation().search;
 
   useEffect(() => {
     registListner('shops');
   }, []);
 
   useEffect(() => {
-    const query = new URLSearchParams(params);
-    const shopCode = query.get('shopCode');
-    const deliveryNumber = query.get('deliveryNumber');
-    if (shopCode && deliveryNumber) {
+    if (shopCode && deliveryNumber > 0) {
       loadDeliveryDetails(shopCode, +deliveryNumber);
     }
-  }, [params]);
-
-  useEffect(() => {
-    if (currentShop) {
-      setDelivery((prev) => ({ ...prev, shopCode: currentShop.code, shopName: currentShop.name }));
-    }
-  }, [currentShop]);
+  }, [shopCode, deliveryNumber]);
 
   useEffect(() => {
     setErrors([]);
@@ -85,6 +79,7 @@ const DeliveryMain: React.FC = () => {
       }));
       options.unshift({ label: '', value: '' });
       setShopsOptions(options);
+      setDelivery((prev) => ({ ...prev, shopName: shops[prev.shopCode]?.name }));
     }
   }, [shops]);
 
@@ -99,23 +94,8 @@ const DeliveryMain: React.FC = () => {
     });
   };
 
-  // const resetDelivery = () => {
-  //   if (currentShop) {
-  //     setDelivery({
-  //       deliveryNumber: -1,
-  //       shopCode: currentShop.code,
-  //       shopName: currentShop.name,
-  //       dstShopCode: '',
-  //       dstShopName: '',
-  //       date: Timestamp.fromDate(new Date()),
-  //       fixed: false,
-  //     });
-  //     setItems(new Map());
-  //   }
-  // };
-
   const loadDeliveryDetails = async (shopCode: string, deliveryNumber: number) => {
-    if (shopCode && deliveryNumber) {
+    if (shopCode && deliveryNumber > 0) {
       try {
         const delivPath = deliveryPath(shopCode, deliveryNumber);
         const snap = (await getDoc(doc(db, delivPath))) as DocumentSnapshot<Delivery>;
@@ -182,23 +162,17 @@ const DeliveryMain: React.FC = () => {
     if (currentItem.productCode && e.key === 'Enter') {
       e.preventDefault();
       setErrors([]);
-      if (currentShop) {
+      if (shopCode) {
         if (!delivery.date) setErrors((prev) => [...prev, '日付を指定してください。']);
         if (!delivery.dstShopCode) setErrors((prev) => [...prev, '送り先を指定してください。']);
+
         const snap = (await getDoc(doc(db, 'products', currentItem.productCode))) as DocumentSnapshot<Product>;
         const product = snap.data();
         if (product) {
-          setCurrentItem((prev) => ({ ...prev, costPrice: product.costPrice }));
+          setCurrentItem((prev) => ({ ...prev, costPrice: product.costPrice })); // TODO: 後で移動平均に変更
           quantityRef.current?.focus();
         } else {
-          const snapProduct = (await getDoc(doc(db, 'products', currentItem.productCode))) as DocumentSnapshot<Product>;
-          const product = snapProduct.data();
-          if (product) {
-            setCurrentItem((prev) => ({ ...prev, costPrice: product.costPrice }));
-            quantityRef.current?.focus();
-          } else {
-            setErrors((prev) => [...prev, '商品が見つかりません。']);
-          }
+          setErrors((prev) => [...prev, '商品が見つかりません。']);
         }
       }
     }
@@ -213,6 +187,7 @@ const DeliveryMain: React.FC = () => {
       try {
         if (sumItemCostPrice() < MIN_SUM_COST_PRICE)
           throw Error(`金額が${MIN_SUM_COST_PRICE}円以上でければ確定できません。`);
+
         setProcessing(true);
         const deliv = { ...delivery, fixed };
         await runTransaction(db, async (transaction) => {
@@ -254,19 +229,12 @@ const DeliveryMain: React.FC = () => {
           const ref = doc(db, deliveryPath(deliv.shopCode, deliv.deliveryNumber));
           transaction.set(ref, deliv);
 
-          // remove DeliveryDetail
-          const removedItems = getRemovedItems();
-          removedItems.forEach((item) => {
-            const ref2 = doc(db, deliveryDetailPath(deliv.shopCode, deliv.deliveryNumber, item.productCode));
-            const detail = details.get(item.productCode);
-            if (detail?.fixed) throw new Error(`確定済データは削除できません。${item.productName}`);
-            transaction.delete(ref2);
-          });
-          // fixしていないデータのみ保存
+          // 詳細データ保存 => fixしていないデータのみ(削除データ含む)保存
           const unfixedItems = getUnfixedItems();
           for await (const item of unfixedItems) {
             const detail = details.get(item.productCode);
             const ref2 = doc(db, deliveryDetailPath(deliv.shopCode, deliv.deliveryNumber, item.productCode));
+            // 詳細データ更新
             if (item.quantity === 0) {
               transaction.delete(ref2);
             } else {
@@ -276,11 +244,11 @@ const DeliveryMain: React.FC = () => {
                 quantity: item.quantity,
                 costPrice: item.costPrice,
                 fixed,
-                updatedAt: serverTimestamp(),
               });
             }
             if (fixed) {
-              const diff = detail?.fixed ? detail?.quantity - item.quantity : -item.quantity;
+              // 在庫更新
+              const diff = detail?.fixed ? detail.quantity - item.quantity : -item.quantity;
               const stockRef = doc(db, 'shops', deliv.shopCode, 'stocks', item.productCode);
               if (notFoundStockCodes.has(item.productCode)) {
                 transaction.set(stockRef, {
@@ -291,13 +259,15 @@ const DeliveryMain: React.FC = () => {
                   updatedAt: serverTimestamp(),
                 });
               } else {
-                transaction.update(stockRef, {
-                  shopCode: deliv.shopCode,
-                  productCode: item.productCode,
-                  productName: item.productName,
-                  quantity: increment(diff),
-                  updatedAt: serverTimestamp(),
-                });
+                if (diff !== 0) {
+                  transaction.update(stockRef, {
+                    shopCode: deliv.shopCode,
+                    productCode: item.productCode,
+                    productName: item.productName,
+                    quantity: increment(diff),
+                    updatedAt: serverTimestamp(),
+                  });
+                }
               }
             } else {
               if (detail?.fixed) new Error(`確定済データを一時保存状態に戻すことはできません。${item.productName}`);
@@ -315,16 +285,16 @@ const DeliveryMain: React.FC = () => {
     }
   };
 
-  const existUnfixedItems = () => {
-    return Array.from(items.values()).some((item) => !item.removed && !item.fixed);
+  const getTargetItems = () => {
+    return Array.from(items.values()).filter((item) => !item.removed);
   };
 
   const getUnfixedItems = () => {
-    return Array.from(items.values()).filter((item) => !item.removed && !item.fixed);
+    return Array.from(items.values()).filter((item) => !item.fixed);
   };
 
-  const getTargetItems = () => {
-    return Array.from(items.values()).filter((item) => !item.removed);
+  const existUnfixedItems = () => {
+    return Array.from(items.values()).some((item) => !item.fixed);
   };
 
   const sumItemQuantity = () => {
@@ -333,10 +303,6 @@ const DeliveryMain: React.FC = () => {
 
   const sumItemCostPrice = () => {
     return getTargetItems().reduce((acc, item) => acc + item.quantity * Number(item.costPrice), 0);
-  };
-
-  const getRemovedItems = () => {
-    return Array.from(items.values()).filter((item) => item.removed);
   };
 
   return (
