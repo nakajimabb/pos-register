@@ -15,7 +15,7 @@ export type Shop = {
   buildingName: string;
   tel: string;
   fax: string;
-  role?: | 'shop' | 'manager' | 'admin';
+  role?: 'shop' | 'manager' | 'admin';
 };
 
 export type TaxClass = 'exclusive' | 'inclusive' | 'free'; // 外税、内税、非課税
@@ -174,7 +174,7 @@ export type FixedCostRate = {
 
 // 仕入情報
 export type Purchase = {
-  purchaseNumber: number;   // 社内時 => purchaseNumber <=> deliveryNumber
+  purchaseNumber: number; // 社内時 => purchaseNumber <=> deliveryNumber
   shopCode: string; // 店舗コード
   shopName: string; // 店舗名
   srcType: 'supplier' | 'shop';
@@ -185,7 +185,7 @@ export type Purchase = {
 };
 
 export const purchasePath = (shopCode: string, purchaseyNumber: number) =>
-`shops/${shopCode}/purchases/${purchaseyNumber}`;
+  `shops/${shopCode}/purchases/${purchaseyNumber}`;
 
 // 仕入詳細情報
 export type PurchaseDetail = {
@@ -198,7 +198,7 @@ export type PurchaseDetail = {
 };
 
 export const purchaseDetailPath = (shopCode: string, purchaseyNumber: number, productCode: string) =>
-purchasePath(shopCode, purchaseyNumber) + '/purchaseDetails/' + productCode;
+  purchasePath(shopCode, purchaseyNumber) + '/purchaseDetails/' + productCode;
 
 // 出庫情報
 export type Delivery = {
@@ -223,7 +223,13 @@ export type DeliveryDetail = {
   fixed: boolean;
 };
 
+export type RegisterStatus = {
+  date: Timestamp;
+  openedAt: Timestamp;
+  closedAt: Timestamp | null;
+};
+
 export const deliveryDetailPath = (shopCode: string, deliveryNumber: number, productCode: string) =>
-deliveryPath(shopCode, deliveryNumber) + '/deliveryDetails/' + productCode;
+  deliveryPath(shopCode, deliveryNumber) + '/deliveryDetails/' + productCode;
 
 export const CLASS_DELIV = '01';

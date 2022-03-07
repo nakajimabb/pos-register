@@ -8,13 +8,14 @@ import {
   query,
   where,
   orderBy,
+  limit,
   Timestamp,
   QueryConstraint,
 } from 'firebase/firestore';
 import { startOfToday, startOfTomorrow } from 'date-fns';
 import { Button, Flex, Table } from './components';
 import { useAppContext } from './AppContext';
-import { Sale, SaleDetail } from './types';
+import { Sale, SaleDetail, RegisterStatus } from './types';
 import { Divisions } from './tools';
 
 const db = getFirestore();
@@ -22,15 +23,40 @@ const db = getFirestore();
 const DailyCashReport: React.FC = () => {
   const { currentShop } = useAppContext();
   const [reportItems, setReportItems] = useState<{ [code: string]: number }>({});
+  const [registerStatus, setRegisterStatus] = useState<RegisterStatus>();
   const componentRef = useRef(null);
-  const currentTimestamp = Timestamp.fromDate(new Date());
+  const [reportTimestamp, setReportTimestamp] = useState<Timestamp>(Timestamp.fromDate(new Date()));
+
+  const getRegisterStatus = useCallback(async () => {
+    if (currentShop) {
+      const statusRef = collection(db, 'shops', currentShop.code, 'status');
+      const statusSnap = await getDocs(query(statusRef, orderBy('openedAt', 'desc'), limit(1)));
+      if (statusSnap.size > 0) {
+        statusSnap.docs.map(async (doc) => {
+          const status = doc.data() as RegisterStatus;
+          if (status.closedAt) {
+            setReportTimestamp(status.closedAt);
+          }
+          setRegisterStatus(status);
+        });
+      }
+    }
+  }, [currentShop]);
+
   const querySales = useCallback(async () => {
     if (!currentShop) return;
     try {
       const conds: QueryConstraint[] = [];
       conds.push(where('shopCode', '==', currentShop.code));
-      conds.push(where('createdAt', '>=', startOfToday()));
-      conds.push(where('createdAt', '<', startOfTomorrow()));
+      if (registerStatus) {
+        conds.push(where('createdAt', '>=', registerStatus.openedAt.toDate()));
+        if (registerStatus.closedAt) {
+          conds.push(where('createdAt', '<', registerStatus.closedAt.toDate()));
+        }
+      } else {
+        conds.push(where('createdAt', '>=', startOfToday()));
+        conds.push(where('createdAt', '<', startOfTomorrow()));
+      }
       conds.push(orderBy('createdAt', 'desc'));
       const q = query(collection(db, 'sales'), ...conds);
       const querySnapshot = await getDocs(q);
@@ -175,31 +201,44 @@ const DailyCashReport: React.FC = () => {
     } catch (error) {
       console.log({ error });
     }
-  }, [currentShop]);
+  }, [currentShop, registerStatus]);
 
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
   });
 
   useEffect(() => {
+    getRegisterStatus();
     querySales();
-  }, [querySales]);
+  }, [querySales, getRegisterStatus]);
 
   return (
     <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
       <div className="mt-16 mb-2 w-1/2">
-        <Flex justify_content="center" align_items="center">
-          精算・点検レポート
-          <Button color="primary" size="xs" className="ml-4" onClick={handlePrint}>
-            印刷
-          </Button>
+        <Flex justify_content="between" align_items="center">
+          <div></div>
+          <div>
+            精算・点検レポート
+            <Button color="primary" size="xs" className="ml-4" onClick={handlePrint}>
+              印刷
+            </Button>
+          </div>
+          <div>
+            {registerStatus && !registerStatus.closedAt && (
+              <Link to="/register_close">
+                <Button color="warning" size="xs">
+                  精算
+                </Button>
+              </Link>
+            )}
+          </div>
         </Flex>
       </div>
       <div className="w-1/2 overflow-y-scroll" style={{ height: '40rem' }}>
         <div ref={componentRef} className="p-10 border border-solid">
           <p className="text-right text-xs mb-4">
-            {currentShop?.formalName}　{currentTimestamp.toDate().toLocaleDateString()}{' '}
-            {currentTimestamp.toDate().toLocaleTimeString()}
+            {currentShop?.formalName}　{reportTimestamp.toDate().toLocaleDateString()}{' '}
+            {reportTimestamp.toDate().toLocaleTimeString()}
           </p>
           <Flex>
             <div className="w-1/2 pr-5">

@@ -29,6 +29,8 @@ import DeliveryNew from './DeliveryNew';
 import DeliveryEdit from './DeliveryEdit';
 import DeliveryList from './DeliveryList';
 import DailyCashReport from './DailyCashReport';
+import RegisterOpen from './RegisterOpen';
+import RegisterClose from './RegisterClose';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -72,6 +74,8 @@ const App: React.FC = () => {
           <Route path="/delivery_new" component={DeliveryNew} />
           <Route path="/delivery_edit" component={DeliveryEdit} />
           <Route path="/delivery_list" component={DeliveryList} />
+          <Route path="/register_open" component={RegisterOpen} />
+          <Route path="/register_close" component={RegisterClose} />
           <Route exact path="/tailwind" component={Tailwind} />
         </Router>
       </AppContextProvider>
