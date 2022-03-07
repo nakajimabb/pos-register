@@ -22,7 +22,8 @@ import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import { useAppContext } from './AppContext';
 import app from './firebase';
 import PurchaseDetailEdit from './PurchaseDetailEdit';
-import { nameWithCode, toDateString, getBarcodeValue } from './tools';
+import UnregisteredProductEdit from './UnregisteredProductEdit';
+import { nameWithCode, toDateString, getBarcodeValue, checkDigit } from './tools';
 import firebaseError from './firebaseError';
 import {
   Product,
@@ -73,6 +74,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
   const [errors, setErrors] = useState<string[]>([]);
   const [targetProductCode, setTargetProductCode] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
+  const [openProductEdit, setOpenProductEdit] = useState<boolean>(false);
   const { registListner, shops, suppliers } = useAppContext();
   const quantityRef = useRef<HTMLInputElement>(null);
 
@@ -152,34 +154,40 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
     }
   };
 
-  const addItem = async () => {
-    if (currentItem.productCode && currentItem.quantity && currentItem.costPrice) {
-      const ref = doc(db, 'products', currentItem.productCode);
+  const addItem = async (productCode: string, quantity: number | null, costPrice: number | null) => {
+    if (productCode && quantity && costPrice) {
+      const ref = doc(db, 'products', productCode);
       const snap = (await getDoc(ref)) as DocumentSnapshot<Product>;
       const product = snap.data();
       if (product) {
         const newItems = new Map(items);
-        const item = newItems.get(currentItem.productCode);
+        const item = newItems.get(productCode);
         if (item) {
-          const quantity = item.removed ? currentItem.quantity : item.quantity + currentItem.quantity;
-          newItems.set(currentItem.productCode, {
+          const qnty = item.removed ? quantity : item.quantity + quantity;
+          newItems.set(productCode, {
             ...item,
             removed: false,
             fixed: false,
-            quantity,
+            quantity: qnty,
           });
         } else {
-          newItems.set(currentItem.productCode, {
-            productCode: currentItem.productCode,
+          newItems.set(productCode, {
+            productCode: productCode,
             productName: product.name,
-            quantity: currentItem.quantity,
-            costPrice: currentItem.costPrice,
+            quantity,
+            costPrice,
             fixed: false,
           });
         }
         setItems(newItems);
         resetCurrentItem();
         quantityRef.current?.focus();
+      } else {
+        if (checkDigit(currentItem.productCode)) {
+          setOpenProductEdit(true);
+        } else {
+          setErrors((prev) => [...prev, '不正なPLUコードです。']);
+        }
       }
     }
   };
@@ -227,7 +235,11 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
             setCurrentItem((prev) => ({ ...prev, costPrice: product.costPrice }));
             quantityRef.current?.focus();
           } else {
-            setErrors((prev) => [...prev, '商品が見つかりません。']);
+            if (checkDigit(currentItem.productCode)) {
+              setOpenProductEdit(true);
+            } else {
+              setErrors((prev) => [...prev, '不正なPLUコードです。']);
+            }
           }
         }
       }
@@ -428,6 +440,11 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
     return getTargetItems().reduce((acc, item) => acc + item.quantity * Number(item.costPrice), 0);
   };
 
+  const updateNewProduct = (product: Product) => {
+    setCurrentItem((prev) => ({ ...prev, costPrice: product.costPrice }));
+    addItem(product.code, currentItem.quantity, product.costPrice);
+  };
+
   return (
     <div className="pt-12">
       <div className="p-4">
@@ -442,6 +459,14 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
               newItems.set(targetProductCode, purchaseDetail);
               setItems(newItems);
             }}
+          />
+        )}
+        {openProductEdit && (
+          <UnregisteredProductEdit
+            open
+            productCode={currentItem.productCode}
+            onClose={() => setOpenProductEdit(false)}
+            onUpdate={updateNewProduct}
           />
         )}
         <Card className="p-5 overflow-visible">
@@ -492,6 +517,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
                 onChange={(e) => setBarcode(String(e.target.value))}
                 onKeyPress={loadDelivery}
                 placeholder="ﾊﾞｰｺｰﾄﾞ読取 or 出庫番号"
+                disabled={purchaseNumber > 0}
               />
             )}
           </Flex>
@@ -520,7 +546,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    addItem();
+                    addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice);
                   }
                 }}
                 className="w-36"
@@ -532,12 +558,14 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    addItem();
+                    addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice);
                   }
                 }}
                 className="w-36"
               />
-              <Button onClick={addItem}>追加</Button>
+              <Button onClick={() => addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice)}>
+                追加
+              </Button>
             </Form>
             <Button
               className="w-32"
