@@ -8,10 +8,14 @@ import {
   getDocs,
   getFirestore,
   onSnapshot,
-  Timestamp,
+  limit,
   query,
+  orderBy,
+  startAt,
+  endAt,
   QueryConstraint,
   QuerySnapshot,
+  Timestamp,
   where,
 } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
@@ -44,7 +48,7 @@ export type ContextType = {
   shops: { [code: string]: Shop } | null;
   addBundleDiscount: (basketItems: BasketItem[]) => BasketItem[];
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;
-  searchProducts: (inputText: string) => Promise<QuerySnapshot<Product> | null>;
+  searchProducts: (inputText: string) => Promise<Product[]>;
   registListner: (name: 'suppliers' | 'shops') => void;
 };
 
@@ -59,7 +63,7 @@ const AppContext = createContext({
   fixedCostRates: [],
   addBundleDiscount: (basketItems: BasketItem[]) => basketItems,
   loadProductOptions: async (inputText: string) => [],
-  searchProducts: async (inputText: string) => null,
+  searchProducts: async (inputText: string) => [],
   registListner: (name: 'suppliers' | 'shops') => {},
 } as ContextType);
 
@@ -265,26 +269,47 @@ export const AppContextProvider: React.FC = ({ children }) => {
     });
   };
 
-  const searchProducts = async (inputText: string) => {
+  const searchProducts = async (inputText: string, maxSearch = 50) => {
     const text = hiraToKana(inputText).trim();
-    const fullTextSearch = await updateProductTextSearch();
-    const texts = fullTextSearch.texts;
-    const targetWords = texts.filter((word) => hiraToKana(word).indexOf(text) >= 0);
-    const codes = targetWords
-      .map((word) => {
-        return { word: word.split('|')[0], index: hiraToKana(word).indexOf(text) };
-      })
-      .sort((item1, item2) => item1.index - item2.index)
-      .map((item) => item.word)
-      .slice(0, 10);
-    if (codes.length > 0) {
+    if (text) {
       const conds: QueryConstraint[] = [];
-      conds.push(where('code', 'in', codes));
+      const isNumber = text.match(/^\d+$/);
+      if (isNumber) {
+        conds.push(orderBy('code'));
+      } else {
+        conds.push(orderBy('name'));
+      }
+      conds.push(startAt(text));
+      conds.push(endAt(text + '\uf8ff'));
+      conds.push(limit(maxSearch));
       const q = query(collection(db, 'products'), ...conds);
-      return (await getDocs(q)) as QuerySnapshot<Product>;
-    } else {
-      return null;
+      const snapshot = (await getDocs(q)) as QuerySnapshot<Product>;
+      const products = snapshot.docs.map((item) => item.data());
+      if (!isNumber && products.length < maxSearch) {
+        const productCodes = products.map((product) => product.code);
+        const fullTextSearch = await updateProductTextSearch();
+        const texts = fullTextSearch.texts;
+        const targetWords = texts.filter((word) => hiraToKana(word).indexOf(text) >= 0);
+        const codes = targetWords
+          .map((word) => {
+            return { word: word.split('|')[0], index: hiraToKana(word).indexOf(text) };
+          })
+          .filter((item) => !productCodes.includes(item.word))
+          .sort((item1, item2) => item1.index - item2.index)
+          .map((item) => item.word)
+          .slice(0, 10);
+        if (codes.length > 0) {
+          const conds2: QueryConstraint[] = [];
+          conds2.push(where('code', 'in', codes));
+          const q = query(collection(db, 'products'), ...conds2);
+          const snapshot = (await getDocs(q)) as QuerySnapshot<Product>;
+          const pds = snapshot.docs.map((item) => item.data());
+          products.push(...pds);
+        }
+      }
+      return [...products.filter((item) => !item.hidden), ...products.filter((item) => item.hidden)];
     }
+    return [];
   };
 
   return (

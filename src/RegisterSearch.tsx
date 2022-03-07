@@ -35,6 +35,7 @@ type Props = {
 const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, onClose }) => {
   const [search, setSearch] = useState({ text: '', categoryId: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Product> | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [page, setPage] = useState(0);
   const [productCount, setProductCount] = useState<number | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
@@ -50,8 +51,9 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
       const searchText = search.text.trim();
       let querySnapshot: QuerySnapshot<Product> | null = null;
       if (searchText) {
-        querySnapshot = await searchProducts(searchText);
-        setSnapshot(querySnapshot);
+        const pds = await searchProducts(searchText);
+        setSnapshot(null);
+        setProducts(pds);
         setPage(0);
         setProductCount(null);
       } else {
@@ -88,6 +90,7 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
         const q = query(collection(db, 'products'), ...conds);
         querySnapshot = (await getDocs(q)) as QuerySnapshot<Product>;
         setSnapshot(querySnapshot);
+        setProducts(querySnapshot.docs.map((item) => item.data()));
       }
       if (querySnapshot) {
         const sellingPricesDic: { [code: string]: number } = {};
@@ -108,6 +111,7 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
         );
         setSellingPrices(sellingPricesDic);
         setSnapshot(querySnapshot as QuerySnapshot<Product>);
+        setProducts(querySnapshot.docs.map((item) => item.data()));
       }
     } catch (error) {
       console.log({ error });
@@ -122,6 +126,7 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
 
   useEffect(() => {
     setSnapshot(null);
+    setProducts([]);
     setSearch({ text: '', categoryId: '' });
     const unsubscribe = onSnapshot(collection(db, 'productCategories'), (snapshot) => {
       const categories = sortedProductCategories(snapshot as QuerySnapshot<ProductCategory>);
@@ -218,34 +223,32 @@ const RegisterSearch: React.FC<Props> = ({ open, setProductCode, findProduct, on
                   </Table.Row>
                 </Table.Head>
                 <Table.Body>
-                  {snapshot &&
-                    snapshot.docs.map((doc, i) => {
-                      const product = doc.data();
-                      return (
-                        <Table.Row size="sm" className="hover:bg-gray-300" key={i}>
-                          <Table.Cell>{product.code}</Table.Cell>
-                          <Table.Cell className="truncate">{product.name}</Table.Cell>
-                          <Table.Cell className="text-right">
-                            {sellingPrices[product.code]
-                              ? sellingPrices[product.code].toLocaleString()
-                              : product.sellingPrice?.toLocaleString()}
-                          </Table.Cell>
-                          <Table.Cell>
-                            <Button
-                              color="primary"
-                              size="xs"
-                              onClick={() => {
-                                setProductCode(product.code);
-                                findProduct(product.code);
-                                onClose();
-                              }}
-                            >
-                              選択
-                            </Button>
-                          </Table.Cell>
-                        </Table.Row>
-                      );
-                    })}
+                  {products.map((product, i) => {
+                    return (
+                      <Table.Row size="sm" className="hover:bg-gray-300" key={i}>
+                        <Table.Cell>{product.code}</Table.Cell>
+                        <Table.Cell className="truncate">{product.name}</Table.Cell>
+                        <Table.Cell className="text-right">
+                          {sellingPrices[product.code]
+                            ? sellingPrices[product.code].toLocaleString()
+                            : product.sellingPrice?.toLocaleString()}
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Button
+                            color="primary"
+                            size="xs"
+                            onClick={() => {
+                              setProductCode(product.code);
+                              findProduct(product.code);
+                              onClose();
+                            }}
+                          >
+                            選択
+                          </Button>
+                        </Table.Cell>
+                      </Table.Row>
+                    );
+                  })}
                 </Table.Body>
               </Table>
             </div>

@@ -21,6 +21,7 @@ import {
   serverTimestamp,
   Bytes,
 } from 'firebase/firestore';
+import clsx from 'clsx';
 
 import { useAppContext } from './AppContext';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
@@ -37,9 +38,14 @@ const PER_PAGE = 25;
 
 type SearchType = { text: string; categoryId: string };
 
-const ProductList: React.FC = () => {
-  const [search, setSearch] = useState<SearchType>({ text: '', categoryId: '' });
+type Props = {
+  searchText?: string;
+};
+
+const ProductList: React.FC<Props> = ({ searchText = '' }) => {
+  const [search, setSearch] = useState<SearchType>({ text: searchText, categoryId: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Product> | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [productCategories, setProductCategories] = useState<{ id: string; productCategory: ProductCategory }[]>([]);
   const [suppliers, setSuppliers] = useState<{ id: string; supplier: Supplier }[]>([]);
   const [page, setPage] = useState(0);
@@ -61,6 +67,7 @@ const ProductList: React.FC = () => {
       options.unshift({ label: '-- カテゴリ --', value: '' });
       setCategoryOptions(options);
     });
+    queryProducts(search, 'head')();
     return () => unsubscribe();
   }, []);
 
@@ -79,14 +86,16 @@ const ProductList: React.FC = () => {
       setError('');
       const searchText = search.text.trim();
       if (searchText) {
-        const snapshot = await searchProducts(searchText);
-        setSnapshot(snapshot);
+        const pds = await searchProducts(searchText);
+        setSnapshot(null);
+        setProducts(pds);
         setPage(0);
         setProductCount(null);
       } else {
         const conds: QueryConstraint[] = [];
         setProductCount(Number(counters?.products.all));
 
+        conds.push(where('hidden', '==', false));
         if (action === 'head') {
           conds.push(orderBy('code'));
           conds.push(limit(PER_PAGE));
@@ -117,6 +126,7 @@ const ProductList: React.FC = () => {
         const q = query(collection(db, 'products'), ...conds);
         const querySnapshot = (await getDocs(q)) as QuerySnapshot<Product>;
         setSnapshot(querySnapshot);
+        setProducts(querySnapshot.docs.map((item) => item.data()));
       }
     } catch (error) {
       console.log({ error });
@@ -275,41 +285,39 @@ const ProductList: React.FC = () => {
               </Table.Row>
             </Table.Head>
             <Table.Body>
-              {snapshot &&
-                snapshot.docs.map((doc, i) => {
-                  const product = doc.data();
-                  return (
-                    <Table.Row key={i}>
-                      <Table.Cell>{product.code}</Table.Cell>
-                      <Table.Cell>{product.name}</Table.Cell>
-                      <Table.Cell>{truncate(categoryName(product), { length: 10 })}</Table.Cell>
-                      <Table.Cell className="text-right">{product.sellingPrice?.toLocaleString()}</Table.Cell>
-                      <Table.Cell className="text-right">{product.costPrice?.toLocaleString()}</Table.Cell>
-                      <Table.Cell className="text-center">{product.selfMedication && '○'}</Table.Cell>
-                      <Table.Cell>{truncate(supplierName(product), { length: 10 })}</Table.Cell>
-                      <Table.Cell>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300 "
-                          onClick={editProduct(product.code)}
-                        >
-                          <Icon name="pencil-alt" />
-                        </Button>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300"
-                          onClick={deleteProduct(product.code)}
-                        >
-                          <Icon name="trash" />
-                        </Button>
-                      </Table.Cell>
-                    </Table.Row>
-                  );
-                })}
+              {products.map((product, i) => {
+                return (
+                  <Table.Row key={i} className={clsx(product.hidden && 'text-gray-300')}>
+                    <Table.Cell>{product.code}</Table.Cell>
+                    <Table.Cell>{product.name}</Table.Cell>
+                    <Table.Cell>{truncate(categoryName(product), { length: 10 })}</Table.Cell>
+                    <Table.Cell className="text-right">{product.sellingPrice?.toLocaleString()}</Table.Cell>
+                    <Table.Cell className="text-right">{product.costPrice?.toLocaleString()}</Table.Cell>
+                    <Table.Cell className="text-center">{product.selfMedication && '○'}</Table.Cell>
+                    <Table.Cell>{truncate(supplierName(product), { length: 10 })}</Table.Cell>
+                    <Table.Cell>
+                      <Button
+                        variant="icon"
+                        size="xs"
+                        color="none"
+                        className="hover:bg-gray-300 "
+                        onClick={editProduct(product.code)}
+                      >
+                        <Icon name="pencil-alt" />
+                      </Button>
+                      <Button
+                        variant="icon"
+                        size="xs"
+                        color="none"
+                        className="hover:bg-gray-300"
+                        onClick={deleteProduct(product.code)}
+                      >
+                        <Icon name="trash" />
+                      </Button>
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })}
             </Table.Body>
           </Table>
         </Card.Body>

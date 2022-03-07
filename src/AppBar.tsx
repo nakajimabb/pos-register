@@ -131,6 +131,7 @@ const AppBar: React.FC = () => {
           <Dropdown.Item title="商品カテゴリ" to="/product_categories" />
           <Dropdown.Item title="バンドル" to="/product_bundle_list" />
           <Dropdown.Item title="セット" to="/product_bulk_list" />
+          <Dropdown.Item title="未登録商品" to="/unregistered_products" />
         </Dropdown>
         <Dropdown
           icon={
