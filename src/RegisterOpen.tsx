@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { doc, getDoc, setDoc, getFirestore, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, getFirestore, Timestamp } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { Alert, Button, Card, Flex, Form } from './components';
 import firebaseError from './firebaseError';
@@ -25,10 +25,15 @@ const RegisterOpen: React.FC = () => {
         if (statusSnap.exists()) {
           const status = statusSnap.data() as RegisterStatus;
           if (status.openedAt.toDate().toLocaleDateString() === openDate.toLocaleDateString() && status.closedAt) {
-            throw Error('すでに精算済みです。');
+            if (openDate.toLocaleDateString() === new Date().toLocaleDateString()) {
+              await updateDoc(statusRef, { closedAt: null });
+            } else {
+              throw Error('すでに精算済みです。');
+            }
           }
+        } else {
+          await setDoc(statusRef, { date: openDate, openedAt: Timestamp.fromDate(new Date()), closedAt: null });
         }
-        await setDoc(statusRef, { date: openDate, openedAt: Timestamp.fromDate(new Date()), closedAt: null });
       }
       window.location.href = '/';
     } catch (error) {

@@ -39,8 +39,8 @@ const RegisterClose: React.FC = () => {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (currentShop) {
-      const shopStatusRef = doc(db, 'shops', currentShop.code, 'status', format(closeDate, 'yyyyMMdd'));
-      await updateDoc(shopStatusRef, { closedAt: Timestamp.fromDate(new Date()) });
+      const statusRef = doc(db, 'shops', currentShop.code, 'status', format(closeDate, 'yyyyMMdd'));
+      await updateDoc(statusRef, { closedAt: Timestamp.fromDate(new Date()) });
     }
     window.location.href = '/daily_cash_report';
   };
