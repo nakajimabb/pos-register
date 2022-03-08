@@ -378,9 +378,7 @@ const RegisterMain: React.FC = () => {
                             setProductError('');
                             if (window.confirm('削除してもよろしいですか？')) {
                               setBasketItems(
-                                addBundleDiscount(
-                                  basketItems.filter((item) => item.product.code !== basketItem.product.code)
-                                )
+                                addBundleDiscount(basketItems.filter((item, itemIndex) => index !== itemIndex))
                               );
                             }
                           }}
