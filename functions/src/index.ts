@@ -87,6 +87,25 @@ const logoutKkb = async () => {
   return result;
 };
 
+const createUserIfNotExist = async (email: string, password: string) => {
+  try {
+    const userRecord = await auth.getUserByEmail(email);
+    return { result: false, userRecord };
+  } catch (error) {
+    try {
+      const userParams = {
+        email,
+        disabled: false,
+        password,
+      };
+      const userRecord = await auth.createUser(userParams);
+      return { result: true, userRecord };
+    } catch (error) {
+      return { result: false };
+    }
+  }
+};
+
 export const updateShopsFromKKb = functions
   .runWith({ timeoutSeconds: 300 })
   .region('asia-northeast1')
@@ -100,8 +119,8 @@ export const updateShopsFromKKb = functions
         const url = KKB_URL + '/departments/valid_list';
         const day = toDateString(new Date(), 'YYYY-MM-DD');
         const params = `?day=${day}&only_login_user=true&except_lunar=true`;
-        const result = await client.fetch(url + params);
-        const shops = JSON.parse(result.body);
+        const resultKkb = await client.fetch(url + params);
+        const shops = JSON.parse(resultKkb.body);
 
         // KKBからログアウト
         await logoutKkb();
@@ -110,18 +129,34 @@ export const updateShopsFromKKb = functions
         const BATCH_UNIT = 100;
         const taskSize = Math.ceil(shops.length / BATCH_UNIT);
         const sequential = [...Array(taskSize).keys()];
-        const tasks = sequential.map(async (i) => {
+
+        // アカウント作成
+        const createCodes: string[] = [];
+        const tasks1 = sequential.map(async (i) => {
+          const sliced = shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+          for await (const shop of sliced) {
+            const email = emailFromUserCode(shop.code);
+            const result = await createUserIfNotExist(email, 'password');
+            if (result.result) createCodes.push(shop.code);
+          }
+        });
+        await Promise.all(tasks1);
+
+        // firestore 更新
+        const tasks2 = sequential.map(async (i) => {
           const batch = db.batch();
           const sliced = shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
           sliced.forEach((shop: any) => {
             const ref = db.collection('shops').doc(shop.code);
-            batch.set(ref, { ...shop, hidden: false }, { merge: true });
+            const p = { ...shop, hidden: false };
+            // アカウントが新たに作成されたら権限をshopに設定
+            if (createCodes.includes(shop.code)) p.role = 'shop';
+            batch.set(ref, p, { merge: true });
           });
           return await batch.commit();
         });
-        await Promise.all(tasks);
-
-        return { shops: shops };
+        const results = await Promise.all(tasks2);
+        return { shops, results };
       } catch (error) {
         throw new functions.https.HttpsError('unknown', 'error in updateShopsFromKKb', error);
       }
