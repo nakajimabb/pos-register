@@ -24,6 +24,7 @@ const db = getFirestore();
 const ShortcutEdit: React.FC = () => {
   type Shortcut = {
     index: number;
+    productRef: DocumentReference<Product>;
     product: Product;
     color: Brand;
   };
@@ -128,7 +129,12 @@ const ShortcutEdit: React.FC = () => {
                   product.sellingPrice = sellingPrice.sellingPrice;
                 }
               }
-              shortcutArray[item.index] = { index: item.index, color: item.color as Brand, product };
+              shortcutArray[item.index] = {
+                index: item.index,
+                color: item.color as Brand,
+                productRef: item.productRef,
+                product,
+              };
             }
           }
         }
@@ -178,10 +184,12 @@ const ShortcutEdit: React.FC = () => {
                           setItemColor(shortcut.color);
                           setProductCode(shortcut.product.code);
                           setProduct(shortcut.product);
+                          setProductRef(shortcut.productRef);
                         } else {
                           setItemColor('info');
                           setProductCode('');
                           setProduct(null);
+                          setProductRef(null);
                         }
                       }}
                       key={index}
