@@ -29,6 +29,7 @@ import DeliveryNew from './DeliveryNew';
 import DeliveryEdit from './DeliveryEdit';
 import DeliveryList from './DeliveryList';
 import DailyCashReport from './DailyCashReport';
+import DailyJournal from './DailyJournal';
 import RegisterOpen from './RegisterOpen';
 import RegisterClose from './RegisterClose';
 
@@ -63,6 +64,7 @@ const App: React.FC = () => {
           <Route exact path="/shortcut_edit" component={ShortcutEdit} />
           <Route exact path="/receipt_list" component={ReceiptList} />
           <Route exact path="/daily_cash_report" component={DailyCashReport} />
+          <Route exact path="/daily_journal" component={DailyJournal} />
           <Route exact path="/product_bundle_list" component={ProductBundleList} />
           <Route exact path="/product_bundle_edit" component={ProductBundleEdit} />
           <Route path="/product_bundle_edit/:id" component={ProductBundleEdit} />
