@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
 import { Flex, Modal, Table } from './components';
 import { toDateString } from './tools';
-import { Purchase, PurchaseDetail, purchasePath, CLASS_DELIV } from './types';
+import { Purchase, PurchaseDetail, purchasePath } from './types';
 var JsBarcode = require('jsbarcode');
 
 const db = getFirestore();

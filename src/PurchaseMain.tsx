@@ -367,6 +367,12 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
           if (isNaN(deliveryNumber)) {
             throw Error(`不正な出庫番号です。`);
           } else {
+            const purchPath = purchasePath(shopCode, deliveryNumber);
+            const snapPurch = (await getDoc(doc(db, purchPath))) as DocumentSnapshot<Purchase>;
+            if (snapPurch.exists()) {
+              if (!window.confirm('データがすでに存在します。再読み込みしますか？')) return;
+            }
+
             const q = query(
               collectionGroup(db, 'deliveries'),
               where('deliveryNumber', '==', deliveryNumber)
@@ -476,7 +482,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
                 variant={purchase.srcType === 'supplier' ? 'contained' : 'outlined'}
                 color={purchase.srcType === 'supplier' ? 'info' : 'light'}
                 size="xs"
-                disabled={purchaseNumber > 0}
+                disabled={purchase.purchaseNumber > 0}
                 className="w-16"
                 onClick={() => setPurchase((prev) => ({ ...prev, srcType: 'supplier', srcCode: '' }))}
               >
@@ -486,7 +492,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
                 variant={purchase.srcType === 'shop' ? 'contained' : 'outlined'}
                 color={purchase.srcType === 'shop' ? 'info' : 'light'}
                 size="xs"
-                disabled={purchaseNumber > 0}
+                disabled={purchase.purchaseNumber > 0}
                 className="w-16"
                 onClick={() => setPurchase((prev) => ({ ...prev, srcType: 'shop', srcCode: '' }))}
               >
@@ -495,7 +501,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
             </Flex>
             <Form.Date
               value={toDateString(purchase.date.toDate(), 'YYYY-MM-DD')}
-              disabled={purchaseNumber > 0}
+              disabled={purchase.purchaseNumber > 0}
               onChange={(e) => {
                 const date = new Date(e.target.value);
                 setPurchase((prev) => ({ ...prev, date: Timestamp.fromDate(date) }));
@@ -504,7 +510,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
             <Select
               value={selectValue(purchase.srcCode, purchase.srcType === 'supplier' ? supplierOptions : shopOptions)}
               options={purchase.srcType === 'supplier' ? supplierOptions : shopOptions}
-              isDisabled={purchaseNumber > 0}
+              isDisabled={purchase.purchaseNumber > 0}
               onChange={(e) => {
                 const srcCode = String(e?.value);
                 setPurchase((prev) => ({ ...prev, srcCode, srcName: getSrcName(purchase.srcType, srcCode) ?? '' }));
@@ -517,7 +523,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
                 onChange={(e) => setBarcode(String(e.target.value))}
                 onKeyPress={loadDelivery}
                 placeholder="ﾊﾞｰｺｰﾄﾞ読取 or 出庫番号"
-                disabled={purchaseNumber > 0}
+                disabled={purchase.purchaseNumber > 0}
               />
             )}
           </Flex>
