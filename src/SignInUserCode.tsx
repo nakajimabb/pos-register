@@ -10,21 +10,24 @@ const SignInUserCode: React.FC = () => {
   const [account, setAccount] = useState({ code: '', password: '' });
   const [error, setError] = useState<string>('');
 
-  const login = () => {
-    if (!account.code || !account.password) return;
-
-    setLoading(true);
-    const auth = getAuth();
-    const email = account.code + MAIL_DOMAIN;
-    signInWithEmailAndPassword(auth, email, account.password)
-      .then(() => {
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.log({ error });
-        setError(firebaseError(error));
-        setLoading(false);
-      });
+  const login = (e: React.FormEvent) => {
+    if (account.code[0] === '$') {
+      const auth = getAuth();
+      const email = account.code.slice(1) + MAIL_DOMAIN;
+      setLoading(true);
+      signInWithEmailAndPassword(auth, email, account.password)
+        .then(() => {
+          setLoading(false);
+        })
+        .catch((error) => {
+          console.log({ error });
+          setError(firebaseError(error));
+          setLoading(false);
+        });
+    } else {
+      e.preventDefault();
+      setError('ユーザーが存在しません。');
+    }
   };
 
   return (
@@ -53,13 +56,7 @@ const SignInUserCode: React.FC = () => {
           setAccount({ ...account, password: e.target.value });
         }}
       />
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={login}
-        disabled={loading}
-        className="w-full"
-      >
+      <Button variant="contained" color="primary" onClick={login} disabled={loading} className="w-full">
         ログイン
       </Button>
       {error && (
