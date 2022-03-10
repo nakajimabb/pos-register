@@ -16,7 +16,6 @@ import { startOfToday, startOfTomorrow } from 'date-fns';
 import { Button, Flex, Table } from './components';
 import { useAppContext } from './AppContext';
 import { Sale, SaleDetail, RegisterStatus } from './types';
-import { Divisions } from './tools';
 
 const db = getFirestore();
 
@@ -25,7 +24,6 @@ const DailyJournal: React.FC = () => {
   const [completed, setCompleted] = useState<boolean>(false);
   const [sales, setSales] = useState<[string, Sale, SaleDetail[]][]>();
   const [registerStatus, setRegisterStatus] = useState<RegisterStatus>();
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const componentRef = useRef(null);
   const [reportTimestamp, setReportTimestamp] = useState<Timestamp>(Timestamp.fromDate(new Date()));
 
@@ -60,13 +58,15 @@ const DailyJournal: React.FC = () => {
         conds.push(where('createdAt', '>=', startOfToday()));
         conds.push(where('createdAt', '<', startOfTomorrow()));
       }
-      conds.push(orderBy('createdAt'));
+      conds.push(orderBy('createdAt', 'desc'));
       const q = query(collection(db, 'sales'), ...conds);
       const querySnapshot = await getDocs(q);
       const salesData = new Array<[string, Sale, SaleDetail[]]>();
       await Promise.all(
         querySnapshot.docs.map(async (doc) => {
-          const detailsSnapshot = await getDocs(collection(db, 'sales', doc.id, 'saleDetails'));
+          const detailsSnapshot = await getDocs(
+            query(collection(db, 'sales', doc.id, 'saleDetails'), orderBy('index'))
+          );
           salesData.push([
             doc.id,
             doc.data() as Sale,
@@ -105,8 +105,8 @@ const DailyJournal: React.FC = () => {
           </div>
         </Flex>
       </div>
-      <div className="w-1/2 overflow-y-scroll" style={{ height: '40rem' }}>
-        <div ref={componentRef} className="p-10 border border-solid">
+      <div className="w-1/2 overflow-y-scroll border border-solid" style={{ height: '40rem' }}>
+        <div ref={componentRef} className="p-10">
           <p className="text-right text-xs mb-4">
             {currentShop?.formalName}　{reportTimestamp.toDate().toLocaleDateString()}{' '}
             {reportTimestamp.toDate().toLocaleTimeString()}
@@ -131,13 +131,13 @@ const DailyJournal: React.FC = () => {
               let reducedTotal = 0;
 
               saleDetails?.forEach((saleDetail, index) => {
-                priceTotal += Number(saleDetail.product.sellingPrice) * saleDetail.quantity * registerSign;
+                priceTotal += Number(saleDetail.product.sellingPrice) * saleDetail.quantity;
                 if (saleDetail.product.sellingTaxClass === 'exclusive') {
                   if (saleDetail.product.sellingTax) {
                     if (saleDetail.product.sellingTax === 10) {
-                      normalTotal += Number(saleDetail.product.sellingPrice) * saleDetail.quantity * registerSign;
+                      normalTotal += Number(saleDetail.product.sellingPrice) * saleDetail.quantity;
                     } else if (saleDetail.product.sellingTax === 8) {
-                      reducedTotal += Number(saleDetail.product.sellingPrice) * saleDetail.quantity * registerSign;
+                      reducedTotal += Number(saleDetail.product.sellingPrice) * saleDetail.quantity;
                     }
                   }
                 }
@@ -160,7 +160,9 @@ const DailyJournal: React.FC = () => {
                   </Table.Row>
                 );
               });
-              const total = priceTotal + Math.floor((normalTotal * 10) / 100) + Math.floor((reducedTotal * 8) / 100);
+              const total =
+                (priceTotal + Math.floor((normalTotal * 10) / 100) + Math.floor((reducedTotal * 8) / 100)) *
+                registerSign;
               rows.push(
                 <Table.Row className="hover:bg-yellow-500" key={`${docId}Total`}>
                   <Table.Cell></Table.Cell>

@@ -234,8 +234,8 @@ const DailyCashReport: React.FC = () => {
           </div>
         </Flex>
       </div>
-      <div className="w-1/2 overflow-y-scroll" style={{ height: '40rem' }}>
-        <div ref={componentRef} className="p-10 border border-solid">
+      <div className="w-1/2 overflow-y-scroll border border-solid" style={{ height: '40rem' }}>
+        <div ref={componentRef} className="p-10">
           <p className="text-right text-xs mb-4">
             {currentShop?.formalName}　{reportTimestamp.toDate().toLocaleDateString()}{' '}
             {reportTimestamp.toDate().toLocaleTimeString()}
