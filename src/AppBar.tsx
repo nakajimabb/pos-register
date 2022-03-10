@@ -116,6 +116,18 @@ const AppBar: React.FC = () => {
         <Dropdown
           icon={
             <Button color="light" size="sm" className="flex">
+              棚卸
+              <div className="triangle-down ml-2 my-1"></div>
+            </Button>
+          }
+          align="left"
+          className="mx-2"
+        >
+          <Dropdown.Item title="棚卸処理" to="/invetory_new" />
+        </Dropdown>
+        <Dropdown
+          icon={
+            <Button color="light" size="sm" className="flex">
               商品マスタ
               <div className="triangle-down ml-2 my-1"></div>
             </Button>

@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
 import { Flex, Modal, Table } from './components';
 import { toDateString, genBarcode } from './tools';
-import { Delivery, DeliveryDetail, deliveryPath, CLASS_DELIV } from './types';
+import { Delivery, DeliveryDetail, deliveryPath, deliveryDetailPath, CLASS_DELIV } from './types';
 var JsBarcode = require('jsbarcode');
 
 const db = getFirestore();
@@ -45,7 +45,7 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClos
       const delivPath = deliveryPath(shopCode, deliveryNumber);
       const snap = (await getDoc(doc(db, delivPath))) as DocumentSnapshot<Delivery>;
       setDelivery(snap.data());
-      const detailPath = delivPath + '/deliveryDetails';
+      const detailPath = deliveryDetailPath(shopCode, deliveryNumber);
       const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<DeliveryDetail>;
       setItems(qSnap.docs.map((docSnap) => docSnap.data()));
       setLoaded(true);

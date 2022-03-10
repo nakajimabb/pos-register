@@ -143,16 +143,15 @@ export const genBarcode = (val: string, classCode: string) => {
     const digit = genCheckDigit(data);
     return data + digit;
   }
-}
+};
 
 // barcode: バーコード[13桁]
 // classCode: 種別[2桁]
 export const getBarcodeValue = (barcode: string, classCode: string) => {
-  console.log({check1: barcode.match(/^\d{13}$/), check2: barcode.slice(10,12), class: barcode.slice(10,12), digit: checkDigit(barcode)})
-  if(barcode.match(/^\d{13}$/) && barcode.slice(10,12) === classCode && checkDigit(barcode)) {
+  if (barcode.match(/^\d{13}$/) && barcode.slice(10, 12) === classCode && checkDigit(barcode)) {
     return barcode.slice(0, 10);
   }
-}
+};
 
 // チェックデジット生成(str => 12桁dijit桁なし)
 export const genCheckDigit = (str: string) => {
@@ -161,14 +160,12 @@ export const genCheckDigit = (str: string) => {
       .reverse()
       .map((i) => +i); // 逆順にして、数値の配列に変換
     const sum_evens = nums.filter((_, i) => i % 2 === 0).reduce((sum, i) => sum + i); // 偶数の桁の数字の和
-    const sum_odds = nums
-      .filter((_, i) => i % 2 === 1)
-      .reduce((sum, i) => sum + i); // CD(0桁)を除く奇数の桁の数字の和
+    const sum_odds = nums.filter((_, i) => i % 2 === 1).reduce((sum, i) => sum + i); // CD(0桁)を除く奇数の桁の数字の和
     const sum = 3 * sum_evens + sum_odds;
-    const digit = (10 - (sum % 10)) % 10
+    const digit = (10 - (sum % 10)) % 10;
     return String(digit);
   }
-}
+};
 
 // JANコードのチェックデジット(str => 8 or 13桁)
 export const checkDigit = (str: string) => {
@@ -220,4 +217,13 @@ export const Divisions: { [code: string]: string } = {
   '8': '患者負担送料',
   '9': 'レジ袋',
   '10': '補聴器本体',
+};
+
+export const isToday = (date: Date) => {
+  const today = new Date();
+  return (
+    date.getDate() == today.getDate() &&
+    date.getMonth() == today.getMonth() &&
+    date.getFullYear() == today.getFullYear()
+  );
 };

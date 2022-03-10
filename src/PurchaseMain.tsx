@@ -44,10 +44,11 @@ type Item = PurchaseDetail & { removed?: boolean };
 
 type Props = {
   shopCode: string;
+  shopName?: string;
   purchaseNumber?: number;
 };
 
-const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
+const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1 }) => {
   const [currentItem, setCurrentItem] = useState<{
     productCode: string;
     quantity: number | null;
@@ -60,7 +61,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
   const [purchase, setPurchase] = useState<Purchase>({
     shopCode,
     purchaseNumber: purchaseNumber ?? -1,
-    shopName: '',
+    shopName: shopName ?? '',
     srcType: 'supplier',
     srcCode: '',
     srcName: '',
@@ -139,7 +140,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, purchaseNumber = -1 }) => {
         const purch = snap.data();
         if (purch) {
           setPurchase(purch);
-          const detailPath = purchPath + '/purchaseDetails';
+          const detailPath = purchaseDetailPath(shopCode, purchaseNumber);
           const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
           const newItems = new Map<string, Item>();
           qSnap.docs.forEach((docSnap) => {

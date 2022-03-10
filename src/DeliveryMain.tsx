@@ -28,10 +28,11 @@ const MIN_SUM_COST_PRICE = 5000;
 
 type Props = {
   shopCode: string;
+  shopName?: string;
   deliveryNumber?: number;
 };
 
-const DeliveryMain: React.FC<Props> = ({ shopCode, deliveryNumber = -1 }) => {
+const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1 }) => {
   const [currentItem, setCurrentItem] = useState<{
     productCode: string;
     quantity: number | null;
@@ -43,7 +44,7 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, deliveryNumber = -1 }) => {
   const [delivery, setDelivery] = useState<Delivery>({
     shopCode,
     deliveryNumber: deliveryNumber ?? -1,
-    shopName: '',
+    shopName: shopName ?? '',
     dstShopCode: '',
     dstShopName: '',
     date: Timestamp.fromDate(new Date()),
@@ -102,7 +103,7 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, deliveryNumber = -1 }) => {
         const deliv = snap.data();
         if (deliv) {
           setDelivery(deliv);
-          const detailPath = delivPath + '/deliveryDetails';
+          const detailPath = deliveryDetailPath(shopCode, deliveryNumber);
           const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
           const newItems = new Map<string, Item>();
           qSnap.docs.forEach((docSnap) => {

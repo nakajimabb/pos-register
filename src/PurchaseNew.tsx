@@ -5,7 +5,7 @@ import PurchaseMain from './PurchaseMain';
 const PurchaseNew: React.FC = () => {
   const { currentShop } = useAppContext();
 
-  return currentShop ? <PurchaseMain shopCode={currentShop.code} /> : null;
+  return currentShop ? <PurchaseMain shopCode={currentShop.code} shopName={currentShop.name} /> : null;
 };
 
 export default PurchaseNew;

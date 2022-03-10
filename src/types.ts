@@ -1,4 +1,7 @@
 import { DocumentReference, Timestamp } from 'firebase/firestore';
+import { toDateString } from './tools';
+
+export const CLASS_DELIV = '01';
 
 export type Shop = {
   code: string;
@@ -46,9 +49,6 @@ export type ProductCostPrice = {
   supplierName: string;
   costPrice: number | null; // 原価(税抜)
 };
-
-export const productCostPricePath = (data: { shopCode: string; productCode: string; supplierCode: string }) =>
-  `shops/${data.shopCode}/productCostPrices/${data.productCode}|${data.supplierCode}`;
 
 export type ProductSellingPrice = {
   shopCode: string; // 店舗コード
@@ -184,9 +184,6 @@ export type Purchase = {
   fixed: boolean;
 };
 
-export const purchasePath = (shopCode: string, purchaseyNumber: number) =>
-  `shops/${shopCode}/purchases/${purchaseyNumber}`;
-
 // 仕入詳細情報
 export type PurchaseDetail = {
   productCode: string; // JANコード
@@ -196,9 +193,6 @@ export type PurchaseDetail = {
   noReturn?: boolean; // 返品不可
   fixed: boolean;
 };
-
-export const purchaseDetailPath = (shopCode: string, purchaseyNumber: number, productCode: string) =>
-  purchasePath(shopCode, purchaseyNumber) + '/purchaseDetails/' + productCode;
 
 // 出庫情報
 export type Delivery = {
@@ -210,9 +204,6 @@ export type Delivery = {
   date: Timestamp; // 出庫日
   fixed: boolean;
 };
-
-export const deliveryPath = (shopCode: string, deliveryNumber: number) =>
-  `shops/${shopCode}/deliveries/${deliveryNumber}`;
 
 // 出庫詳細情報
 export type DeliveryDetail = {
@@ -229,7 +220,49 @@ export type RegisterStatus = {
   closedAt: Timestamp | null;
 };
 
-export const deliveryDetailPath = (shopCode: string, deliveryNumber: number, productCode: string) =>
-  deliveryPath(shopCode, deliveryNumber) + '/deliveryDetails/' + productCode;
+// 棚卸し
+export type Inventory = {
+  shopCode: string; // 店舗コード
+  shopName: string; // 店舗コード
+  date: Timestamp; // 出庫日
+  fixedAt: Timestamp | null;
+};
 
-export const CLASS_DELIV = '01';
+// 出庫詳細情報
+export type InventoryDetail = {
+  productCode: string; // JANコード
+  productName: string;
+  quantity: number;
+  stockQuantity: number; // 理論値(在庫)
+  fixedAt: Timestamp | null;
+};
+
+export const deliveryPath = (shopCode: string, deliveryNumber: number | undefined = undefined) =>
+  `shops/${shopCode}/deliveries/${deliveryNumber ?? ''}`;
+
+export const deliveryDetailPath = (
+  shopCode: string,
+  deliveryNumber: number,
+  productCode: string | undefined = undefined
+) => deliveryPath(shopCode, deliveryNumber) + `/deliveryDetails/${productCode ?? ''}`;
+
+export const purchasePath = (shopCode: string, purchaseyNumber: number | undefined = undefined) =>
+  `shops/${shopCode}/purchases/${purchaseyNumber ?? ''}`;
+
+export const purchaseDetailPath = (
+  shopCode: string,
+  purchaseyNumber: number,
+  productCode: string | undefined = undefined
+) => purchasePath(shopCode, purchaseyNumber) + `/purchaseDetails/${productCode ?? ''}`;
+
+export const productCostPricePath = (data: { shopCode: string; productCode: string; supplierCode: string }) =>
+  `shops/${data.shopCode}/productCostPrices/${data.productCode}|${data.supplierCode}`;
+
+export const stockPath = (shopCode: string, productCode: string | undefined = undefined) =>
+  `shops/${shopCode}/stocks/${productCode ?? ''}`;
+
+export const inventoryPath = (shopCode: string, date: Date | undefined = undefined) =>
+  `shops/${shopCode}/inventories/${date ? toDateString(date, 'YYYY-MM-DD') : ''}`;
+
+export const inventoryDetailPath = (shopCode: string, date: Date, productCode: string | undefined = undefined) =>
+  inventoryPath(shopCode, date) + `/inventoryDetails/${productCode ?? ''}`;

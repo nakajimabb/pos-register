@@ -28,6 +28,7 @@ import PurchaseList from './PurchaseList';
 import DeliveryNew from './DeliveryNew';
 import DeliveryEdit from './DeliveryEdit';
 import DeliveryList from './DeliveryList';
+import InventoryMain from './InventoryMain';
 import DailyCashReport from './DailyCashReport';
 import DailyJournal from './DailyJournal';
 import RegisterOpen from './RegisterOpen';
@@ -67,17 +68,18 @@ const App: React.FC = () => {
           <Route exact path="/daily_journal" component={DailyJournal} />
           <Route exact path="/product_bundle_list" component={ProductBundleList} />
           <Route exact path="/product_bundle_edit" component={ProductBundleEdit} />
-          <Route path="/product_bundle_edit/:id" component={ProductBundleEdit} />
+          <Route exact path="/product_bundle_edit/:id" component={ProductBundleEdit} />
           <Route exact path="/product_bulk_list" component={ProductBulkList} />
           <Route exact path="/product_bulk_edit" component={ProductBulkEdit} />
-          <Route path="/product_bulk_edit/:id" component={ProductBulkEdit} />
-          <Route path="/purchase_new" component={PurchaseNew} />
-          <Route path="/purchase_edit" component={PurchaseEdit} />
-          <Route path="/purchase_list" component={PurchaseList} />
-          <Route path="/delivery_new" component={DeliveryNew} />
-          <Route path="/delivery_edit" component={DeliveryEdit} />
-          <Route path="/delivery_list" component={DeliveryList} />
-          <Route path="/register_open" component={RegisterOpen} />
+          <Route exact path="/product_bulk_edit/:id" component={ProductBulkEdit} />
+          <Route exact path="/purchase_new" component={PurchaseNew} />
+          <Route exact path="/purchase_edit" component={PurchaseEdit} />
+          <Route exact path="/purchase_list" component={PurchaseList} />
+          <Route exact path="/delivery_new" component={DeliveryNew} />
+          <Route exact path="/delivery_edit" component={DeliveryEdit} />
+          <Route exact path="/delivery_list" component={DeliveryList} />
+          <Route exact path="/invetory_new" component={InventoryMain} />
+          <Route exact path="/register_open" component={RegisterOpen} />
           <Route path="/register_close" component={RegisterClose} />
           <Route exact path="/tailwind" component={Tailwind} />
         </Router>
