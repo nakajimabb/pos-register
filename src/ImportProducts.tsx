@@ -148,6 +148,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
               await batch.commit();
               return { count, error };
             } catch (error) {
+              console.log({ error });
               return { count: 0, error: firebaseError(error) };
             }
           });
@@ -192,6 +193,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
               await batch.commit();
               return { count, error };
             } catch (error) {
+              console.log({ error });
               return { count: 0, error: firebaseError(error) };
             }
           });
@@ -222,6 +224,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
               await batch.commit();
               return { count, error };
             } catch (error) {
+              console.log({ error });
               return { count: 0, error: firebaseError(error) };
             }
           });

@@ -124,6 +124,7 @@ const AppBar: React.FC = () => {
           className="mx-2"
         >
           <Dropdown.Item title="棚卸処理" to="/invetory_new" />
+          <Dropdown.Item title="棚卸一覧" to="/invetory_list" />
         </Dropdown>
         <Dropdown
           icon={
