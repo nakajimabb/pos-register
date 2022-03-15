@@ -82,7 +82,7 @@ const App: React.FC = () => {
           <Route exact path="/invetory_new" component={InventoryMain} />
           <Route exact path="/invetory_list" component={InventoryList} />
           <Route exact path="/register_open" component={RegisterOpen} />
-          <Route path="/register_close" component={RegisterClose} />
+          <Route exact path="/register_close" component={RegisterClose} />
           <Route exact path="/tailwind" component={Tailwind} />
         </Router>
       </AppContextProvider>

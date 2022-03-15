@@ -22,6 +22,7 @@ const db = getFirestore();
 
 const DailyCashReport: React.FC = () => {
   const { currentShop } = useAppContext();
+  const [completed, setCompleted] = useState<boolean>(false);
   const [reportItems, setReportItems] = useState<{ [code: string]: number }>({});
   const [registerStatus, setRegisterStatus] = useState<RegisterStatus>();
   const componentRef = useRef(null);
@@ -44,6 +45,7 @@ const DailyCashReport: React.FC = () => {
   }, [currentShop]);
 
   const querySales = useCallback(async () => {
+    if (completed) return;
     if (!currentShop) return;
     try {
       const conds: QueryConstraint[] = [];
@@ -138,10 +140,10 @@ const DailyCashReport: React.FC = () => {
             }
             reportItemsData['detailsCountTotal'] += 1;
             reportItemsData[`division${detail.division}CountTotal`] += 1;
-            reportItemsData[`division${detail.division}AmountTotal`] += amount + detail.discount * registerSign;
+            reportItemsData[`division${detail.division}AmountTotal`] += amount + detail.discount * -1 * registerSign;
             if (detail.discount !== 0) {
               reportItemsData[`division${detail.division}DiscountCountTotal`] += 1;
-              reportItemsData[`division${detail.division}DiscountAmountTotal`] += detail.discount * registerSign;
+              reportItemsData[`division${detail.division}DiscountAmountTotal`] += detail.discount * -1 * registerSign;
             }
             if (detail.product.sellingTaxClass === 'exclusive') {
               if (detail.product.sellingTax === 10) {
@@ -198,8 +200,10 @@ const DailyCashReport: React.FC = () => {
         reportItemsData['divisionAllDiscountAmountTotal'] += reportItemsData[`division${division}DiscountAmountTotal`];
       });
       setReportItems(reportItemsData);
+      setCompleted(true);
     } catch (error) {
       console.log({ error });
+      setCompleted(true);
     }
   }, [currentShop, registerStatus]);
 
@@ -496,7 +500,7 @@ const DailyCashReport: React.FC = () => {
                       <Table.Row>
                         <Table.Cell className="w-2/3">　値引金額</Table.Cell>
                         <Table.Cell className="text-right w-1/3">
-                          {`¥${-reportItems[`division${division[0]}DiscountAmountTotal`]?.toLocaleString()}`}
+                          {`¥${reportItems[`division${division[0]}DiscountAmountTotal`]?.toLocaleString()}`}
                         </Table.Cell>
                       </Table.Row>
                     </Table.Body>
@@ -529,7 +533,7 @@ const DailyCashReport: React.FC = () => {
                   <Table.Row>
                     <Table.Cell className="w-2/3">　値引金額</Table.Cell>
                     <Table.Cell className="text-right w-1/3">
-                      {`¥${-reportItems['divisionAllDiscountAmountTotal']?.toLocaleString()}`}
+                      {`¥${reportItems['divisionAllDiscountAmountTotal']?.toLocaleString()}`}
                     </Table.Cell>
                   </Table.Row>
                 </Table.Body>
