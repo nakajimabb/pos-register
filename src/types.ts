@@ -224,8 +224,8 @@ export type RegisterStatus = {
 export type Inventory = {
   shopCode: string; // 店舗コード
   shopName: string; // 店舗コード
-  date: Timestamp; // 出庫日
-  fixedAt: Timestamp | null;
+  date: Timestamp; // 出庫日時
+  fixedAt?: Timestamp;
 };
 
 // 出庫詳細情報
@@ -233,8 +233,8 @@ export type InventoryDetail = {
   productCode: string; // JANコード
   productName: string;
   quantity: number;
-  stockQuantity: number; // 理論値(在庫)
-  fixedAt: Timestamp | null;
+  stock: number; // 理論値(カウント時在庫)
+  countedAt: Timestamp | null; // 最終カウント時刻
 };
 
 export const deliveryPath = (shopCode: string, deliveryNumber: number | undefined = undefined) =>

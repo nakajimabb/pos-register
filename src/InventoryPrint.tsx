@@ -53,7 +53,7 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
   };
 
   const sumQuantityDiff = () => {
-    return items.reduce((acc, item) => acc + item.stockQuantity - item.quantity, 0);
+    return items.reduce((acc, item) => acc + item.stock - item.quantity, 0);
   };
 
   // TODO: 後で実装
@@ -114,9 +114,9 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
                   <Table.Cell>{i + 1}</Table.Cell>
                   <Table.Cell>{item.productCode}</Table.Cell>
                   <Table.Cell>{item.productName}</Table.Cell>
-                  <Table.Cell>{item.stockQuantity}</Table.Cell>
+                  <Table.Cell>{item.stock}</Table.Cell>
                   <Table.Cell>{item.quantity}</Table.Cell>
-                  <Table.Cell>{item.stockQuantity - item.quantity}</Table.Cell>
+                  <Table.Cell>{item.quantity - item.stock}</Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>

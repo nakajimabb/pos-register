@@ -8,6 +8,7 @@ import {
   getDocs,
   Timestamp,
   serverTimestamp,
+  runTransaction,
   deleteDoc,
   query,
   orderBy,
@@ -15,6 +16,7 @@ import {
   QuerySnapshot,
   increment,
   setDoc,
+  DocumentReference,
 } from 'firebase/firestore';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import { useAppContext } from './AppContext';
@@ -22,6 +24,7 @@ import { isToday, toDateString } from './tools';
 import firebaseError from './firebaseError';
 import { Product, Inventory, InventoryDetail, inventoryPath, inventoryDetailPath, Stock, stockPath } from './types';
 import InventoryDetailEdit from './InventoryDetailEdit';
+import clsx from 'clsx';
 
 const db = getFirestore();
 
@@ -34,10 +37,10 @@ const InventoryMain: React.FC = () => {
     quantity: null,
   });
   const [inventoryDetails, setInventoryDetails] = useState<Map<string, InventoryDetail>>(new Map());
+  const [products, setProducts] = useState<Map<string, Product>>(new Map());
   const [inventory, setInventory] = useState<Inventory | undefined>(undefined);
-  const [targetDate, setTargetDate] = useState<Date>(new Date());
   const [errors, setErrors] = useState<string[]>([]);
-  const [targetProductCode, setTargetProductCode] = useState<string>('');
+  const [editTarget, setEditTarget] = useState<InventoryDetail | undefined>(undefined);
   const [processing, setProcessing] = useState<boolean>(false);
   const { currentShop } = useAppContext();
   const quantityRef = useRef<HTMLInputElement>(null);
@@ -66,13 +69,15 @@ const InventoryMain: React.FC = () => {
           const invt = snap.docs[0].data();
           if (!invt.fixedAt || isToday(invt.fixedAt.toDate())) {
             setInventory(invt);
+            // 在庫データ読込
             const items = new Map<string, InventoryDetail>();
+            await readStocks(shopCode, items);
+            // 棚卸データ読込
             const detailPath = inventoryDetailPath(shopCode, invt.date.toDate());
             const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<InventoryDetail>;
             qSnap.docs.forEach((docSnap) => {
               items.set(docSnap.id, docSnap.data());
             });
-            await readStocks(shopCode, items);
             setInventoryDetails(items);
           }
         }
@@ -93,7 +98,6 @@ const InventoryMain: React.FC = () => {
             shopCode,
             shopName,
             date: Timestamp.fromDate(date),
-            fixedAt: null,
           };
           await setDoc(ref, invt);
           setInventory(invt);
@@ -114,57 +118,84 @@ const InventoryMain: React.FC = () => {
       const stock = docSnap.data();
       const item = items.get(docSnap.id);
       if (item) {
-        items.set(docSnap.id, { ...item, stockQuantity: stock.quantity });
+        items.set(docSnap.id, { ...item, stock: stock.quantity });
       } else {
         items.set(docSnap.id, {
           productCode: stock.productCode,
           productName: stock.productName,
           quantity: 0,
-          stockQuantity: stock.quantity,
-          fixedAt: null,
+          stock: stock.quantity,
+          countedAt: null,
         });
       }
     });
   };
 
+  const getProduct = async (productCode: string) => {
+    const product = products.get(productCode);
+    if (product) {
+      return product;
+    } else {
+      const ref = doc(db, 'products', productCode) as DocumentReference<Product>;
+      const snap = await getDoc(ref);
+      const prdt = snap.data();
+      if (prdt) {
+        const newProducts = new Map(products);
+        newProducts.set(productCode, prdt);
+        setProducts(newProducts);
+        return prdt;
+      }
+    }
+  };
+
+  const getStockQuantity = async (shopCode: string, productCode: string) => {
+    const snap = (await getDoc(doc(db, stockPath(shopCode, productCode)))) as DocumentSnapshot<Stock>;
+    if (snap.exists()) {
+      return snap.data().quantity;
+    } else {
+      return 0;
+    }
+  };
+
   const addItem = async () => {
     if (inventory && currentItem.productCode && currentItem.quantity) {
-      const ref = doc(db, 'products', currentItem.productCode);
-      const snap = (await getDoc(ref)) as DocumentSnapshot<Product>;
-      const product = snap.data();
+      saveItem(inventory.shopCode, inventory.date.toDate(), currentItem.productCode, currentItem.quantity, 'add');
+      resetCurrentItem();
+      quantityRef.current?.focus();
+    }
+  };
+
+  const saveItem = async (shopCode: string, date: Date, productCode: string, quantity: number, op: 'add' | 'set') => {
+    try {
+      console.log(1);
+      const product = await getProduct(productCode);
+      console.log(2);
+      const stock = await getStockQuantity(shopCode, productCode);
       if (product) {
-        const items = new Map(inventoryDetails);
-        const item = items.get(currentItem.productCode);
-        const path = inventoryDetailPath(inventory.shopCode, inventory.date.toDate(), currentItem.productCode);
+        console.log(3);
+        const item = inventoryDetails.get(productCode);
+        const qty = op === 'set' ? quantity : (item?.quantity ?? 0) + quantity;
+        const newItem = {
+          productCode,
+          productName: product.name,
+          quantity: qty,
+          stock,
+          countedAt: Timestamp.fromDate(new Date()),
+        };
+        // save db
+        const path = inventoryDetailPath(shopCode, date, productCode);
         const ref = doc(db, path);
-        if (item) {
-          const ref = doc(db, path);
-          const invt = { ...item, quantity: currentItem.quantity, fixedAt: Timestamp.fromDate(new Date()) };
-          setDoc(ref, {
-            ...invt,
-            fixedAt: serverTimestamp(), // 差異あり
-          });
-          items.set(currentItem.productCode, invt);
-        } else {
-          const invt = {
-            productCode: currentItem.productCode,
-            productName: product.name,
-            quantity: currentItem.quantity,
-            stockQuantity: 0,
-            fixed: true,
-            fixedAt: Timestamp.fromDate(new Date()),
-          };
-          setDoc(ref, {
-            ...invt,
-            fixedAt: serverTimestamp(), // 差異あり
-          });
-        }
+        setDoc(ref, newItem);
+        // set state
+        const items = new Map(inventoryDetails);
+        items.set(productCode, newItem);
         setInventoryDetails(items);
-        resetCurrentItem();
-        quantityRef.current?.focus();
       } else {
-        setErrors((prev) => [...prev, '商品データが存在しません。']);
+        throw '商品データが存在しません。';
       }
+    } catch (error) {
+      console.log({ error });
+      setErrors((prev) => [...prev, firebaseError(error)]);
     }
   };
 
@@ -187,26 +218,35 @@ const InventoryMain: React.FC = () => {
     e.preventDefault();
   };
 
-  const fixInventory = async () => {
+  // fix: true => 確定、false => 確定取消
+  const fixInventory = async (fix: boolean) => {
     if (inventory && inventory.shopCode) {
       try {
         setProcessing(false);
-        const ref = doc(db, inventoryPath(inventory.shopCode, inventory.date.toDate()));
-        if (existFixedItems()) {
-          if (window.confirm('確定しますか？')) {
-            await setDoc(ref, { ...inventory, fixedAt: serverTimestamp() });
-            const snap = (await getDoc(ref)) as DocumentSnapshot<Inventory>;
-            if (snap.exists()) setInventory(snap.data());
-            alert('保存しました。');
+        const items = getDiffItems();
+        await runTransaction(db, async (transaction) => {
+          // 在庫更新
+          items.forEach((item) => {
+            const ref = doc(db, stockPath(inventory.shopCode, item.productCode));
+            const diff = item.quantity - item.stock;
+            transaction.set(
+              ref,
+              { quantity: increment(fix ? diff : -diff), updatedAt: serverTimestamp() },
+              { merge: true }
+            );
+          });
+          // 棚卸更新
+          const ref = doc(db, inventoryPath(inventory.shopCode, inventory.date.toDate()));
+          if (fix) {
+            transaction.set(ref, { ...inventory, fixedAt: serverTimestamp() }, { merge: true });
+          } else {
+            delete inventory.fixedAt;
+            transaction.set(ref, inventory);
           }
-        } else {
-          if (window.confirm('棚卸データが存在しません。データをクリアします。')) {
-            await deleteDoc(ref);
-            setInventory(undefined);
-            setInventoryDetails(new Map());
-          }
-        }
+        });
+        loadLastInventory(inventory.shopCode);
         setProcessing(false);
+        alert('在庫を更新しました。');
       } catch (error) {
         setProcessing(false);
         console.log({ error });
@@ -219,54 +259,73 @@ const InventoryMain: React.FC = () => {
     return Array.from(inventoryDetails.values());
   };
 
-  const getFixedItems = () => {
-    return Array.from(inventoryDetails.values()).filter((item) => !!item.fixedAt);
+  const existCountedItems = () => {
+    return Array.from(inventoryDetails.values()).some((item) => !!item.countedAt);
   };
 
-  const existFixedItems = () => {
-    return Array.from(inventoryDetails.values()).some((item) => !!item.fixedAt);
+  const getCountedItems = () => {
+    return Array.from(inventoryDetails.values()).filter((item) => !!item.countedAt);
   };
 
-  const sumItemQuantity = () => {
-    return getTargetItems().reduce((acc, item) => acc + item.quantity, 0);
+  // 差異がある商品の取得
+  const getDiffItems = () => {
+    return Array.from(inventoryDetails.values()).filter((item) => !!item.countedAt && item.quantity !== item.stock);
+  };
+
+  const enableNewInventory = () => {
+    if (!inventory) return true;
+    if (!inventory.fixedAt) return false;
+
+    let nextDate = inventory.fixedAt.toDate();
+    nextDate.setDate(nextDate.getDate() + 1);
+    return new Date() > nextDate;
   };
 
   return (
     <div className="pt-12">
       <div className="p-4">
         <h1 className="text-xl font-bold mb-2">棚卸処理</h1>
-        {targetProductCode && (
+        {editTarget && (
           <InventoryDetailEdit
             open
-            value={inventoryDetails.get(targetProductCode)}
-            onClose={() => setTargetProductCode('')}
-            onUpdate={(inventoryDetail: InventoryDetail) => {
-              const newItems = new Map(inventoryDetails);
-              newItems.set(targetProductCode, inventoryDetail);
-              setInventoryDetails(newItems);
+            value={editTarget}
+            onUpdate={(detail: InventoryDetail) => {
+              if (inventory) {
+                saveItem(inventory.shopCode, inventory.date.toDate(), detail.productCode, detail.quantity, 'set');
+              }
             }}
+            onClose={() => setEditTarget(undefined)}
           />
         )}
         <Card className="p-5 overflow-visible">
           <Flex className="space-x-2 mb-2">
-            <Form.Date
-              value={toDateString(targetDate, 'YYYY-MM-DD')}
-              onChange={(e) => {
-                const date = new Date(e.target.value);
-                setTargetDate(date);
-              }}
-            />
-            <Button
-              className="w-32"
-              disabled={!!inventory || processing}
-              onClick={() => {
-                if (currentShop && window.confirm('棚卸を開始しますか？')) {
-                  newInventory(currentShop.code, currentShop.name, targetDate);
-                }
-              }}
-            >
-              棚卸開始
-            </Button>
+            <Form.Date value={toDateString(inventory?.date?.toDate() ?? new Date(), 'YYYY-MM-DD')} disabled />
+            {enableNewInventory() && (
+              <Button
+                className="w-32"
+                disabled={processing}
+                onClick={() => {
+                  if (currentShop && window.confirm('棚卸を開始しますか？')) {
+                    newInventory(currentShop.code, currentShop.name, new Date());
+                  }
+                }}
+              >
+                棚卸開始
+              </Button>
+            )}
+            {inventory && inventory.fixedAt && isToday(inventory.fixedAt.toDate()) && (
+              <Button
+                className="w-32"
+                disabled={processing}
+                onClick={() => {
+                  if (window.confirm('確定を取消しますか？')) {
+                    fixInventory(false);
+                  }
+                }}
+              >
+                確定取消
+              </Button>
+            )}
           </Flex>
           {errors.length > 0 && (
             <Alert severity="error" onClose={() => setErrors([])}>
@@ -276,39 +335,49 @@ const InventoryMain: React.FC = () => {
             </Alert>
           )}
           <hr className="m-4" />
-          <Flex justify_content="between">
-            <Form className="flex space-x-2 mb-2" onSubmit={handleSubmit}>
-              <Form.Text
-                value={currentItem.productCode}
-                onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
-                onKeyPress={loadProduct}
-                placeholder="商品コード"
-              />
-              <Form.Number
-                value={String(currentItem.quantity)}
-                placeholder="数量"
-                innerRef={quantityRef}
-                onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addItem();
-                  }
-                }}
-                className="w-36"
-              />
-              <Button onClick={addItem}>追加</Button>
-            </Form>
-            <div className="space-x-2">
-              <Button
-                className="w-32"
-                disabled={!inventory || !!inventory.fixedAt || processing}
-                onClick={fixInventory}
-              >
-                {inventory?.fixedAt ? '確定済' : '棚卸終了'}
-              </Button>
-            </div>
-          </Flex>
+          {inventory && !inventory.fixedAt && (
+            <Flex justify_content="between">
+              <Form className="flex space-x-2 mb-2" onSubmit={handleSubmit}>
+                <Form.Text
+                  value={currentItem.productCode}
+                  onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
+                  onKeyPress={loadProduct}
+                  disabled={!inventory || !!inventory.fixedAt}
+                  placeholder="商品コード"
+                />
+                <Form.Number
+                  value={String(currentItem.quantity)}
+                  placeholder="数量"
+                  innerRef={quantityRef}
+                  onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addItem();
+                    }
+                  }}
+                  disabled={!inventory || !!inventory.fixedAt}
+                  className="w-36"
+                />
+                <Button onClick={addItem} disabled={!inventory || !!inventory.fixedAt}>
+                  追加
+                </Button>
+              </Form>
+              <div className="space-x-2">
+                <Button
+                  className="w-32"
+                  disabled={!inventory || !!inventory.fixedAt || !existCountedItems() || processing}
+                  onClick={() => {
+                    if (window.confirm('確定しますか？')) {
+                      fixInventory(true);
+                    }
+                  }}
+                >
+                  棚卸終了
+                </Button>
+              </div>
+            </Flex>
+          )}
           <Table className="w-full">
             <Table.Head>
               <Table.Row>
@@ -317,32 +386,33 @@ const InventoryMain: React.FC = () => {
                 <Table.Cell>商品名</Table.Cell>
                 <Table.Cell>理論値</Table.Cell>
                 <Table.Cell>実数</Table.Cell>
-                <Table.Cell>差異</Table.Cell>
+                <Table.Cell>差異(合計)</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Head>
             <Table.Body>
               {getTargetItems().map((item, i) => (
-                <Table.Row key={i}>
+                <Table.Row
+                  key={i}
+                  className={clsx(item.countedAt && item.quantity !== item.stock && 'text-red-600 font-bold')}
+                >
                   <Table.Cell>{i + 1}</Table.Cell>
                   <Table.Cell>{item.productCode}</Table.Cell>
                   <Table.Cell>{item.productName}</Table.Cell>
-                  <Table.Cell>{item.stockQuantity}</Table.Cell>
-                  <Table.Cell>{item.fixedAt ? item.quantity : ''}</Table.Cell>
-                  <Table.Cell>{item.fixedAt ? item.stockQuantity - item.quantity : ''}</Table.Cell>
+                  <Table.Cell>{item.stock}</Table.Cell>
+                  <Table.Cell>{item.countedAt ? item.quantity : ''}</Table.Cell>
+                  <Table.Cell>{item.countedAt ? item.quantity - item.stock : ''}</Table.Cell>
                   <Table.Cell>
-                    {!item.fixedAt && (
-                      <>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300"
-                          onClick={() => setTargetProductCode(item.productCode)}
-                        >
-                          <Icon name="pencil-alt" />
-                        </Button>
-                      </>
+                    {inventory && !inventory.fixedAt && (
+                      <Button
+                        variant="icon"
+                        size="xs"
+                        color="none"
+                        className="hover:bg-gray-300"
+                        onClick={() => setEditTarget(item)}
+                      >
+                        <Icon name="pencil-alt" />
+                      </Button>
                     )}
                   </Table.Cell>
                 </Table.Row>

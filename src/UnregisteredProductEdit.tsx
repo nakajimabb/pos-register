@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
 
-import { Button, Form, Grid, Modal } from './components';
+import { Alert, Button, Form, Grid, Modal } from './components';
 import firebaseError from './firebaseError';
 import { Product } from './types';
 import { checkDigit } from './tools';
@@ -60,6 +60,11 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, 
           未登録商品
         </Modal.Header>
         <Modal.Body>
+          {error && (
+            <Alert severity="error" onClose={() => setError('')} className="mb-2">
+              {error}
+            </Alert>
+          )}
           <Grid cols="1 sm:2" gap="0 sm:3" auto_cols="fr" template_cols="1fr 2fr" className="row-end-2">
             <Form.Label>商品コード</Form.Label>
             <Form.Text placeholder="商品コード" disabled required value={product.code} />

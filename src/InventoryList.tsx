@@ -127,7 +127,7 @@ const InventoryList: React.FC = () => {
                 return (
                   <Table.Row key={i}>
                     <Table.Cell>{dateStr}</Table.Cell>
-                    <Table.Cell>{!!item.fixedAt ? '確定済' : '保留'}</Table.Cell>
+                    <Table.Cell>{!!item.fixedAt ? '確定済' : '作業中'}</Table.Cell>
                     <Table.Cell>
                       {/* <Link
                         to={`/delivery_edit?shopCode=${item.shopCode}&deliveryNumber=${item.deliveryNumber}`}
