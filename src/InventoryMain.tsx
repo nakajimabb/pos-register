@@ -9,6 +9,7 @@ import {
   Timestamp,
   serverTimestamp,
   runTransaction,
+  deleteDoc,
   query,
   orderBy,
   limit,
@@ -59,6 +60,11 @@ const InventoryMain: React.FC = () => {
       productCode: '',
       quantity: null,
     });
+  };
+
+  const clearinventory = () => {
+    setInventory(undefined);
+    setInventoryDetails(new Map());
   };
 
   const loadLastInventory = async (shopCode: string) => {
@@ -225,31 +231,42 @@ const InventoryMain: React.FC = () => {
   const fixInventory = async (fix: boolean) => {
     if (inventory && inventory.shopCode) {
       try {
-        setProcessing(false);
-        const items = getDiffItems();
-        await runTransaction(db, async (transaction) => {
-          // 在庫更新
-          items.forEach((item) => {
-            const ref = doc(db, stockPath(inventory.shopCode, item.productCode));
-            const diff = item.quantity - item.stock;
-            transaction.set(
-              ref,
-              { quantity: increment(fix ? diff : -diff), updatedAt: serverTimestamp() },
-              { merge: true }
-            );
+        setProcessing(true);
+        if (existCountedItems()) {
+          const items = getDiffItems();
+          await runTransaction(db, async (transaction) => {
+            // 在庫更新
+            items.forEach((item) => {
+              const ref = doc(db, stockPath(inventory.shopCode, item.productCode));
+              const diff = item.quantity - item.stock;
+              transaction.set(
+                ref,
+                { quantity: increment(fix ? diff : -diff), updatedAt: serverTimestamp() },
+                { merge: true }
+              );
+            });
+            // 棚卸更新
+            const ref = doc(db, inventoryPath(inventory.shopCode, inventory.date.toDate()));
+            if (fix) {
+              transaction.set(ref, { ...inventory, fixedAt: serverTimestamp() }, { merge: true });
+            } else {
+              delete inventory.fixedAt;
+              transaction.set(ref, inventory);
+            }
           });
-          // 棚卸更新
-          const ref = doc(db, inventoryPath(inventory.shopCode, inventory.date.toDate()));
-          if (fix) {
-            transaction.set(ref, { ...inventory, fixedAt: serverTimestamp() }, { merge: true });
-          } else {
-            delete inventory.fixedAt;
-            transaction.set(ref, inventory);
-          }
-        });
+          alert('在庫を更新しました。');
+        } else {
+          // カウント項目が存在しないとき（間違って開始したときなど）
+          const ref = collection(db, inventoryDetailPath(inventory.shopCode, inventory.date.toDate()));
+          const details = await getDocs(ref);
+          if (details.docs.length > 0) throw Error('既に棚卸データが存在します。');
+
+          const refInvt = doc(db, inventoryPath(inventory.shopCode, inventory.date.toDate()));
+          await deleteDoc(refInvt);
+          clearinventory();
+        }
         loadLastInventory(inventory.shopCode);
         setProcessing(false);
-        alert('在庫を更新しました。');
       } catch (error) {
         setProcessing(false);
         console.log({ error });
@@ -358,7 +375,7 @@ const InventoryMain: React.FC = () => {
                 </Button>
                 <Button
                   className="w-32"
-                  disabled={!inventory || !!inventory.fixedAt || !existCountedItems() || processing}
+                  disabled={!inventory || !!inventory.fixedAt || processing}
                   onClick={() => {
                     if (window.confirm('確定しますか？')) {
                       fixInventory(true);
