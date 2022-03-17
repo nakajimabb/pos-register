@@ -9,7 +9,6 @@ import {
   Timestamp,
   serverTimestamp,
   runTransaction,
-  deleteDoc,
   query,
   orderBy,
   limit,
@@ -23,10 +22,13 @@ import { useAppContext } from './AppContext';
 import { isToday, toDateString } from './tools';
 import firebaseError from './firebaseError';
 import { Product, Inventory, InventoryDetail, inventoryPath, inventoryDetailPath, Stock, stockPath } from './types';
+import InventorySum from './InventorySum';
 import InventoryDetailEdit from './InventoryDetailEdit';
 import clsx from 'clsx';
 
 const db = getFirestore();
+
+type SortType = 'countedAt' | 'stock' | 'quantity' | 'diff';
 
 const InventoryMain: React.FC = () => {
   const [currentItem, setCurrentItem] = useState<{
@@ -42,6 +44,7 @@ const InventoryMain: React.FC = () => {
   const [errors, setErrors] = useState<string[]>([]);
   const [editTarget, setEditTarget] = useState<InventoryDetail | undefined>(undefined);
   const [processing, setProcessing] = useState<boolean>(false);
+  const [sortType, setSortType] = useState<SortType>('countedAt');
   const { currentShop } = useAppContext();
   const quantityRef = useRef<HTMLInputElement>(null);
 
@@ -98,6 +101,7 @@ const InventoryMain: React.FC = () => {
             shopCode,
             shopName,
             date: Timestamp.fromDate(date),
+            sum: {},
           };
           await setDoc(ref, invt);
           setInventory(invt);
@@ -167,12 +171,9 @@ const InventoryMain: React.FC = () => {
 
   const saveItem = async (shopCode: string, date: Date, productCode: string, quantity: number, op: 'add' | 'set') => {
     try {
-      console.log(1);
       const product = await getProduct(productCode);
-      console.log(2);
       const stock = await getStockQuantity(shopCode, productCode);
       if (product) {
-        console.log(3);
         const item = inventoryDetails.get(productCode);
         const qty = op === 'set' ? quantity : (item?.quantity ?? 0) + quantity;
         const newItem = {
@@ -182,13 +183,15 @@ const InventoryMain: React.FC = () => {
           stock,
           countedAt: Timestamp.fromDate(new Date()),
         };
-        // save db
-        const path = inventoryDetailPath(shopCode, date, productCode);
-        const ref = doc(db, path);
-        setDoc(ref, newItem);
-        // set state
         const items = new Map(inventoryDetails);
         items.set(productCode, newItem);
+        // save db
+        const invt = await updateSum(items);
+        const path = inventoryPath(shopCode, date);
+        setDoc(doc(db, path), invt);
+        const pathDetail = inventoryDetailPath(shopCode, date, productCode);
+        setDoc(doc(db, pathDetail), newItem);
+        // set state
         setInventoryDetails(items);
       } else {
         throw '商品データが存在しません。';
@@ -255,16 +258,56 @@ const InventoryMain: React.FC = () => {
     }
   };
 
-  const getTargetItems = () => {
-    return Array.from(inventoryDetails.values());
+  const getSortItems = () => {
+    return Array.from(inventoryDetails.values()).sort((item1, item2) => {
+      const countedAt1 = item1.countedAt;
+      const countedAt2 = item2.countedAt;
+      if (countedAt1 && countedAt2) {
+        const diff = sortType === 'diff';
+        const v1 = diff ? Math.abs(item1.quantity - item1.stock) : item1[sortType];
+        const v2 = diff ? Math.abs(item2.quantity - item2.stock) : item2[sortType];
+        if (v1 !== null && v2 !== null) {
+          if (v1 > v2) return -1;
+          else if (v1 < v2) return 1;
+          else return 0;
+        }
+      }
+
+      const code1 = item1.productCode;
+      const code2 = item2.productCode;
+      if (code1 > code2) return 1;
+      else if (code1 < code2) return -1;
+      else return 0;
+    });
   };
 
   const existCountedItems = () => {
     return Array.from(inventoryDetails.values()).some((item) => !!item.countedAt);
   };
 
-  const getCountedItems = () => {
-    return Array.from(inventoryDetails.values()).filter((item) => !!item.countedAt);
+  const updateSum = async (items: Map<string, InventoryDetail>) => {
+    if (inventory) {
+      const sum: { [tax: number]: { quantity: number; amount: number } } = { 0: { quantity: 0, amount: 0 } };
+      for await (const item of items.values()) {
+        if (item.countedAt && item.quantity !== item.stock) {
+          const product = await getProduct(item.productCode);
+          if (product && product.costPrice) {
+            const diff = item.quantity - item.stock;
+            const tax = product.sellingTax;
+            if (tax) {
+              if (!(tax in sum)) sum[tax] = { quantity: 0, amount: 0 };
+              sum[tax].quantity += diff;
+              sum[tax].amount += diff * product.costPrice;
+            }
+            sum[0].quantity += diff;
+            sum[0].amount += diff * product.costPrice;
+          }
+        }
+      }
+      const invt = { ...inventory, sum };
+      setInventory(invt);
+      return invt;
+    }
   };
 
   // 差異がある商品の取得
@@ -298,34 +341,48 @@ const InventoryMain: React.FC = () => {
           />
         )}
         <Card className="p-5 overflow-visible">
-          <Flex className="space-x-2 mb-2">
-            <Form.Date value={toDateString(inventory?.date?.toDate() ?? new Date(), 'YYYY-MM-DD')} disabled />
-            {enableNewInventory() && (
-              <Button
-                className="w-32"
-                disabled={processing}
-                onClick={() => {
-                  if (currentShop && window.confirm('棚卸を開始しますか？')) {
-                    newInventory(currentShop.code, currentShop.name, new Date());
-                  }
-                }}
-              >
-                棚卸開始
-              </Button>
-            )}
-            {inventory && inventory.fixedAt && isToday(inventory.fixedAt.toDate()) && (
-              <Button
-                className="w-32"
-                disabled={processing}
-                onClick={() => {
-                  if (window.confirm('確定を取消しますか？')) {
-                    fixInventory(false);
-                  }
-                }}
-              >
-                確定取消
-              </Button>
-            )}
+          <Flex justify_content="between">
+            <div className="space-y-3 mb-2">
+              <Form.Date value={toDateString(inventory?.date?.toDate() ?? new Date(), 'YYYY-MM-DD')} disabled />
+              <Flex className="space-x-2 mb-2">
+                <Button
+                  className="w-32"
+                  disabled={!enableNewInventory() || processing}
+                  onClick={() => {
+                    if (currentShop && window.confirm('棚卸を開始しますか？')) {
+                      newInventory(currentShop.code, currentShop.name, new Date());
+                    }
+                  }}
+                >
+                  棚卸開始
+                </Button>
+                <Button
+                  className="w-32"
+                  disabled={!inventory || !!inventory.fixedAt || !existCountedItems() || processing}
+                  onClick={() => {
+                    if (window.confirm('確定しますか？')) {
+                      fixInventory(true);
+                    }
+                  }}
+                >
+                  棚卸終了
+                </Button>
+                {inventory && inventory.fixedAt && isToday(inventory.fixedAt.toDate()) && (
+                  <Button
+                    className="w-32"
+                    disabled={processing}
+                    onClick={() => {
+                      if (window.confirm('確定を取消しますか？')) {
+                        fixInventory(false);
+                      }
+                    }}
+                  >
+                    確定取消
+                  </Button>
+                )}
+              </Flex>
+            </div>
+            {inventory && <InventorySum inventory={inventory} />}
           </Flex>
           {errors.length > 0 && (
             <Alert severity="error" onClose={() => setErrors([])}>
@@ -363,19 +420,18 @@ const InventoryMain: React.FC = () => {
                   追加
                 </Button>
               </Form>
-              <div className="space-x-2">
-                <Button
-                  className="w-32"
-                  disabled={!inventory || !!inventory.fixedAt || !existCountedItems() || processing}
-                  onClick={() => {
-                    if (window.confirm('確定しますか？')) {
-                      fixInventory(true);
-                    }
-                  }}
-                >
-                  棚卸終了
-                </Button>
-              </div>
+              <Form.Select
+                className="mb-3 sm:mb-0"
+                value={sortType}
+                required
+                options={[
+                  { value: 'countedAt', label: '追加順' },
+                  { value: 'stock', label: '理論値順' },
+                  { value: 'quantity', label: '実数順' },
+                  { value: 'diff', label: '差異順' },
+                ]}
+                onChange={(e) => setSortType(e.target.value as SortType)}
+              />
             </Flex>
           )}
           <Table className="w-full">
@@ -391,7 +447,7 @@ const InventoryMain: React.FC = () => {
               </Table.Row>
             </Table.Head>
             <Table.Body>
-              {getTargetItems().map((item, i) => (
+              {getSortItems().map((item, i) => (
                 <Table.Row
                   key={i}
                   className={clsx(item.countedAt && item.quantity !== item.stock && 'text-red-600 font-bold')}

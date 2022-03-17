@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getFirestore, doc, getDocs, collection, writeBatch, DocumentReference } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, getDocs, collection, writeBatch, DocumentReference } from 'firebase/firestore';
 
 import { Alert, Button, Card, Flex, Form } from './components';
 import { readExcelAsOjects, HeaderInfo } from './readExcel';
 import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
-import { Supplier, ProductCostPrice, productCostPricePath } from './types';
+import { Product, Supplier, ProductCostPrice, productCostPricePath } from './types';
 import { checkDigit } from './tools';
 
 const db = getFirestore();
@@ -101,10 +101,12 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
 
         // 不正なJANコード
         const ngJanCodes = new Set<string>();
+        const productCodes = new Set<string>();
         data.forEach((item) => {
           const code = String(item.code);
           if (code.match(/^\d{8}$|^\d{13}$/)) {
-            if (!checkDigit(code)) ngJanCodes.add(code);
+            if (checkDigit(code)) productCodes.add(code);
+            else ngJanCodes.add(code);
           }
         });
         console.log({ ngJanCodes: Array.from(ngJanCodes).join(',') });
@@ -156,8 +158,16 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
           counter.products = results.reduce((cnt, res) => cnt + res.count, 0);
           errors.products = results.filter((res) => !!res.error).map((res) => res.error);
         } else {
+          const noneProductCodes = new Set<string>();
+          for await (const code of Array.from(productCodes)) {
+            const snap = await getDoc(doc(db, 'products', code));
+            if (!snap.exists()) noneProductCodes.add(code);
+          }
+          console.log({ noneProductCodes, shopCodes, data });
+
           const taskSize = Math.ceil(shopData.length / BATCH_UNIT);
           const sequential = [...Array(taskSize)].map((_, i) => i);
+
           // 店舗原価
           const tasks = sequential.map(async (_, i) => {
             try {
@@ -169,7 +179,8 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
               sliced.forEach((item) => {
                 const code = String(item.code);
                 const shopCode = String(item.shopCode);
-                if (item.valid && checkDigit(code) && shopCodes.includes(shopCode)) {
+                // 共通の商品マスタに存在しないものは読込まない
+                if (item.valid && checkDigit(code) && shopCodes.includes(shopCode) && !noneProductCodes.has(code)) {
                   let supplierRef: DocumentReference<Supplier> | null = null;
                   // 仕入先情報
                   const supCode = String(item.supplierCode);
@@ -212,7 +223,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
               sliced.forEach((item) => {
                 const code = String(item.code);
                 const shopCode = String(item.shopCode);
-                if (item.valid && checkDigit(code) && shopCodes.includes(shopCode)) {
+                if (item.valid && checkDigit(code) && shopCodes.includes(shopCode) && !noneProductCodes.has(code)) {
                   batch.set(
                     doc(db, 'shops', shopCode, 'productSellingPrices', code),
                     { shopCode, productCode: code, productName: item.name, sellingPrice: item.sellingPrice },

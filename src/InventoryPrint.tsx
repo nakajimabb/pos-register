@@ -5,7 +5,7 @@ import { useReactToPrint } from 'react-to-print';
 import { Flex, Modal, Table } from './components';
 import { nameWithCode, toDateString } from './tools';
 import { Inventory, InventoryDetail, inventoryPath, inventoryDetailPath } from './types';
-var JsBarcode = require('jsbarcode');
+import InventorySum from './InventorySum';
 
 const db = getFirestore();
 
@@ -20,6 +20,7 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
   const [items, setItems] = useState<InventoryDetail[]>([]);
   const [inventory, setInventory] = useState<Inventory | undefined>(undefined);
   const [loaded, setLoaded] = useState<boolean>(false);
+  const sortType = 'diff';
   const pageStyle = `
     @media print {
       @page { size: JIS-B5 portrait; }
@@ -32,11 +33,6 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
   }, [shopCode, date]);
 
   useEffect(() => {
-    try {
-      JsBarcode('.barcode').init();
-    } catch (err) {
-      console.log({ err });
-    }
     if (loaded && handlePrint && mode === 'print') handlePrint();
   }, [loaded]);
 
@@ -52,16 +48,6 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
     }
   };
 
-  const sumQuantityDiff = () => {
-    return items.reduce((acc, item) => acc + item.stock - item.quantity, 0);
-  };
-
-  // TODO: 後で実装
-  const sumItemSellingPrice = () => {
-    // return items.reduce((acc, item) => acc + item.quantity * Number(item.costPrice), 0);
-    return 0;
-  };
-
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
     pageStyle,
@@ -70,32 +56,53 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
     },
   });
 
+  const getSortItems = () => {
+    return items.sort((item1, item2) => {
+      const countedAt1 = item1.countedAt;
+      const countedAt2 = item2.countedAt;
+      if (countedAt1 && countedAt2) {
+        const diff = sortType === 'diff';
+        const v1 = diff ? Math.abs(item1.quantity - item1.stock) : item1[sortType];
+        const v2 = diff ? Math.abs(item2.quantity - item2.stock) : item2[sortType];
+        if (v1 !== null && v2 !== null) {
+          if (v1 > v2) return -1;
+          else if (v1 < v2) return 1;
+          else return 0;
+        }
+      }
+
+      const code1 = item1.productCode;
+      const code2 = item2.productCode;
+      if (code1 > code2) return 1;
+      else if (code1 < code2) return -1;
+      else return 0;
+    });
+  };
+
   return (
     <Modal open size="none" onClose={onClose} className={clsx('w-2/3 overflow-visible', mode === 'print' && 'hidden')}>
       <Modal.Body>
         <div ref={componentRef}>
-          <Flex justify_content="between">
+          <Flex justify_content="between" className="mb-3">
             <div>
               <h1 className="text-2xl font-bold mb-3">
-                棚卸リスト{' '}
-                {inventory
-                  ? `${nameWithCode({ code: inventory.shopCode, name: inventory.shopName })} ${toDateString(
-                      inventory.date.toDate(),
-                      'MM/DD'
-                    )}`
-                  : ''}
+                棚卸リスト{inventory && nameWithCode({ code: inventory.shopCode, name: inventory.shopName })}
               </h1>
-              <Flex>
-                <div className="bold border border-gray-300 text-center w-16 py-1">種類</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">{items.length}</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">差異数</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">{sumQuantityDiff()}</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">金額</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">
-                  <small>{sumItemSellingPrice().toLocaleString()}円</small>
-                </div>
-              </Flex>
+              {inventory && (
+                <>
+                  <Flex>
+                    <div className="w-24">ｽﾃｰﾀｽ</div>
+                    {inventory && (inventory.fixedAt ? '確定済' : '作業中')}
+                  </Flex>
+                  <Flex>
+                    <div className="w-24">作業期間</div>
+                    {toDateString(inventory.date.toDate(), 'MM/DD hh:mm')}〜
+                    {inventory.fixedAt && toDateString(inventory.fixedAt.toDate(), 'MM/DD hh:mm')}
+                  </Flex>
+                </>
+              )}
             </div>
+            {inventory && <InventorySum inventory={inventory} />}
           </Flex>
           <Table className="w-full">
             <Table.Head>
@@ -109,8 +116,11 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
               </Table.Row>
             </Table.Head>
             <Table.Body>
-              {items.map((item, i) => (
-                <Table.Row key={i}>
+              {getSortItems().map((item, i) => (
+                <Table.Row
+                  key={i}
+                  className={clsx(item.countedAt && item.quantity !== item.stock && 'text-red-600 font-bold')}
+                >
                   <Table.Cell>{i + 1}</Table.Cell>
                   <Table.Cell>{item.productCode}</Table.Cell>
                   <Table.Cell>{item.productName}</Table.Cell>

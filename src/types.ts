@@ -226,6 +226,7 @@ export type Inventory = {
   shopName: string; // 店舗コード
   date: Timestamp; // 出庫日時
   fixedAt?: Timestamp;
+  sum: { [tax: number]: { quantity: number; amount: number } };
 };
 
 // 出庫詳細情報
