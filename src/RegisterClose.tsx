@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import app from './firebase';
 import {
   doc,
   getDocs,
@@ -11,6 +12,7 @@ import {
   Timestamp,
   updateDoc,
 } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { format } from 'date-fns';
 import { Button, Card, Flex, Form } from './components';
 import { useAppContext } from './AppContext';
@@ -41,6 +43,12 @@ const RegisterClose: React.FC = () => {
     if (currentShop) {
       const statusRef = doc(db, 'shops', currentShop.code, 'status', format(closeDate, 'yyyyMMdd'));
       await updateDoc(statusRef, { closedAt: Timestamp.fromDate(new Date()) });
+      const functions = getFunctions(app, 'asia-northeast1');
+      const result = await httpsCallable(
+        functions,
+        'sendDailyClosingData'
+      )({ code: currentShop.code, date: format(closeDate, 'yyyy/MM/dd') });
+      console.log({ result });
     }
     window.location.href = '/daily_cash_report';
   };

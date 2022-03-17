@@ -3,7 +3,6 @@ import * as functions from 'firebase-functions';
 import * as client from 'cheerio-httpcli';
 import * as crypto from 'crypto';
 import * as FTP from 'ftp';
-import * as fs from 'fs';
 
 admin.initializeApp();
 
@@ -267,155 +266,155 @@ export const sendDailyClosingData = functions
   .runWith({ timeoutSeconds: 300 })
   .region('asia-northeast1')
   .https.onCall(async (data) => {
-    const f = async () => {
-      try {
-        let registerStatus: any = null;
-        const statusRef = db.collection('shops').doc(data.code).collection('status');
-        const statusSnap = await statusRef.orderBy('openedAt', 'desc').limit(1).get();
-        if (statusSnap.size > 0) {
-          statusSnap.docs.map(async (doc) => {
-            registerStatus = doc.data();
-          });
-        }
-
-        const COPAYMENT_HEALTH = 1;
-        const MEDICINE_SALES = 2;
-        const CONTAINER_COST = 3;
-        const COPAYMENT_ADJUST = 4;
-        const OTC = 5;
-        const COPAYMENT_CARE = 7;
-        const SEND_FEE_RETURN = 8;
-        const PLASTIC_BAG = 9;
-        const HEARING_AID = 10;
-
-        const reportItemsData = {
-          copayment_health: 0,
-          medicine_sales: 0,
-          container_cost: 0,
-          copayment_care: 0,
-          send_fee_return: 0,
-          otc_normal: 0,
-          otc_normal_tax: 0,
-          otc_reduced: 0,
-          otc_reduced_tax: 0,
-          copayment_adjust: [] as [string, number][],
-        };
-
-        if (registerStatus) {
-          const q = db
-            .collection('sales')
-            .where('shopCode', '==', data.code)
-            .where('createdAt', '>=', registerStatus.openedAt.toDate())
-            .where('createdAt', '<', registerStatus.closedAt.toDate())
-            .orderBy('createdAt', 'desc');
-          const querySnapshot = await q.get();
-
-          await Promise.all(
-            querySnapshot.docs.map(async (doc) => {
-              const sale = doc.data();
-
-              const registerSign = sale.status === 'Return' ? -1 : 1;
-
-              let creditTotal = 0;
-              let priceNormalTotal = 0;
-              let priceReducedTotal = 0;
-
-              const detailsSnapshot = await db.collection('sales').doc(doc.id).collection('saleDetails').get();
-              detailsSnapshot.docs.forEach((detailDoc) => {
-                const detail = detailDoc.data();
-                const amount = Number(detail.product.sellingPrice) * detail.quantity * registerSign;
-                switch (detail.division) {
-                  case COPAYMENT_HEALTH:
-                    reportItemsData['copayment_health'] += amount;
-                    break;
-                  case MEDICINE_SALES:
-                    reportItemsData['medicine_sales'] += amount;
-                    break;
-                  case CONTAINER_COST:
-                    reportItemsData['container_cost'] += amount;
-                    break;
-                  case COPAYMENT_ADJUST:
-                    reportItemsData['copayment_adjust'].push(['receivable', amount]);
-                    break;
-                  case OTC:
-                    if (detail.product.sellingTax === 10) {
-                      priceNormalTotal += amount;
-                    } else if (detail.product.sellingTax === 8) {
-                      priceReducedTotal += amount;
-                    }
-                    break;
-                  case COPAYMENT_CARE:
-                    reportItemsData['copayment_care'] += amount;
-                    break;
-                  case SEND_FEE_RETURN:
-                    reportItemsData['send_fee_return'] += amount;
-                    break;
-                  case PLASTIC_BAG:
-                    reportItemsData['container_cost'] += amount;
-                    break;
-                  case HEARING_AID:
-                    reportItemsData['copayment_health'] += amount;
-                    break;
-                }
-                creditTotal += amount;
-              });
-
-              reportItemsData['otc_normal'] += priceNormalTotal;
-              reportItemsData['otc_reduced'] += priceReducedTotal;
-              reportItemsData['otc_normal_tax'] += Math.floor((priceNormalTotal * 10) / 100);
-              reportItemsData['otc_reduced_tax'] += Math.floor((priceReducedTotal * 8) / 100);
-              if (sale.paymentType === 'Credit') {
-                const taxNormalCreditTotal = Math.floor((priceNormalTotal * 10) / 100);
-                const taxReducedCreditTotal = Math.floor((priceReducedTotal * 8) / 100);
-                reportItemsData['copayment_adjust'].push([
-                  'credit',
-                  creditTotal + taxNormalCreditTotal + taxReducedCreditTotal,
-                ]);
-              }
-            })
-          );
-        }
-
-        const fileName = `${data.code}_${toDateString(data.date, 'YYYYMMDD')}.json`;
-
-        fs.writeFileSync(fileName, JSON.stringify(reportItemsData));
-
-        const ftpClient = new FTP();
-
-        ftpClient.on('ready', () => {
-          ftpClient.put(fileName, fileName, (err) => {
-            if (err) throw err;
-            ftpClient.end();
-          });
+    try {
+      let registerStatus: any = null;
+      const statusRef = db.collection('shops').doc(data.code).collection('status');
+      const statusSnap = await statusRef.orderBy('openedAt', 'desc').limit(1).get();
+      if (statusSnap.size > 0) {
+        statusSnap.docs.map(async (doc) => {
+          registerStatus = doc.data();
         });
-
-        const snap = await db.collection('configs').doc('FTP_SERVER').get();
-        const ftpServer = snap.data();
-
-        // FTPサーバーに送信
-        if (ftpServer) {
-          ftpClient.connect({
-            host: ftpServer['address'],
-            user: ftpServer['user'],
-            password: ftpServer['password'],
-          });
-        }
-
-        // KKBにログイン
-        // await loginKkb();
-
-        // const url = KKB_URL + '/daily_closings/trigger';
-        // const day = toDateString(new Date(), 'YYYY-MM-DD');
-        // const params = `?day=${day}&code=${data.code}`;
-        // const resultKkb = await client.fetch(url + params);
-
-        // KKBからログアウト
-        // await logoutKkb();
-
-        // return { resultKkb };
-      } catch (error) {
-        throw new functions.https.HttpsError('unknown', 'error in sendDailyClosingData', error);
       }
-    };
-    return await f();
+
+      const COPAYMENT_HEALTH = '1';
+      const MEDICINE_SALES = '2';
+      const CONTAINER_COST = '3';
+      const COPAYMENT_ADJUST = '4';
+      const OTC = '5';
+      const COPAYMENT_CARE = '7';
+      const SEND_FEE_RETURN = '8';
+      const PLASTIC_BAG = '9';
+      const HEARING_AID = '10';
+
+      const reportItemsData = {
+        copayment_health: 0,
+        medicine_sales: 0,
+        container_cost: 0,
+        copayment_care: 0,
+        send_fee_return: 0,
+        otc_normal: 0,
+        otc_normal_tax: 0,
+        otc_reduced: 0,
+        otc_reduced_tax: 0,
+        copayment_adjust: [] as [string, number][],
+      };
+
+      if (registerStatus) {
+        const q = db
+          .collection('sales')
+          .where('shopCode', '==', data.code)
+          .where('createdAt', '>=', registerStatus.openedAt.toDate())
+          .where('createdAt', '<', registerStatus.closedAt.toDate())
+          .orderBy('createdAt');
+        const querySnapshot = await q.get();
+
+        await Promise.all(
+          querySnapshot.docs.map(async (doc) => {
+            const sale = doc.data();
+
+            const registerSign = sale.status === 'Return' ? -1 : 1;
+
+            let creditTotal = 0;
+            let priceNormalTotal = 0;
+            let priceReducedTotal = 0;
+
+            const detailsSnapshot = await db
+              .collection('sales')
+              .doc(doc.id)
+              .collection('saleDetails')
+              .orderBy('index')
+              .get();
+            detailsSnapshot.docs.forEach((detailDoc) => {
+              const detail = detailDoc.data();
+              const amount = Number(detail.product.sellingPrice) * detail.quantity * registerSign;
+              switch (detail.division) {
+                case COPAYMENT_HEALTH:
+                  reportItemsData['copayment_health'] += amount;
+                  break;
+                case MEDICINE_SALES:
+                  reportItemsData['medicine_sales'] += amount;
+                  break;
+                case CONTAINER_COST:
+                  reportItemsData['container_cost'] += amount;
+                  break;
+                case COPAYMENT_ADJUST:
+                  reportItemsData['copayment_adjust'].push(['receivable', amount]);
+                  break;
+                case OTC:
+                  if (detail.product.sellingTax === 10) {
+                    priceNormalTotal += amount;
+                  } else if (detail.product.sellingTax === 8) {
+                    priceReducedTotal += amount;
+                  }
+                  break;
+                case COPAYMENT_CARE:
+                  reportItemsData['copayment_care'] += amount;
+                  break;
+                case SEND_FEE_RETURN:
+                  reportItemsData['send_fee_return'] += amount;
+                  break;
+                case PLASTIC_BAG:
+                  reportItemsData['container_cost'] += amount;
+                  break;
+                case HEARING_AID:
+                  reportItemsData['copayment_health'] += amount;
+                  break;
+              }
+              creditTotal += amount;
+            });
+
+            reportItemsData['otc_normal'] += priceNormalTotal;
+            reportItemsData['otc_reduced'] += priceReducedTotal;
+            reportItemsData['otc_normal_tax'] += Math.floor((priceNormalTotal * 10) / 100);
+            reportItemsData['otc_reduced_tax'] += Math.floor((priceReducedTotal * 8) / 100);
+            if (sale.paymentType === 'Credit') {
+              const taxNormalCreditTotal = Math.floor((priceNormalTotal * 10) / 100);
+              const taxReducedCreditTotal = Math.floor((priceReducedTotal * 8) / 100);
+              reportItemsData['copayment_adjust'].push([
+                'credit',
+                -(creditTotal + taxNormalCreditTotal + taxReducedCreditTotal),
+              ]);
+            }
+          })
+        );
+      }
+
+      const fileName = `${data.code}_${toDateString(new Date(data.date), 'YYYYMMDD')}.json`;
+      const buffer = Buffer.from(JSON.stringify(reportItemsData));
+      const ftpClient = new FTP();
+      ftpClient.on('ready', () => {
+        ftpClient.put(buffer, fileName, (err) => {
+          if (err) throw err;
+          ftpClient.end();
+        });
+      });
+
+      const snap = await db.collection('configs').doc('FTP_SERVER').get();
+      const ftpServer = snap.data();
+
+      // FTPサーバーに送信
+      if (ftpServer) {
+        ftpClient.connect({
+          host: ftpServer['address'],
+          user: ftpServer['user'],
+          password: ftpServer['password'],
+        });
+      }
+
+      // KKBにログイン
+      // await loginKkb();
+
+      // const url = KKB_URL + '/daily_closings/trigger';
+      // const date = toDateString(new Date(data.date), 'YYYYMMDD');
+      // const params = `?date=${date}&code=${data.code}`;
+      // const resultKkb = await client.fetch(url + params);
+
+      // KKBからログアウト
+      // await logoutKkb();
+
+      // return { resultKkb };
+      return {};
+    } catch (error) {
+      throw new functions.https.HttpsError('unknown', 'error in sendDailyClosingData', error);
+    }
   });
