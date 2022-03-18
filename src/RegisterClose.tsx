@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { format } from 'date-fns';
-import { Button, Card, Flex, Form } from './components';
+import { Button, Card, Flex, Form, Progress } from './components';
 import { useAppContext } from './AppContext';
 import { RegisterStatus } from './types';
 import { toDateString } from './tools';
@@ -23,6 +23,8 @@ const db = getFirestore();
 
 const RegisterClose: React.FC = () => {
   const { currentShop } = useAppContext();
+  const [loading, setLoading] = useState<boolean>(false);
+  const [progress, setProgress] = useState(0);
   const [closeDate, setCloseDate] = useState<Date>(new Date());
 
   const getRegisterStatus = useCallback(async () => {
@@ -40,7 +42,9 @@ const RegisterClose: React.FC = () => {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     if (currentShop) {
+      setInterval(() => setProgress((prev) => (prev + 1) % 100), 5);
       const statusRef = doc(db, 'shops', currentShop.code, 'status', format(closeDate, 'yyyyMMdd'));
       await updateDoc(statusRef, { closedAt: Timestamp.fromDate(new Date()) });
       const functions = getFunctions(app, 'asia-northeast1');
@@ -50,6 +54,7 @@ const RegisterClose: React.FC = () => {
       )({ code: currentShop.code, date: format(closeDate, 'yyyy/MM/dd') });
       console.log({ result });
     }
+    setLoading(false);
     window.location.href = '/daily_cash_report';
   };
 
@@ -77,10 +82,11 @@ const RegisterClose: React.FC = () => {
           </div>
 
           <div className="flex justify-center p-4">
-            <Button color="primary" className="w-40" onClick={save}>
+            <Button color="primary" className="w-40" disabled={loading} onClick={save}>
               OK
             </Button>
           </div>
+          <div>{loading && <Progress value={progress} />}</div>
         </Card.Body>
       </Card>
       <div className="m-4">

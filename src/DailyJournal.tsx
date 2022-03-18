@@ -41,7 +41,7 @@ const DailyJournal: React.FC = () => {
         });
       }
     }
-  }, [currentShop]);
+  }, [currentShop, setReportTimestamp, setRegisterStatus]);
 
   const querySales = useCallback(async () => {
     if (completed) return;
@@ -89,8 +89,16 @@ const DailyJournal: React.FC = () => {
   });
 
   useEffect(() => {
-    getRegisterStatus();
-    querySales();
+    let unmounted = false;
+    (async () => {
+      if (!unmounted) {
+        getRegisterStatus();
+        querySales();
+      }
+    })();
+    return () => {
+      unmounted = true;
+    };
   }, [getRegisterStatus, querySales]);
 
   return (
@@ -197,7 +205,7 @@ const DailyJournal: React.FC = () => {
                 }
               }
               return (
-                <div className="my-2 border-b-2" style={{ breakInside: 'avoid' }}>
+                <div className="my-2 border-b-2" style={{ breakInside: 'avoid' }} key={index}>
                   <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none">
                     <Table.Body>{rows}</Table.Body>
                   </Table>

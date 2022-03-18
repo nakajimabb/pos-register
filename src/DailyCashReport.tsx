@@ -42,7 +42,7 @@ const DailyCashReport: React.FC = () => {
         });
       }
     }
-  }, [currentShop]);
+  }, [currentShop, setReportTimestamp, setRegisterStatus]);
 
   const querySales = useCallback(async () => {
     if (completed) return;
@@ -212,8 +212,16 @@ const DailyCashReport: React.FC = () => {
   });
 
   useEffect(() => {
-    getRegisterStatus();
-    querySales();
+    let unmounted = false;
+    (async () => {
+      if (!unmounted) {
+        getRegisterStatus();
+        querySales();
+      }
+    })();
+    return () => {
+      unmounted = true;
+    };
   }, [querySales, getRegisterStatus]);
 
   return (
@@ -244,302 +252,304 @@ const DailyCashReport: React.FC = () => {
             {currentShop?.formalName}　{reportTimestamp.toDate().toLocaleDateString()}{' '}
             {reportTimestamp.toDate().toLocaleTimeString()}
           </p>
-          <Flex>
-            <div className="w-1/2 pr-5">
-              <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none">
-                <Table.Body>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">総売上（点）</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`${reportItems['detailsCountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3"></Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${(
-                        reportItems['customerAmountTotal'] + reportItems['discountAmountTotal']
-                      )?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">総売内税抜き</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${(
-                        reportItems['customerAmountTotal'] -
-                        reportItems['inclusiveTaxNormalTotal'] -
-                        reportItems['inclusiveTaxReducedTotal'] +
-                        reportItems['discountAmountTotal']
-                      )?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">純売上（件）</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`${reportItems['customerCountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3"></Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${(
-                        reportItems['customerAmountTotal'] +
-                        reportItems['exclusiveTaxNormalTotal'] +
-                        reportItems['exclusiveTaxReducedTotal']
-                      )?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">純売税抜き</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${(
-                        reportItems['customerAmountTotal'] -
-                        reportItems['inclusiveTaxNormalTotal'] -
-                        reportItems['inclusiveTaxReducedTotal']
-                      )?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">現金在高</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${(
-                        reportItems['cashAmountTotal'] +
-                        reportItems['exclusiveTaxNormalCashTotal'] +
-                        reportItems['exclusiveTaxReducedCashTotal']
-                      )?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">クレジット在高</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${(
-                        reportItems['creditAmountTotal'] +
-                        reportItems['exclusiveTaxNormalCreditTotal'] +
-                        reportItems['exclusiveTaxReducedCreditTotal']
-                      )?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">客数</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`${reportItems['customerCountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">客単価</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {reportItems['customerCountTotal'] > 0
-                        ? `¥${Math.floor(
-                            reportItems['customerAmountTotal'] / reportItems['customerCountTotal']
-                          )?.toLocaleString()}`
-                        : 0}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">値引回数</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`${reportItems['discountCountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">値引金額</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${(-reportItems['discountAmountTotal'] + 0)?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">戻回数</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`${reportItems['returnCountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">戻金額</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['returnAmountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">内税抜額</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${(
-                        reportItems['inclusivePriceNormalTotal'] - reportItems['inclusiveTaxNormalTotal']
-                      )?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">内税</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['inclusiveTaxNormalTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">外税抜額</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['exclusivePriceNormalTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">外税</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['exclusiveTaxNormalTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">内税抜額※</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${(
-                        reportItems['inclusivePriceReducedTotal'] - reportItems['inclusiveTaxReducedTotal']
-                      )?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">内税※</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['inclusiveTaxReducedTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">外税抜額※</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['exclusivePriceReducedTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">外税※</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['exclusiveTaxReducedTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">非課税合計</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['priceTaxFreeTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                </Table.Body>
-              </Table>
-            </div>
-            <div className="w-1/2 pl-5">
-              <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none">
-                <Table.Body>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">現金</Table.Cell>
-                    <Table.Cell className="text-right w-1/3"></Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">　回数</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`${reportItems['cashCountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">　金額</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${(
-                        reportItems['cashAmountTotal'] +
-                        reportItems['exclusiveTaxNormalCashTotal'] +
-                        reportItems['exclusiveTaxReducedCashTotal']
-                      )?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">クレジット</Table.Cell>
-                    <Table.Cell className="text-right w-1/3"></Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">　回数</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`${reportItems['creditCountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">　金額</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${(
-                        reportItems['creditAmountTotal'] +
-                        reportItems['exclusiveTaxNormalCreditTotal'] +
-                        reportItems['exclusiveTaxReducedCreditTotal']
-                      )?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">　</Table.Cell>
-                    <Table.Cell className="text-right w-1/3"></Table.Cell>
-                  </Table.Row>
-                </Table.Body>
-              </Table>
+          {completed && (
+            <Flex>
+              <div className="w-1/2 pr-5">
+                <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none">
+                  <Table.Body>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">総売上（点）</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`${reportItems['detailsCountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3"></Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${(
+                          reportItems['customerAmountTotal'] + reportItems['discountAmountTotal']
+                        )?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">総売内税抜き</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${(
+                          reportItems['customerAmountTotal'] -
+                          reportItems['inclusiveTaxNormalTotal'] -
+                          reportItems['inclusiveTaxReducedTotal'] +
+                          reportItems['discountAmountTotal']
+                        )?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">純売上（件）</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`${reportItems['customerCountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3"></Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${(
+                          reportItems['customerAmountTotal'] +
+                          reportItems['exclusiveTaxNormalTotal'] +
+                          reportItems['exclusiveTaxReducedTotal']
+                        )?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">純売税抜き</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${(
+                          reportItems['customerAmountTotal'] -
+                          reportItems['inclusiveTaxNormalTotal'] -
+                          reportItems['inclusiveTaxReducedTotal']
+                        )?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">現金在高</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${(
+                          reportItems['cashAmountTotal'] +
+                          reportItems['exclusiveTaxNormalCashTotal'] +
+                          reportItems['exclusiveTaxReducedCashTotal']
+                        )?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">クレジット在高</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${(
+                          reportItems['creditAmountTotal'] +
+                          reportItems['exclusiveTaxNormalCreditTotal'] +
+                          reportItems['exclusiveTaxReducedCreditTotal']
+                        )?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">客数</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`${reportItems['customerCountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">客単価</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {reportItems['customerCountTotal'] > 0
+                          ? `¥${Math.floor(
+                              reportItems['customerAmountTotal'] / reportItems['customerCountTotal']
+                            )?.toLocaleString()}`
+                          : 0}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">値引回数</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`${reportItems['discountCountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">値引金額</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${(-reportItems['discountAmountTotal'] + 0)?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">戻回数</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`${reportItems['returnCountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">戻金額</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${reportItems['returnAmountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">内税抜額</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${(
+                          reportItems['inclusivePriceNormalTotal'] - reportItems['inclusiveTaxNormalTotal']
+                        )?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">内税</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${reportItems['inclusiveTaxNormalTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">外税抜額</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${reportItems['exclusivePriceNormalTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">外税</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${reportItems['exclusiveTaxNormalTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">内税抜額※</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${(
+                          reportItems['inclusivePriceReducedTotal'] - reportItems['inclusiveTaxReducedTotal']
+                        )?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">内税※</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${reportItems['inclusiveTaxReducedTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">外税抜額※</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${reportItems['exclusivePriceReducedTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">外税※</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${reportItems['exclusiveTaxReducedTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">非課税合計</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${reportItems['priceTaxFreeTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                  </Table.Body>
+                </Table>
+              </div>
+              <div className="w-1/2 pl-5">
+                <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none">
+                  <Table.Body>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">現金</Table.Cell>
+                      <Table.Cell className="text-right w-1/3"></Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">　回数</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`${reportItems['cashCountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">　金額</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${(
+                          reportItems['cashAmountTotal'] +
+                          reportItems['exclusiveTaxNormalCashTotal'] +
+                          reportItems['exclusiveTaxReducedCashTotal']
+                        )?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">クレジット</Table.Cell>
+                      <Table.Cell className="text-right w-1/3"></Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">　回数</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`${reportItems['creditCountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">　金額</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${(
+                          reportItems['creditAmountTotal'] +
+                          reportItems['exclusiveTaxNormalCreditTotal'] +
+                          reportItems['exclusiveTaxReducedCreditTotal']
+                        )?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">　</Table.Cell>
+                      <Table.Cell className="text-right w-1/3"></Table.Cell>
+                    </Table.Row>
+                  </Table.Body>
+                </Table>
 
-              {Object.entries(Divisions)
-                .filter((division) => reportItems[`division${division[0]}CountTotal`] !== 0)
-                .map((division, index) => (
-                  <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none" key={index}>
-                    <Table.Body>
-                      <Table.Row>
-                        <Table.Cell className="w-2/3">{division[1]}</Table.Cell>
-                        <Table.Cell className="text-right w-1/3"></Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell className="w-2/3">　個数</Table.Cell>
-                        <Table.Cell className="text-right w-1/3">
-                          {`${reportItems[`division${division[0]}CountTotal`]?.toLocaleString()}`}
-                        </Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell className="w-2/3">　金額</Table.Cell>
-                        <Table.Cell className="text-right w-1/3">
-                          {`¥${reportItems[`division${division[0]}AmountTotal`]?.toLocaleString()}`}
-                        </Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell className="w-2/3">　値引件数</Table.Cell>
-                        <Table.Cell className="text-right w-1/3">
-                          {`${reportItems[`division${division[0]}DiscountCountTotal`]?.toLocaleString()}`}
-                        </Table.Cell>
-                      </Table.Row>
-                      <Table.Row>
-                        <Table.Cell className="w-2/3">　値引金額</Table.Cell>
-                        <Table.Cell className="text-right w-1/3">
-                          {`¥${reportItems[`division${division[0]}DiscountAmountTotal`]?.toLocaleString()}`}
-                        </Table.Cell>
-                      </Table.Row>
-                    </Table.Body>
-                  </Table>
-                ))}
-              <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none">
-                <Table.Body>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">合計</Table.Cell>
-                    <Table.Cell className="text-right w-1/3"></Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">　個数</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`${reportItems['divisionAllCountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">　金額</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['divisionAllAmountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">　値引件数</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`${reportItems['divisionAllDiscountCountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                  <Table.Row>
-                    <Table.Cell className="w-2/3">　値引金額</Table.Cell>
-                    <Table.Cell className="text-right w-1/3">
-                      {`¥${reportItems['divisionAllDiscountAmountTotal']?.toLocaleString()}`}
-                    </Table.Cell>
-                  </Table.Row>
-                </Table.Body>
-              </Table>
-            </div>
-          </Flex>
+                {Object.entries(Divisions)
+                  .filter((division) => reportItems[`division${division[0]}CountTotal`] !== 0)
+                  .map((division, index) => (
+                    <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none" key={index}>
+                      <Table.Body>
+                        <Table.Row>
+                          <Table.Cell className="w-2/3">{division[1]}</Table.Cell>
+                          <Table.Cell className="text-right w-1/3"></Table.Cell>
+                        </Table.Row>
+                        <Table.Row>
+                          <Table.Cell className="w-2/3">　個数</Table.Cell>
+                          <Table.Cell className="text-right w-1/3">
+                            {`${reportItems[`division${division[0]}CountTotal`]?.toLocaleString()}`}
+                          </Table.Cell>
+                        </Table.Row>
+                        <Table.Row>
+                          <Table.Cell className="w-2/3">　金額</Table.Cell>
+                          <Table.Cell className="text-right w-1/3">
+                            {`¥${reportItems[`division${division[0]}AmountTotal`]?.toLocaleString()}`}
+                          </Table.Cell>
+                        </Table.Row>
+                        <Table.Row>
+                          <Table.Cell className="w-2/3">　値引件数</Table.Cell>
+                          <Table.Cell className="text-right w-1/3">
+                            {`${reportItems[`division${division[0]}DiscountCountTotal`]?.toLocaleString()}`}
+                          </Table.Cell>
+                        </Table.Row>
+                        <Table.Row>
+                          <Table.Cell className="w-2/3">　値引金額</Table.Cell>
+                          <Table.Cell className="text-right w-1/3">
+                            {`¥${reportItems[`division${division[0]}DiscountAmountTotal`]?.toLocaleString()}`}
+                          </Table.Cell>
+                        </Table.Row>
+                      </Table.Body>
+                    </Table>
+                  ))}
+                <Table border="none" size="xs" className="table-fixed w-full text-xs shadow-none">
+                  <Table.Body>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">合計</Table.Cell>
+                      <Table.Cell className="text-right w-1/3"></Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">　個数</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`${reportItems['divisionAllCountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">　金額</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${reportItems['divisionAllAmountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">　値引件数</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`${reportItems['divisionAllDiscountCountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                    <Table.Row>
+                      <Table.Cell className="w-2/3">　値引金額</Table.Cell>
+                      <Table.Cell className="text-right w-1/3">
+                        {`¥${reportItems['divisionAllDiscountAmountTotal']?.toLocaleString()}`}
+                      </Table.Cell>
+                    </Table.Row>
+                  </Table.Body>
+                </Table>
+              </div>
+            </Flex>
+          )}
         </div>
       </div>
       <div className="m-4">
