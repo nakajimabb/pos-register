@@ -6,7 +6,7 @@ import app from './firebase';
 import { Button, Flex, Form, Modal, Table } from './components';
 import { useAppContext } from './AppContext';
 import { Sale, SaleDetail, Stock, BasketItem } from './types';
-import { prefectureName, toNumber } from './tools';
+import { prefectureName, toNumber, OTC_DIVISION } from './tools';
 
 type Props = {
   open: boolean;
@@ -47,7 +47,7 @@ const RegisterPayment: React.FC<Props> = ({
       const stocks: Stock[] = [];
       await Promise.all(
         basketItems.map(async (item, index) => {
-          if (item.product.code) {
+          if (item.product.code && item.division === OTC_DIVISION) {
             const existingBulkIndex = productBulks.findIndex((bulk) => bulk.parentProductCode === item.product.code);
             const stockProductCode =
               existingBulkIndex >= 0 ? productBulks[existingBulkIndex].childProductCode : item.product.code;
@@ -110,11 +110,12 @@ const RegisterPayment: React.FC<Props> = ({
           transaction.update(prevDetailRef, { discount: -item.product.sellingPrice });
           discountTotal += -item.product.sellingPrice;
         }
-        if (item.product.code) {
+        if (item.product.code && item.division === OTC_DIVISION) {
           const existingBulkIndex = productBulks.findIndex((bulk) => bulk.parentProductCode === item.product.code);
           const stockProductCode =
             existingBulkIndex >= 0 ? productBulks[existingBulkIndex].childProductCode : item.product.code;
-          const stockQuantity = existingBulkIndex >= 0 ? productBulks[existingBulkIndex].quantity : item.quantity;
+          const stockQuantity =
+            existingBulkIndex >= 0 ? productBulks[existingBulkIndex].quantity * item.quantity : item.quantity;
           const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), stockProductCode);
           transaction.set(stockRef, {
             ...stocks[index],
@@ -278,7 +279,13 @@ const RegisterPayment: React.FC<Props> = ({
                       if (e.key === 'Enter' && handlePrint) {
                         e.preventDefault();
                         if (toNumber(cashText) >= salesTotal) {
-                          handlePrint();
+                          if (basketItems.some((item) => item.outputReceipt) && handlePrint) {
+                            handlePrint();
+                          } else {
+                            save();
+                            setBasketItems([]);
+                            onClose();
+                          }
                         }
                       }
                     }}
@@ -426,7 +433,19 @@ const RegisterPayment: React.FC<Props> = ({
         <Button color="secondary" variant="outlined" className="mr-3" onClick={onClose}>
           キャンセル
         </Button>
-        <Button onClick={handlePrint} color="primary" disabled={toNumber(cashText) < salesTotal}>
+        <Button
+          onClick={(e) => {
+            if (basketItems.some((item) => item.outputReceipt) && handlePrint) {
+              handlePrint();
+            } else {
+              save();
+              setBasketItems([]);
+              onClose();
+            }
+          }}
+          color="primary"
+          disabled={toNumber(cashText) < salesTotal}
+        >
           レシート発行
         </Button>
       </Modal.Footer>

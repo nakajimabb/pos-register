@@ -338,7 +338,11 @@ export const sendDailyClosingData = functions
                   reportItemsData['container_cost'] += amount;
                   break;
                 case COPAYMENT_ADJUST:
-                  reportItemsData['copayment_adjust'].push(['receivable', amount]);
+                  if (amount >= 0) {
+                    reportItemsData['copayment_adjust'].push(['recovery', amount]);
+                  } else {
+                    reportItemsData['copayment_adjust'].push(['receivable', amount]);
+                  }
                   break;
                 case OTC:
                   if (detail.product.sellingTax === 10) {
