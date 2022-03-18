@@ -306,18 +306,17 @@ const InventoryMain: React.FC = () => {
     if (inventory) {
       const sum: { [tax: number]: { quantity: number; amount: number } } = { 0: { quantity: 0, amount: 0 } };
       for await (const item of items.values()) {
-        if (item.countedAt && item.quantity !== item.stock) {
+        if (item.countedAt) {
           const product = await getProduct(item.productCode);
           if (product && product.costPrice) {
-            const diff = item.quantity - item.stock;
             const tax = product.sellingTax;
             if (tax) {
               if (!(tax in sum)) sum[tax] = { quantity: 0, amount: 0 };
-              sum[tax].quantity += diff;
-              sum[tax].amount += diff * product.costPrice;
+              sum[tax].quantity += item.quantity;
+              sum[tax].amount += item.quantity * product.costPrice;
             }
-            sum[0].quantity += diff;
-            sum[0].amount += diff * product.costPrice;
+            sum[0].quantity += item.quantity;
+            sum[0].amount += item.quantity * product.costPrice;
           }
         }
       }

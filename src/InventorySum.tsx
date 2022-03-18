@@ -14,7 +14,7 @@ const InventorySum: React.FC<{ inventory: Inventory }> = ({ inventory }) => {
       <Table.Head>
         <Table.Row>
           <Table.Cell></Table.Cell>
-          <Table.Cell>差異</Table.Cell>
+          <Table.Cell>実数</Table.Cell>
           <Table.Cell>金額</Table.Cell>
         </Table.Row>
       </Table.Head>
