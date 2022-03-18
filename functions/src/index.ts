@@ -63,6 +63,31 @@ export const getAuthUserByCode = functions.region('asia-northeast1').https.onCal
   return await f();
 });
 
+export const saveRole = functions.region('asia-northeast1').https.onCall(async ({ uid, role }, context) => {
+  const f = async () => {
+    try {
+      if (!context.auth) throw Error('anonymouse user not authenticated.');
+
+      const current = await admin.auth().getUser(context.auth.uid);
+      if (current.customClaims?.role === 'admin') {
+        const email = emailFromUserCode(uid);
+        const userRecord = await auth.getUserByEmail(email);
+        await auth.setCustomUserClaims(userRecord.uid, { role });
+
+        const ref = db.collection('shops').doc(uid);
+        await ref.set({ role }, { merge: true });
+
+        return { userRecord: await auth.getUserByEmail(email) };
+      } else {
+        throw Error(`${role} user not authenticated.`);
+      }
+    } catch (error) {
+      throw new functions.https.HttpsError('unknown', 'error in getAuthUser', error);
+    }
+  };
+  return await f();
+});
+
 const loginKkb = async (waitTime = 1000) => {
   const snap = await db.collection('configs').doc('KKB_USER').get();
   const kkbUser = snap.data();
@@ -100,6 +125,7 @@ const createUserIfNotExist = async (email: string, password: string) => {
         password,
       };
       const userRecord = await auth.createUser(userParams);
+      await auth.setCustomUserClaims(userRecord.uid, { role: 'shop' });
       return { result: true, userRecord };
     } catch (error) {
       return { result: false };
@@ -108,7 +134,7 @@ const createUserIfNotExist = async (email: string, password: string) => {
 };
 
 export const updateShopsFromKKb = functions
-  .runWith({ timeoutSeconds: 300 })
+  .runWith({ timeoutSeconds: 540 })
   .region('asia-northeast1')
   .https.onCall(async () => {
     const f = async () => {
@@ -126,7 +152,6 @@ export const updateShopsFromKKb = functions
         // KKBからログアウト
         await logoutKkb();
 
-        // firesotre 更新
         const BATCH_UNIT = 100;
         const taskSize = Math.ceil(shops.length / BATCH_UNIT);
         const sequential = [...Array(taskSize).keys()];
@@ -254,6 +279,7 @@ export const createAccount = functions
           password: 'password',
         };
         const userRecord = await auth.createUser(userParams);
+        await auth.setCustomUserClaims(userRecord.uid, { role: 'shop' });
         return { userRecord };
       } catch (error) {
         throw new functions.https.HttpsError('unknown', 'error in createAccount', error);
