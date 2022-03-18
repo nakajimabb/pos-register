@@ -21,6 +21,7 @@ import {
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
 import { userCodeFromEmail, OTC_DIVISION, hiraToKana } from './tools';
 import {
+  Role,
   Product,
   Supplier,
   Shop,
@@ -46,6 +47,7 @@ export type ContextType = {
   fixedCostRates: FixedCostRate[];
   suppliers: { [code: string]: Supplier } | null;
   shops: { [code: string]: Shop } | null;
+  role: Role | null;
   addBundleDiscount: (basketItems: BasketItem[]) => BasketItem[];
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;
   searchProducts: (inputText: string) => Promise<Product[]>;
@@ -61,6 +63,7 @@ const AppContext = createContext({
   productBundles: [],
   productBulks: [],
   fixedCostRates: [],
+  role: null,
   addBundleDiscount: (basketItems: BasketItem[]) => basketItems,
   loadProductOptions: async (inputText: string) => [],
   searchProducts: async (inputText: string) => [],
@@ -93,12 +96,19 @@ export const AppContextProvider: React.FC = ({ children }) => {
     suppliers: false,
     shops: false,
   });
+  const [role, setRole] = useState<Role | null>(null);
 
   useEffect(() => {
     onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       setCurrentShop(null);
+      setRole(null);
       if (user && user.email) {
+        // set role
+        const token = await user.getIdTokenResult();
+        const role = token.claims.role;
+        if (typeof role === 'string') setRole(role as Role);
+        // set currentShop
         const shopCode = userCodeFromEmail(user.email);
         if (shopCode) {
           const snap = await getDoc(doc(db, 'shops', shopCode));
@@ -323,6 +333,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
         productBundles,
         productBulks,
         fixedCostRates,
+        role,
         addBundleDiscount,
         loadProductOptions,
         searchProducts,

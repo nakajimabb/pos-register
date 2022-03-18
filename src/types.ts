@@ -3,6 +3,8 @@ import { toDateString } from './tools';
 
 export const CLASS_DELIV = '01';
 
+export type Role = 'shop' | 'manager' | 'admin';
+
 export type Shop = {
   code: string;
   name: string;

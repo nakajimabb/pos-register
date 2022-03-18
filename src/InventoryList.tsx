@@ -116,6 +116,7 @@ const InventoryList: React.FC = () => {
             <Table.Head>
               <Table.Row>
                 <Table.Cell>棚卸日</Table.Cell>
+                <Table.Cell>作業期間</Table.Cell>
                 <Table.Cell>ｽﾃｰﾀｽ</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
@@ -127,16 +128,12 @@ const InventoryList: React.FC = () => {
                 return (
                   <Table.Row key={i}>
                     <Table.Cell>{dateStr}</Table.Cell>
+                    <Table.Cell>
+                      {toDateString(item.date.toDate(), 'MM/DD hh:mm')}〜
+                      {item.fixedAt && toDateString(item.fixedAt.toDate(), 'MM/DD hh:mm')}
+                    </Table.Cell>
                     <Table.Cell>{!!item.fixedAt ? '確定済' : '作業中'}</Table.Cell>
                     <Table.Cell>
-                      {/* <Link
-                        to={`/delivery_edit?shopCode=${item.shopCode}&deliveryNumber=${item.deliveryNumber}`}
-                        className="mx-1"
-                      >
-                        <Button color="light" size="sm">
-                          編集
-                        </Button>
-                      </Link> */}
                       <Button
                         color="light"
                         size="sm"

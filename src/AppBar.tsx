@@ -8,6 +8,7 @@ import { Button, Flex, Dropdown, Icon, Navbar, Tooltip } from './components';
 import app from './firebase';
 import { useAppContext } from './AppContext';
 import { nameWithCode } from './tools';
+import { Role } from './types';
 import firebaseError from './firebaseError';
 import './App.css';
 
@@ -15,7 +16,7 @@ const db = getFirestore();
 const MAX_BATCH = 500;
 
 const AppBar: React.FC = () => {
-  const { currentShop } = useAppContext();
+  const { role, currentShop } = useAppContext();
 
   const logout = () => {
     if (window.confirm('ログアウトしますか？')) {
@@ -40,6 +41,21 @@ const AppBar: React.FC = () => {
         const result = await httpsCallable(functions, 'getAuthUserByCode')({ uid });
         console.log({ result });
         alert('データを取得しました。');
+      } catch (error) {
+        console.log({ error });
+        alert('エラーが発生しました。');
+      }
+    }
+  };
+
+  const saveRole = (role: Role) => async () => {
+    const uid = window.prompt('input uid');
+    if (uid) {
+      try {
+        const functions = getFunctions(app, 'asia-northeast1');
+        const result = await httpsCallable(functions, 'saveRole')({ uid, role });
+        console.log({ result });
+        alert('更新しました。');
       } catch (error) {
         console.log({ error });
         alert('エラーが発生しました。');
@@ -190,8 +206,14 @@ const AppBar: React.FC = () => {
           align="right"
         >
           <Dropdown.Item title="ユーザ情報取得" onClick={getAuthUserByCode} />
-          <Dropdown.Item title="店舗原価マスタ全削除" onClick={clearProductCostPrices} />
-          <Dropdown.Item title="tailwind" to="/tailwind" />
+          {role === 'admin' && (
+            <>
+              <Dropdown.Item title="店舗権限" onClick={saveRole('shop')} />
+              <Dropdown.Item title="管理者権限" onClick={saveRole('manager')} />
+              <Dropdown.Item title="システム管理者権限" onClick={saveRole('admin')} />
+            </>
+          )}
+          <Dropdown.Item title="tailwind" to="/tailwind" />{' '}
         </Dropdown>
       </Flex>
     </Navbar>

@@ -30,6 +30,8 @@ const db = getFirestore();
 const PER_PAGE = 25;
 const MAX_SEARCH = 50;
 
+const ROLE_NAMES = { shop: '店舗', manager: '管理者', admin: 'ｼｽﾃﾑ' };
+
 const ShopList: React.FC = () => {
   const [search, setSearch] = useState({ text: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Shop> | null>(null);
@@ -200,7 +202,7 @@ const ShopList: React.FC = () => {
                 <Table.Cell type="th">TEL</Table.Cell>
                 <Table.Cell type="th">郵便番号</Table.Cell>
                 <Table.Cell type="th">都道府県</Table.Cell>
-                <Table.Cell type="th">ﾛｸﾞｲﾝ</Table.Cell>
+                <Table.Cell type="th">権限</Table.Cell>
                 <Table.Cell type="th"></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -217,7 +219,7 @@ const ShopList: React.FC = () => {
                       <Table.Cell>{shop.tel}</Table.Cell>
                       <Table.Cell>{shop.zip}</Table.Cell>
                       <Table.Cell>{prefectureName(shop.prefecture)}</Table.Cell>
-                      <Table.Cell className="text-center">{shop.role ? '○' : '×'}</Table.Cell>
+                      <Table.Cell className="text-center">{shop.role && ROLE_NAMES[shop.role]}</Table.Cell>
                       <Table.Cell>
                         {!shop.role && (
                           <Button
