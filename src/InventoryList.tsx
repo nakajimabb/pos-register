@@ -1,6 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import Select from 'react-select';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
 import {
   getFirestore,
   collection,
@@ -17,7 +15,7 @@ import { Alert, Button, Card, Form, Table } from './components';
 import { useAppContext } from './AppContext';
 import InventoryPrint from './InventoryPrint';
 import firebaseError from './firebaseError';
-import { nameWithCode, toDateString } from './tools';
+import { toDateString } from './tools';
 import { Inventory } from './types';
 
 const db = getFirestore();
@@ -28,25 +26,9 @@ const InventoryList: React.FC = () => {
     date: null,
   });
   const [target, setTarget] = useState<{ delivery: Inventory; mode: 'modal' | 'print' } | null>(null);
-  const [shopOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const [inventories, setInventories] = useState<Inventory[]>([]);
-  const { registListner, shops, currentShop } = useAppContext();
-
-  useEffect(() => {
-    if (shops) {
-      const options = Object.entries(shops).map(([code, shop]) => ({
-        value: code,
-        label: nameWithCode(shop),
-      }));
-      options.unshift({ label: '', value: '' });
-      setSuppliersOptions(options);
-    }
-  }, [shops]);
-
-  const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
-    return value ? options.find((option) => option.value === value) : { label: '', value: '' };
-  };
+  const { currentShop } = useAppContext();
 
   const queryInventories = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,17 +73,6 @@ const InventoryList: React.FC = () => {
                 const date = e.target.value ? new Date(e.target.value) : null;
                 setSearch((prev) => ({ ...prev, date }));
               }}
-            />
-            <Select
-              value={selectValue(search.shopCode, shopOptions)}
-              options={shopOptions}
-              onMenuOpen={() => {
-                registListner('shops');
-              }}
-              onChange={(e) => {
-                setSearch((prev) => ({ ...prev, shopCode: String(e?.value) }));
-              }}
-              className="mb-3 sm:mb-0 w-72"
             />
             <Button className="w-48">検索</Button>
           </Form>

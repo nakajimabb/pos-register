@@ -30,6 +30,7 @@ import DeliveryEdit from './DeliveryEdit';
 import DeliveryList from './DeliveryList';
 import InventoryMain from './InventoryMain';
 import InventoryList from './InventoryList';
+import InventoryAll from './InventoryAll';
 import DailyCashReport from './DailyCashReport';
 import DailyJournal from './DailyJournal';
 import RegisterOpen from './RegisterOpen';
@@ -81,6 +82,7 @@ const App: React.FC = () => {
           <Route exact path="/delivery_list" component={DeliveryList} />
           <Route exact path="/invetory_new" component={InventoryMain} />
           <Route exact path="/invetory_list" component={InventoryList} />
+          <Route exact path="/invetory_all" component={InventoryAll} />
           <Route exact path="/register_open" component={RegisterOpen} />
           <Route exact path="/register_close" component={RegisterClose} />
           <Route exact path="/tailwind" component={Tailwind} />
