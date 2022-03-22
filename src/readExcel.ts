@@ -64,7 +64,7 @@ const readExcel = async (blob: File, number_as_string: boolean = false) => {
   });
 };
 
-export const readExcelAsOjects = async (blob: File, headerInfo: HeaderInfo) => {
+export const readExcelAsOjects = async (blob: File, headerInfo: HeaderInfo, exactHeaderMatch = true) => {
   const { header, data } = await readExcel(blob, true);
 
   const names = new Map<number, string>();
@@ -72,7 +72,9 @@ export const readExcelAsOjects = async (blob: File, headerInfo: HeaderInfo) => {
   const zeroPaddings = new Map<number, number>();
   const mappings = new Map<number, ValueMapping>();
   headerInfo.forEach((col) => {
-    const index = header.indexOf(col.label);
+    const index = exactHeaderMatch
+      ? header.indexOf(col.label)
+      : header.findIndex((item) => item.indexOf(col.label) === 0);
     if (index >= 0) {
       names.set(index, col.name);
     } else {

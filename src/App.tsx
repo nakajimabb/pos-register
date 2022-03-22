@@ -35,6 +35,7 @@ import DailyCashReport from './DailyCashReport';
 import DailyJournal from './DailyJournal';
 import RegisterOpen from './RegisterOpen';
 import RegisterClose from './RegisterClose';
+import ImportStock from './ImportStock';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -85,6 +86,7 @@ const App: React.FC = () => {
           <Route exact path="/invetory_all" component={InventoryAll} />
           <Route exact path="/register_open" component={RegisterOpen} />
           <Route exact path="/register_close" component={RegisterClose} />
+          <Route exact path="/import_stocks" component={ImportStock} />
           <Route exact path="/tailwind" component={Tailwind} />
         </Router>
       </AppContextProvider>
