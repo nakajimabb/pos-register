@@ -28,7 +28,7 @@ const DeliveryList: React.FC = () => {
     date: null,
   });
   const [target, setTarget] = useState<{ delivery: Delivery; mode: 'modal' | 'print' } | null>(null);
-  const [shopOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
+  const [shopOptions, setShopOptions] = useState<{ label: string; value: string }[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const { registListner, shops, currentShop } = useAppContext();
@@ -40,7 +40,7 @@ const DeliveryList: React.FC = () => {
         label: nameWithCode(shop),
       }));
       options.unshift({ label: '', value: '' });
-      setSuppliersOptions(options);
+      setShopOptions(options);
     }
   }, [shops]);
 

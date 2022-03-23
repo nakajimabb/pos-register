@@ -27,25 +27,9 @@ const PurchaseList: React.FC = () => {
     date: null,
   });
   const [target, setTarget] = useState<{ purchase: Purchase; mode: 'modal' | 'print' } | null>(null);
-  const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const { registListner, suppliers, currentShop } = useAppContext();
-
-  useEffect(() => {
-    if (suppliers) {
-      const options = Object.entries(suppliers).map(([code, supplier]) => ({
-        value: code,
-        label: nameWithCode(supplier),
-      }));
-      options.unshift({ label: '', value: '' });
-      setSuppliersOptions(options);
-    }
-  }, [suppliers]);
-
-  const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
-    return value ? options.find((option) => option.value === value) : { label: '', value: '' };
-  };
+  const { currentShop } = useAppContext();
 
   const queryPurchases = async (e: React.FormEvent) => {
     e.preventDefault();

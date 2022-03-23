@@ -36,6 +36,7 @@ import DailyJournal from './DailyJournal';
 import RegisterOpen from './RegisterOpen';
 import RegisterClose from './RegisterClose';
 import ImportStock from './ImportStock';
+import StockList from './StockList';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -87,6 +88,7 @@ const App: React.FC = () => {
           <Route exact path="/register_open" component={RegisterOpen} />
           <Route exact path="/register_close" component={RegisterClose} />
           <Route exact path="/import_stocks" component={ImportStock} />
+          <Route exact path="/stock_list" component={StockList} />
           <Route exact path="/tailwind" component={Tailwind} />
         </Router>
       </AppContextProvider>
