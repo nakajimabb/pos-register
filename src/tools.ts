@@ -128,7 +128,8 @@ export const toAscii = (str: string) => {
 };
 
 // 数値変換
-export const toNumber = (str: string) => {
+export const toNumber = (value: any) => {
+  const str = String(value);
   const ret = toAscii(str).replace(/,/g, '');
   const num = ret ? parseInt(ret) : 0;
   return isNaN(num) ? 0 : num;
