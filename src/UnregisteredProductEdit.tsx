@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
 
 import { Alert, Button, Form, Grid, Modal } from './components';
@@ -34,6 +34,11 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, 
     note: '',
   });
   const [error, setError] = useState('');
+  const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +48,12 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, 
       const snap = await getDoc(ref);
       if (!checkDigit(product.code)) throw Error('不正なPLUコードです。');
       if (snap.exists()) throw Error('PLUコードが既に存在します。');
+      if (product.costPrice !== null && product.costPrice <= 0) {
+        throw Error('原価は0より大きい値に設定してください。');
+      }
+      if (product.sellingPrice !== null && product.sellingPrice <= 0) {
+        throw Error('売価は0より大きい値に設定してください。');
+      }
       if (product.sellingPrice !== null && product.costPrice !== null && product.sellingPrice <= product.costPrice) {
         throw Error('売価は原価よりも高い価格に設定してください。');
       }
@@ -59,7 +70,7 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, 
     <Modal open={open} size="none" onClose={onClose} className="w-1/2 overflow-visible">
       <Form onSubmit={save} className="space-y-2">
         <Modal.Header centered={false} onClose={onClose}>
-          未登録商品
+          未登録商品のため、商品名、売価・原価を設定してください
         </Modal.Header>
         <Modal.Body>
           {error && (
@@ -81,6 +92,7 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, 
             <Form.Number
               placeholder="売価"
               required
+              innerRef={ref}
               value={String(product.sellingPrice)}
               onChange={(e) => setProduct({ ...product, sellingPrice: +e.target.value })}
             />
