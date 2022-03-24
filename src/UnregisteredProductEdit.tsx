@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { doc, getDoc, setDoc, getFirestore } from 'firebase/firestore';
+import { doc, getDoc, setDoc, getFirestore, serverTimestamp } from 'firebase/firestore';
 
 import { Alert, Button, Form, Grid, Modal } from './components';
 import firebaseError from './firebaseError';
@@ -57,7 +57,12 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, 
       if (product.sellingPrice !== null && product.costPrice !== null && product.sellingPrice <= product.costPrice) {
         throw Error('売価は原価よりも高い価格に設定してください。');
       }
-      await setDoc(doc(db, 'products', product.code), { ...product, unregistered: true });
+      await setDoc(doc(db, 'products', product.code), {
+        ...product,
+        unregistered: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
       onUpdate(product);
       onClose();
     } catch (error) {

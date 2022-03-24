@@ -18,6 +18,7 @@ import {
   QueryConstraint,
   QuerySnapshot,
   onSnapshot,
+  Timestamp,
   serverTimestamp,
   Bytes,
 } from 'firebase/firestore';
@@ -27,7 +28,7 @@ import { useAppContext } from './AppContext';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import ProductEdit from './ProductEdit';
-import { sortedProductCategories } from './tools';
+import { sortedProductCategories, toDateString } from './tools';
 import { Product, ProductCategory, Supplier } from './types';
 
 // import * as zlib from 'zlib';
@@ -36,14 +37,14 @@ const zlib = require('zlib');
 const db = getFirestore();
 const PER_PAGE = 25;
 
-type SearchType = { text: string; categoryId: string };
+type SearchType = { text: string; categoryId: string; minDate: Date | null; maxDate: Date | null };
 
 type Props = {
   unregistered?: boolean;
 };
 
 const ProductList: React.FC<Props> = ({ unregistered = false }) => {
-  const [search, setSearch] = useState<SearchType>({ text: '', categoryId: '' });
+  const [search, setSearch] = useState<SearchType>({ text: '', categoryId: '', minDate: null, maxDate: null });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Product> | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [productCategories, setProductCategories] = useState<{ id: string; productCategory: ProductCategory }[]>([]);
@@ -99,31 +100,43 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
           conds.push(where('unregistered', '==', true));
         } else {
           conds.push(where('hidden', '==', false));
-          if (action === 'head') {
-            conds.push(orderBy('code'));
-            conds.push(limit(PER_PAGE));
-            setPage(0);
-          } else if (action === 'next') {
-            if (snapshot) {
+          if (search.minDate) {
+            if (search.minDate) {
+              conds.push(where('createdAt', '>=', Timestamp.fromDate(search.minDate)));
+            }
+            if (search.maxDate) {
+              const date = new Date(search.maxDate);
+              date.setDate(date.getDate() + 1);
+              conds.push(where('createdAt', '<=', Timestamp.fromDate(date)));
+            }
+            conds.push(orderBy('createdAt', 'desc'));
+          } else {
+            if (action === 'head') {
               conds.push(orderBy('code'));
-              const last = snapshot.docs[snapshot.docs.length - 1];
-              conds.push(startAfter(last));
               conds.push(limit(PER_PAGE));
-              setPage(page + 1);
-            }
-          } else if (action === 'prev') {
-            if (snapshot) {
-              conds.push(orderBy('code', 'asc'));
-              const last = snapshot.docs[0];
-              conds.push(endBefore(last));
-              conds.push(limitToLast(PER_PAGE));
-              setPage(page - 1);
-            }
-          } else if (action === 'current') {
-            if (snapshot) {
-              const first = snapshot.docs[0];
-              conds.push(startAt(first));
-              conds.push(limit(PER_PAGE));
+              setPage(0);
+            } else if (action === 'next') {
+              if (snapshot) {
+                conds.push(orderBy('code'));
+                const last = snapshot.docs[snapshot.docs.length - 1];
+                conds.push(startAfter(last));
+                conds.push(limit(PER_PAGE));
+                setPage(page + 1);
+              }
+            } else if (action === 'prev') {
+              if (snapshot) {
+                conds.push(orderBy('code', 'asc'));
+                const last = snapshot.docs[0];
+                conds.push(endBefore(last));
+                conds.push(limitToLast(PER_PAGE));
+                setPage(page - 1);
+              }
+            } else if (action === 'current') {
+              if (snapshot) {
+                const first = snapshot.docs[0];
+                conds.push(startAt(first));
+                conds.push(limit(PER_PAGE));
+              }
             }
           }
         }
@@ -236,6 +249,23 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                   options={categoryOptions}
                   onChange={(e) => setSearch({ ...search, categoryId: e.target.value })}
                 />
+                <Form.Date
+                  value={search.minDate ? toDateString(search.minDate, 'YYYY-MM-DD') : ''}
+                  onChange={(e) => {
+                    const minDate = e.target.value ? new Date(e.target.value) : null;
+                    setSearch((prev) => ({ ...prev, minDate }));
+                  }}
+                />
+                <p className="p-2">〜</p>
+                <Form.Date
+                  value={search.maxDate ? toDateString(search.maxDate, 'YYYY-MM-DD') : ''}
+                  onChange={(e) => {
+                    const maxDate = e.target.value ? new Date(e.target.value) : null;
+                    setSearch((prev) => ({ ...prev, maxDate }));
+                  }}
+                  className="mr-2"
+                />
+
                 <Button variant="outlined" className="mr-2" onClick={queryProducts(search, 'head')}>
                   検索
                 </Button>
@@ -291,6 +321,7 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                 <Table.Cell type="th">原価</Table.Cell>
                 <Table.Cell type="th">ｾﾙﾒ</Table.Cell>
                 <Table.Cell type="th">仕入先</Table.Cell>
+                <Table.Cell type="th">登録日</Table.Cell>
                 <Table.Cell type="th"></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -305,6 +336,9 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                     <Table.Cell className="text-right">{product.costPrice?.toLocaleString()}</Table.Cell>
                     <Table.Cell className="text-center">{product.selfMedication && '○'}</Table.Cell>
                     <Table.Cell>{truncate(supplierName(product), { length: 10 })}</Table.Cell>
+                    <Table.Cell>
+                      {product.createdAt ? toDateString(product.createdAt.toDate(), 'YYYY-MM-DD') : ''}
+                    </Table.Cell>
                     <Table.Cell>
                       <Button
                         variant="icon"

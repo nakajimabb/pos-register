@@ -42,6 +42,8 @@ export type Product = {
   selfMedication: boolean;
   supplierRef: DocumentReference<Supplier> | null;
   categoryRef: DocumentReference<ProductCategory> | null;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 };
 
 export type ProductCostPrice = {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc, getFirestore, DocumentReference } from 'firebase/firestore';
+import { doc, getDoc, setDoc, getFirestore, serverTimestamp, DocumentReference } from 'firebase/firestore';
 import Select, { SingleValue } from 'react-select';
 
 import { Alert, Button, Flex, Form, Grid, Modal } from './components';
@@ -130,14 +130,18 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
     setError('');
     try {
       if (docId) {
-        await setDoc(doc(db, 'products', docId), product);
+        await setDoc(doc(db, 'products', docId), { ...product, updatedAt: serverTimestamp() });
       } else {
         const ref = doc(db, 'products', product.code);
         const snap = await getDoc(ref);
         if (!checkDigit(product.code)) throw Error('不正なPLUコードです。');
         if (snap.exists()) throw Error('PLUコードが既に存在します。');
 
-        await setDoc(doc(db, 'products', product.code), product);
+        await setDoc(doc(db, 'products', product.code), {
+          ...product,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
       }
       onUpdate(product);
       onClose();
