@@ -18,10 +18,10 @@ type Props = {
 const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, onUpdate }) => {
   const [product, setProduct] = useState<Product>({
     code: productCode,
-    name: '未登録商品',
+    name: '',
     kana: '',
     abbr: '',
-    hidden: true,
+    hidden: false,
     costPrice: null,
     sellingPrice: null,
     stockTaxClass: null,
@@ -43,8 +43,10 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, 
       const snap = await getDoc(ref);
       if (!checkDigit(product.code)) throw Error('不正なPLUコードです。');
       if (snap.exists()) throw Error('PLUコードが既に存在します。');
-
-      await setDoc(doc(db, 'products', product.code), product);
+      if (product.sellingPrice !== null && product.costPrice !== null && product.sellingPrice <= product.costPrice) {
+        throw Error('売価は原価よりも高い価格に設定してください。');
+      }
+      await setDoc(doc(db, 'products', product.code), { ...product, unregistered: true });
       onUpdate(product);
       onClose();
     } catch (error) {
@@ -69,7 +71,12 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, 
             <Form.Label>商品コード</Form.Label>
             <Form.Text placeholder="商品コード" disabled required value={product.code} />
             <Form.Label>商品名</Form.Label>
-            <Form.Text placeholder="商品名" disabled required value={product.name} />
+            <Form.Text
+              placeholder="商品名"
+              required
+              value={product.name}
+              onChange={(e) => setProduct({ ...product, name: e.target.value })}
+            />
             <Form.Label>売価税抜</Form.Label>
             <Form.Number
               placeholder="売価"

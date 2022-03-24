@@ -61,7 +61,9 @@ const ImportStock: React.FC = () => {
         const errs = checkResults
           .filter((item) => !item.exists)
           .map((item) => `${item.productName}(${item.productCode})`);
-        setErrors((prev) => [...prev, '● 商品マスタが登録されていません。', ...errs]);
+        if (errs.length > 0) {
+          setErrors((prev) => [...prev, '● 商品マスタが登録されていません。', ...errs]);
+        }
 
         // db 書き込み
         const BATCH_UNIT = 300;

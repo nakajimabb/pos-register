@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Select from 'react-select';
 import {
   getFirestore,
   collectionGroup,
@@ -15,7 +14,7 @@ import { Alert, Button, Card, Form, Table } from './components';
 import { useAppContext } from './AppContext';
 import InventoryPrint from './InventoryPrint';
 import firebaseError from './firebaseError';
-import { nameWithCode, toDateString } from './tools';
+import { toDateString } from './tools';
 import { Inventory } from './types';
 
 const db = getFirestore();

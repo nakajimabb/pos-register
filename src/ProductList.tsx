@@ -39,11 +39,11 @@ const PER_PAGE = 25;
 type SearchType = { text: string; categoryId: string };
 
 type Props = {
-  searchText?: string;
+  unregistered?: boolean;
 };
 
-const ProductList: React.FC<Props> = ({ searchText = '' }) => {
-  const [search, setSearch] = useState<SearchType>({ text: searchText, categoryId: '' });
+const ProductList: React.FC<Props> = ({ unregistered = false }) => {
+  const [search, setSearch] = useState<SearchType>({ text: '', categoryId: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Product> | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [productCategories, setProductCategories] = useState<{ id: string; productCategory: ProductCategory }[]>([]);
@@ -95,32 +95,36 @@ const ProductList: React.FC<Props> = ({ searchText = '' }) => {
         const conds: QueryConstraint[] = [];
         setProductCount(Number(counters?.products.all));
 
-        conds.push(where('hidden', '==', false));
-        if (action === 'head') {
-          conds.push(orderBy('code'));
-          conds.push(limit(PER_PAGE));
-          setPage(0);
-        } else if (action === 'next') {
-          if (snapshot) {
+        if (unregistered) {
+          conds.push(where('unregistered', '==', true));
+        } else {
+          conds.push(where('hidden', '==', false));
+          if (action === 'head') {
             conds.push(orderBy('code'));
-            const last = snapshot.docs[snapshot.docs.length - 1];
-            conds.push(startAfter(last));
             conds.push(limit(PER_PAGE));
-            setPage(page + 1);
-          }
-        } else if (action === 'prev') {
-          if (snapshot) {
-            conds.push(orderBy('code', 'asc'));
-            const last = snapshot.docs[0];
-            conds.push(endBefore(last));
-            conds.push(limitToLast(PER_PAGE));
-            setPage(page - 1);
-          }
-        } else if (action === 'current') {
-          if (snapshot) {
-            const first = snapshot.docs[0];
-            conds.push(startAt(first));
-            conds.push(limit(PER_PAGE));
+            setPage(0);
+          } else if (action === 'next') {
+            if (snapshot) {
+              conds.push(orderBy('code'));
+              const last = snapshot.docs[snapshot.docs.length - 1];
+              conds.push(startAfter(last));
+              conds.push(limit(PER_PAGE));
+              setPage(page + 1);
+            }
+          } else if (action === 'prev') {
+            if (snapshot) {
+              conds.push(orderBy('code', 'asc'));
+              const last = snapshot.docs[0];
+              conds.push(endBefore(last));
+              conds.push(limitToLast(PER_PAGE));
+              setPage(page - 1);
+            }
+          } else if (action === 'current') {
+            if (snapshot) {
+              const first = snapshot.docs[0];
+              conds.push(startAt(first));
+              conds.push(limit(PER_PAGE));
+            }
           }
         }
         const q = query(collection(db, 'products'), ...conds);
@@ -208,37 +212,43 @@ const ProductList: React.FC<Props> = ({ searchText = '' }) => {
         onClose={() => setOpen(false)}
         onUpdate={queryProducts(search, 'current')}
       />
-      <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">商品マスタ(共通)</h1>
+      <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">
+        {unregistered ? '未登録商品' : '商品マスタ(共通)'}
+      </h1>
       <Card className="mx-8 mb-4 overflow-visible">
         <Flex justify_content="between" align_items="center" className="p-4">
           <Flex>
-            <Form.Text
-              id="select"
-              size="md"
-              placeholder="PLUコード 商品名"
-              className="mr-2 w-80"
-              value={search.text}
-              onChange={(e) => setSearch({ ...search, text: e.target.value })}
-            />
-            <Form.Select
-              id="select"
-              size="md"
-              className="mr-2 w-64"
-              value={search.categoryId}
-              options={categoryOptions}
-              onChange={(e) => setSearch({ ...search, categoryId: e.target.value })}
-            />
-            <Button variant="outlined" className="mr-2" onClick={queryProducts(search, 'head')}>
-              検索
-            </Button>
-            <Button variant="outlined" className="mr-2" onClick={newProduct}>
-              新規
-            </Button>
-            <Button variant="outlined" className="mr-2" onClick={createFullTextSearch}>
-              検索データ作成
-            </Button>
+            {!unregistered && (
+              <>
+                <Form.Text
+                  id="select"
+                  size="md"
+                  placeholder="PLUコード 商品名"
+                  className="mr-2 w-80"
+                  value={search.text}
+                  onChange={(e) => setSearch({ ...search, text: e.target.value })}
+                />
+                <Form.Select
+                  id="select"
+                  size="md"
+                  className="mr-2 w-64"
+                  value={search.categoryId}
+                  options={categoryOptions}
+                  onChange={(e) => setSearch({ ...search, categoryId: e.target.value })}
+                />
+                <Button variant="outlined" className="mr-2" onClick={queryProducts(search, 'head')}>
+                  検索
+                </Button>
+                <Button variant="outlined" className="mr-2" onClick={newProduct}>
+                  新規
+                </Button>
+                <Button variant="outlined" className="mr-2" onClick={createFullTextSearch}>
+                  検索データ作成
+                </Button>
+              </>
+            )}
           </Flex>
-          {snapshot && productCount && (
+          {snapshot && productCount && !unregistered && (
             <Flex>
               <Button
                 color="light"

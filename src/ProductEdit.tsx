@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, getFirestore, DocumentReference } from 'firebase/firestore';
 import Select, { SingleValue } from 'react-select';
 
-import { Alert, Button, Form, Grid, Modal } from './components';
+import { Alert, Button, Flex, Form, Grid, Modal } from './components';
 import firebaseError from './firebaseError';
 import { Product, ProductCategory, Supplier, TaxClass } from './types';
 import { checkDigit } from './tools';
+import clsx from 'clsx';
 
 const db = getFirestore();
 
@@ -259,11 +260,21 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
               onChange={(e) => setProduct({ ...product, note: e.target.value })}
             />
             <Form.Label></Form.Label>
-            <Form.Checkbox
-              label="非稼働"
-              checked={product.hidden}
-              onChange={(e) => setProduct({ ...product, hidden: e.target.checked })}
-            />
+            <Flex className="space-x-2">
+              <Form.Checkbox
+                label="非稼働"
+                checked={product.hidden}
+                onChange={(e) => setProduct({ ...product, hidden: e.target.checked })}
+              />
+              <div className={clsx(product.unregistered && 'text-red-500 font-bold')}>
+                <Form.Checkbox
+                  label="未登録"
+                  checked={product.unregistered}
+                  onChange={(e) => setProduct({ ...product, unregistered: e.target.checked })}
+                  className="text-gray-300"
+                />
+              </div>
+            </Flex>
           </Grid>
         </Modal.Body>
         <Modal.Footer className="flex justify-end">

@@ -450,6 +450,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   const updateNewProduct = (product: Product) => {
     setCurrentItem((prev) => ({ ...prev, costPrice: product.costPrice }));
     addItem(product.code, currentItem.quantity, product.costPrice);
+    quantityRef.current?.focus();
   };
 
   return (

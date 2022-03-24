@@ -32,6 +32,7 @@ export type Product = {
   name: string;
   note: string;
   hidden: boolean;
+  unregistered?: boolean;
   sellingPrice: number | null; // 売価(税抜)
   costPrice: number | null; // 下代（原価）
   sellingTaxClass: TaxClass | null; // 税区分(売価)
