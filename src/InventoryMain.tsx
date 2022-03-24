@@ -47,6 +47,7 @@ const InventoryMain: React.FC = () => {
   const [processing, setProcessing] = useState<boolean>(false);
   const [sortType, setSortType] = useState<SortType>('countedAt');
   const { currentShop } = useAppContext();
+  const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -114,10 +115,14 @@ const InventoryMain: React.FC = () => {
           const items = new Map<string, InventoryDetail>();
           await readStocks(shopCode, items);
           setInventoryDetails(items);
+          codeRef.current?.focus();
         } else {
           setErrors((prev) => [...prev, '既ににデータが存在します。']);
         }
-      } catch (error) {}
+      } catch (error) {
+        console.log({ error });
+        alert(firebaseError(error));
+      }
     }
   };
 
@@ -171,7 +176,7 @@ const InventoryMain: React.FC = () => {
     if (inventory && currentItem.productCode && currentItem.quantity) {
       saveItem(inventory.shopCode, inventory.date.toDate(), currentItem.productCode, currentItem.quantity, 'add');
       resetCurrentItem();
-      quantityRef.current?.focus();
+      codeRef.current?.focus();
     }
   };
 
@@ -417,6 +422,7 @@ const InventoryMain: React.FC = () => {
                   onKeyPress={loadProduct}
                   disabled={!inventory || !!inventory.fixedAt}
                   placeholder="商品コード"
+                  innerRef={codeRef}
                 />
                 <Form.Number
                   value={String(currentItem.quantity)}

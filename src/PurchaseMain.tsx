@@ -77,6 +77,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   const [processing, setProcessing] = useState<boolean>(false);
   const [openProductEdit, setOpenProductEdit] = useState<boolean>(false);
   const { registListner, shops, suppliers } = useAppContext();
+  const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -182,7 +183,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
         }
         setItems(newItems);
         resetCurrentItem();
-        quantityRef.current?.focus();
+        codeRef.current?.focus();
       } else {
         if (checkDigit(currentItem.productCode)) {
           setOpenProductEdit(true);
@@ -516,6 +517,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
               onChange={(e) => {
                 const srcCode = String(e?.value);
                 setPurchase((prev) => ({ ...prev, srcCode, srcName: getSrcName(purchase.srcType, srcCode) ?? '' }));
+                codeRef.current?.focus();
               }}
               className="mb-3 sm:mb-0 w-72"
             />
@@ -544,6 +546,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
                 onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
                 onKeyPress={loadProduct}
                 placeholder="商品コード"
+                innerRef={codeRef}
               />
               <Form.Number
                 value={String(currentItem.quantity)}
