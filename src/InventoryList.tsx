@@ -21,9 +21,10 @@ import { Inventory } from './types';
 const db = getFirestore();
 
 const InventoryList: React.FC = () => {
-  const [search, setSearch] = useState<{ shopCode: string; date: Date | null }>({
+  const [search, setSearch] = useState<{ shopCode: string; minDate: Date | null; maxDate: Date | null }>({
     shopCode: '',
-    date: null,
+    minDate: null,
+    maxDate: null,
   });
   const [target, setTarget] = useState<{ delivery: Inventory; mode: 'modal' | 'print' } | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
@@ -36,11 +37,16 @@ const InventoryList: React.FC = () => {
       try {
         const conds: QueryConstraint[] = [limit(30)];
 
-        if (search.date) {
-          conds.push(where('date', '==', Timestamp.fromDate(search.date)));
-        } else {
-          conds.push(orderBy('date', 'desc'));
+        if (search.minDate) {
+          conds.push(where('date', '>=', Timestamp.fromDate(search.minDate)));
         }
+        if (search.maxDate) {
+          const date = new Date(search.maxDate);
+          date.setDate(date.getDate() + 1);
+          conds.push(where('date', '<=', Timestamp.fromDate(date)));
+        }
+        conds.push(orderBy('date', 'desc'));
+
         if (search.shopCode) conds.push(where('dstShopCode', '==', search.shopCode));
 
         const q = query(collection(db, 'shops', currentShop.code, 'inventories'), ...conds) as Query<Inventory>;
@@ -68,10 +74,18 @@ const InventoryList: React.FC = () => {
           )}
           <Form className="flex space-x-2 mb-2" onSubmit={queryInventories}>
             <Form.Date
-              value={search.date ? toDateString(search.date, 'YYYY-MM-DD') : ''}
+              value={search.minDate ? toDateString(search.minDate, 'YYYY-MM-DD') : ''}
               onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setSearch((prev) => ({ ...prev, date }));
+                const minDate = e.target.value ? new Date(e.target.value) : null;
+                setSearch((prev) => ({ ...prev, minDate }));
+              }}
+            />
+            <p className="py-2">〜</p>
+            <Form.Date
+              value={search.maxDate ? toDateString(search.maxDate, 'YYYY-MM-DD') : ''}
+              onChange={(e) => {
+                const maxDate = e.target.value ? new Date(e.target.value) : null;
+                setSearch((prev) => ({ ...prev, maxDate }));
               }}
             />
             <Button className="w-48">検索</Button>

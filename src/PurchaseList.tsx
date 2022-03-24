@@ -23,8 +23,9 @@ import { Purchase } from './types';
 const db = getFirestore();
 
 const PurchaseList: React.FC = () => {
-  const [search, setSearch] = useState<{ date: Date | null }>({
-    date: null,
+  const [search, setSearch] = useState<{ minDate: Date | null; maxDate: Date | null }>({
+    minDate: null,
+    maxDate: null,
   });
   const [target, setTarget] = useState<{ purchase: Purchase; mode: 'modal' | 'print' } | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
@@ -37,11 +38,15 @@ const PurchaseList: React.FC = () => {
       try {
         const conds: QueryConstraint[] = [limit(30)];
 
-        if (search.date) {
-          conds.push(where('date', '==', Timestamp.fromDate(search.date)));
-        } else {
-          conds.push(orderBy('date', 'desc'));
+        if (search.minDate) {
+          conds.push(where('date', '>=', Timestamp.fromDate(search.minDate)));
         }
+        if (search.maxDate) {
+          const date = new Date(search.maxDate);
+          date.setDate(date.getDate() + 1);
+          conds.push(where('date', '<=', Timestamp.fromDate(date)));
+        }
+        conds.push(orderBy('date', 'desc'));
 
         const q = query(collection(db, 'shops', currentShop.code, 'purchases'), ...conds) as Query<Purchase>;
         const snap = await getDocs(q);
@@ -68,9 +73,18 @@ const PurchaseList: React.FC = () => {
           )}
           <Form className="flex space-x-2 mb-2" onSubmit={queryPurchases}>
             <Form.Date
-              value={search.date ? toDateString(search.date, 'YYYY-MM-DD') : ''}
+              value={search.minDate ? toDateString(search.minDate, 'YYYY-MM-DD') : ''}
               onChange={(e) => {
-                setSearch((prev) => ({ ...prev, date: new Date(e.target.value) }));
+                const minDate = e.target.value ? new Date(e.target.value) : null;
+                setSearch((prev) => ({ ...prev, minDate }));
+              }}
+            />
+            <p className="py-2">〜</p>
+            <Form.Date
+              value={search.maxDate ? toDateString(search.maxDate, 'YYYY-MM-DD') : ''}
+              onChange={(e) => {
+                const maxDate = e.target.value ? new Date(e.target.value) : null;
+                setSearch((prev) => ({ ...prev, maxDate }));
               }}
             />
             <Button className="w-48">検索</Button>

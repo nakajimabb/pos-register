@@ -153,7 +153,7 @@ const InventoryList: React.FC = () => {
                       <>
                         <Table.Cell>{toDateString(item.date.toDate(), 'MM/DD hh:mm')}</Table.Cell>
                         <Table.Cell>{item.fixedAt && toDateString(item.fixedAt.toDate(), 'MM/DD hh:mm')}</Table.Cell>
-                        <Table.Cell>{item.sum && item.sum[0].amount?.toLocaleString()}</Table.Cell>
+                        <Table.Cell>{item.sum && item.sum[0]?.amount?.toLocaleString()}</Table.Cell>
                         <Table.Cell>{item && item.fixedAt ? '確定済' : '作業中'}</Table.Cell>
                         <Table.Cell>
                           <Button

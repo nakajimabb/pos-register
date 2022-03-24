@@ -90,7 +90,7 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClos
               </Flex>
             </div>
             <div className="text-center">
-              <small>出庫リスト番号</small>
+              <small>出庫リスト番号 ({String(delivery?.deliveryNumber)})</small>
               <svg
                 id="barcode"
                 className="barcode"
