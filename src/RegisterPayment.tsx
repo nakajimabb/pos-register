@@ -27,7 +27,7 @@ const RegisterPayment: React.FC<Props> = ({
   setBasketItems,
   onClose,
 }) => {
-  const { currentShop, productBulks } = useAppContext();
+  const { currentShop, productBulks, incrementStock } = useAppContext();
   const [cashText, setCashText] = useState<string>('0');
   const [currentTimestamp, setCurrentTimestamp] = useState<Timestamp>(Timestamp.fromDate(new Date()));
   const componentRef = useRef(null);
@@ -44,32 +44,6 @@ const RegisterPayment: React.FC<Props> = ({
       const functions = getFunctions(app, 'asia-northeast1');
       const result = await httpsCallable(functions, 'getSequence')({ docId: 'sales' });
       const receiptNumber = Number(result.data);
-      const stocks: Stock[] = [];
-      await Promise.all(
-        basketItems.map(async (item, index) => {
-          if (item.product.code && item.division === OTC_DIVISION) {
-            const existingBulkIndex = productBulks.findIndex((bulk) => bulk.parentProductCode === item.product.code);
-            const stockProductCode =
-              existingBulkIndex >= 0 ? productBulks[existingBulkIndex].childProductCode : item.product.code;
-            const stockProductName =
-              existingBulkIndex >= 0 ? productBulks[existingBulkIndex].childProductName : item.product.name;
-            const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), stockProductCode);
-            const stockDoc = await transaction.get(stockRef);
-            if (stockDoc.exists()) {
-              stocks[index] = stockDoc.data() as Stock;
-            } else {
-              stocks[index] = {
-                shopCode: currentShop.code,
-                productCode: stockProductCode,
-                productName: stockProductName,
-                quantity: 0,
-                updatedAt: currentTimestamp,
-              };
-            }
-          }
-        })
-      );
-
       const sale: Sale = {
         receiptNumber,
         shopCode: currentShop.code,
@@ -111,16 +85,8 @@ const RegisterPayment: React.FC<Props> = ({
           discountTotal += -item.product.sellingPrice;
         }
         if (item.product.code && item.division === OTC_DIVISION) {
-          const existingBulkIndex = productBulks.findIndex((bulk) => bulk.parentProductCode === item.product.code);
-          const stockProductCode =
-            existingBulkIndex >= 0 ? productBulks[existingBulkIndex].childProductCode : item.product.code;
-          const stockQuantity =
-            existingBulkIndex >= 0 ? productBulks[existingBulkIndex].quantity * item.quantity : item.quantity;
-          const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), stockProductCode);
-          transaction.set(stockRef, {
-            ...stocks[index],
-            quantity: stocks[index].quantity - stockQuantity * registerSign,
-          });
+          const incr = -item.quantity * registerSign;
+          incrementStock(currentShop.code, item.product.code, item.product.name, incr, transaction);
         }
       });
       transaction.update(saleRef, { discountTotal });

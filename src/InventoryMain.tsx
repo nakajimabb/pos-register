@@ -242,8 +242,7 @@ const InventoryMain: React.FC = () => {
             // 在庫更新
             items.forEach((item) => {
               const diff = item.quantity - item.stock;
-              const merge = true; // TODO: 後で
-              incrementStock(inventory.shopCode, item.productCode, item.productName, diff, merge, transaction);
+              incrementStock(inventory.shopCode, item.productCode, item.productName, diff, transaction);
             });
             // 棚卸更新
             const ref = doc(db, inventoryPath(inventory.shopCode, inventory.date.toDate()));

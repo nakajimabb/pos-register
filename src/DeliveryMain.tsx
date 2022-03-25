@@ -249,8 +249,7 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
             if (fixed) {
               // 在庫更新
               const diff = detail?.fixed ? detail.quantity - item.quantity : -item.quantity;
-              const merge = !notFoundStockCodes.has(item.productCode);
-              incrementStock(deliv.shopCode, item.productCode, item.productName, diff, merge, transaction);
+              incrementStock(deliv.shopCode, item.productCode, item.productName, diff, transaction);
             } else {
               if (detail?.fixed) new Error(`確定済データを一時保存状態に戻すことはできません。${item.productName}`);
             }

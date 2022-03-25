@@ -8,12 +8,10 @@ import {
   collection,
   collectionGroup,
   DocumentSnapshot,
-  increment,
   query,
   Query,
   QuerySnapshot,
   runTransaction,
-  serverTimestamp,
   Timestamp,
   where,
 } from 'firebase/firestore';
@@ -315,8 +313,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
             }
             // 在庫更新
             const diff = detail ? item.quantity - detail.quantity : item.quantity;
-            const merge = !notFoundStockCodes.has(item.productCode);
-            incrementStock(purch.shopCode, item.productCode, item.productName, diff, merge, transaction);
+            incrementStock(purch.shopCode, item.productCode, item.productName, diff, transaction);
           }
         });
         loadPurchaseDetails(purch.shopCode, purch.purchaseNumber);

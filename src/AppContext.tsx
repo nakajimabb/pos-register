@@ -62,7 +62,6 @@ export type ContextType = {
     productCode: string,
     productName: string,
     incr: number,
-    merge: boolean,
     transaction?: Transaction
   ) => void;
 };
@@ -86,7 +85,6 @@ const AppContext = createContext({
     productCode: string,
     productName: string,
     incr: number,
-    merge: boolean,
     transaction?: Transaction
   ) => {},
 } as ContextType);
@@ -229,7 +227,6 @@ export const AppContextProvider: React.FC = ({ children }) => {
     productCode: string,
     productName: string,
     incr: number,
-    merge: boolean,
     transaction?: Transaction
   ) => {
     const productBulk = productBulks.find((bulk) => bulk.parentProductCode === productCode);
@@ -238,22 +235,17 @@ export const AppContextProvider: React.FC = ({ children }) => {
     const path = stockPath(shopCode, code);
     const ref = doc(db, path);
     const incmnt = productBulk ? productBulk.quantity * incr : incr;
-    if (merge) {
-      if (incmnt !== 0) {
-        const data = { productName: name, quantity: increment(incmnt), updatedAt: serverTimestamp() };
-        if (transaction) {
-          transaction.set(ref, data, { merge: true });
-        } else {
-          setDoc(ref, data, { merge: true });
-        }
-      }
+    const data = {
+      shopCode,
+      productCode: code,
+      productName: name,
+      quantity: increment(incmnt),
+      updatedAt: serverTimestamp(),
+    };
+    if (transaction) {
+      transaction.set(ref, data, { merge: true });
     } else {
-      const data = { productName: name, quantity: incmnt, updatedAt: serverTimestamp() };
-      if (transaction) {
-        transaction.set(ref, data);
-      } else {
-        setDoc(ref, data);
-      }
+      setDoc(ref, data, { merge: true });
     }
   };
 
