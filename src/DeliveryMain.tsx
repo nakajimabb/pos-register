@@ -8,10 +8,8 @@ import {
   collection,
   getDocs,
   Timestamp,
-  serverTimestamp,
   runTransaction,
   QuerySnapshot,
-  increment,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
@@ -54,7 +52,7 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
   const [errors, setErrors] = useState<string[]>([]);
   const [targetProductCode, setTargetProductCode] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
-  const { registListner, shops } = useAppContext();
+  const { registListner, incrementStock, shops } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
 
@@ -251,26 +249,8 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
             if (fixed) {
               // 在庫更新
               const diff = detail?.fixed ? detail.quantity - item.quantity : -item.quantity;
-              const stockRef = doc(db, 'shops', deliv.shopCode, 'stocks', item.productCode);
-              if (notFoundStockCodes.has(item.productCode)) {
-                transaction.set(stockRef, {
-                  shopCode: deliv.shopCode,
-                  productCode: item.productCode,
-                  productName: item.productName,
-                  quantity: diff,
-                  updatedAt: serverTimestamp(),
-                });
-              } else {
-                if (diff !== 0) {
-                  transaction.update(stockRef, {
-                    shopCode: deliv.shopCode,
-                    productCode: item.productCode,
-                    productName: item.productName,
-                    quantity: increment(diff),
-                    updatedAt: serverTimestamp(),
-                  });
-                }
-              }
+              const merge = !notFoundStockCodes.has(item.productCode);
+              incrementStock(deliv.shopCode, item.productCode, item.productName, diff, merge, transaction);
             } else {
               if (detail?.fixed) new Error(`確定済データを一時保存状態に戻すことはできません。${item.productName}`);
             }

@@ -14,7 +14,6 @@ import {
   orderBy,
   limit,
   QuerySnapshot,
-  increment,
   setDoc,
   DocumentReference,
 } from 'firebase/firestore';
@@ -46,7 +45,7 @@ const InventoryMain: React.FC = () => {
   const [editTarget, setEditTarget] = useState<InventoryDetail | undefined>(undefined);
   const [processing, setProcessing] = useState<boolean>(false);
   const [sortType, setSortType] = useState<SortType>('countedAt');
-  const { currentShop } = useAppContext();
+  const { currentShop, incrementStock } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
 
@@ -242,13 +241,9 @@ const InventoryMain: React.FC = () => {
           await runTransaction(db, async (transaction) => {
             // 在庫更新
             items.forEach((item) => {
-              const ref = doc(db, stockPath(inventory.shopCode, item.productCode));
               const diff = item.quantity - item.stock;
-              transaction.set(
-                ref,
-                { quantity: increment(fix ? diff : -diff), updatedAt: serverTimestamp() },
-                { merge: true }
-              );
+              const merge = true; // TODO: 後で
+              incrementStock(inventory.shopCode, item.productCode, item.productName, diff, merge, transaction);
             });
             // 棚卸更新
             const ref = doc(db, inventoryPath(inventory.shopCode, inventory.date.toDate()));

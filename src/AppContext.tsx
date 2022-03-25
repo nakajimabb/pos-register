@@ -13,10 +13,14 @@ import {
   orderBy,
   startAt,
   endAt,
+  increment,
   QueryConstraint,
   QuerySnapshot,
   Timestamp,
   where,
+  Transaction,
+  serverTimestamp,
+  setDoc,
 } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
 import { userCodeFromEmail, OTC_DIVISION, hiraToKana } from './tools';
@@ -31,6 +35,7 @@ import {
   ProductBulk,
   BasketItem,
   FixedCostRate,
+  stockPath,
 } from './types';
 
 const zlib = require('zlib');
@@ -52,6 +57,14 @@ export type ContextType = {
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;
   searchProducts: (inputText: string) => Promise<Product[]>;
   registListner: (name: 'suppliers' | 'shops') => void;
+  incrementStock: (
+    shopCode: string,
+    productCode: string,
+    productName: string,
+    incr: number,
+    merge: boolean,
+    transaction?: Transaction
+  ) => void;
 };
 
 const AppContext = createContext({
@@ -68,6 +81,14 @@ const AppContext = createContext({
   loadProductOptions: async (inputText: string) => [],
   searchProducts: async (inputText: string) => [],
   registListner: (name: 'suppliers' | 'shops') => {},
+  incrementStock: (
+    shopCode: string,
+    productCode: string,
+    productName: string,
+    incr: number,
+    merge: boolean,
+    transaction?: Transaction
+  ) => {},
 } as ContextType);
 
 type FullTextSearch = {
@@ -201,6 +222,39 @@ export const AppContextProvider: React.FC = ({ children }) => {
 
   const registListner = (name: 'suppliers' | 'shops') => {
     setListeners((prev) => ({ ...prev, [name]: true }));
+  };
+
+  const incrementStock = (
+    shopCode: string,
+    productCode: string,
+    productName: string,
+    incr: number,
+    merge: boolean,
+    transaction?: Transaction
+  ) => {
+    const productBulk = productBulks.find((bulk) => bulk.parentProductCode === productCode);
+    const code = productBulk ? productBulk.childProductCode : productCode;
+    const name = productBulk ? productBulk.childProductName : productName;
+    const path = stockPath(shopCode, code);
+    const ref = doc(db, path);
+    const incmnt = productBulk ? productBulk.quantity * incr : incr;
+    if (merge) {
+      if (incmnt !== 0) {
+        const data = { productName: name, quantity: increment(incmnt), updatedAt: serverTimestamp() };
+        if (transaction) {
+          transaction.set(ref, data, { merge: true });
+        } else {
+          setDoc(ref, data, { merge: true });
+        }
+      }
+    } else {
+      const data = { productName: name, quantity: incmnt, updatedAt: serverTimestamp() };
+      if (transaction) {
+        transaction.set(ref, data);
+      } else {
+        setDoc(ref, data);
+      }
+    }
   };
 
   const addBundleDiscount = (basketItems: BasketItem[]) => {
@@ -338,6 +392,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
         loadProductOptions,
         searchProducts,
         registListner,
+        incrementStock,
       }}
     >
       {children}

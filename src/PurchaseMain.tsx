@@ -76,7 +76,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   const [targetProductCode, setTargetProductCode] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
   const [openProductEdit, setOpenProductEdit] = useState<boolean>(false);
-  const { registListner, shops, suppliers } = useAppContext();
+  const { registListner, incrementStock, shops, suppliers } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
 
@@ -315,26 +315,8 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
             }
             // 在庫更新
             const diff = detail ? item.quantity - detail.quantity : item.quantity;
-            const stockRef = doc(db, 'shops', purch.shopCode, 'stocks', item.productCode);
-            if (notFoundStockCodes.has(item.productCode)) {
-              transaction.set(stockRef, {
-                shopCode: purch.shopCode,
-                productCode: item.productCode,
-                productName: item.productName,
-                quantity: diff,
-                updatedAt: serverTimestamp(),
-              });
-            } else {
-              if (diff !== 0) {
-                transaction.update(stockRef, {
-                  shopCode: purch.shopCode,
-                  productCode: item.productCode,
-                  productName: item.productName,
-                  quantity: increment(diff),
-                  updatedAt: serverTimestamp(),
-                });
-              }
-            }
+            const merge = !notFoundStockCodes.has(item.productCode);
+            incrementStock(purch.shopCode, item.productCode, item.productName, diff, merge, transaction);
           }
         });
         loadPurchaseDetails(purch.shopCode, purch.purchaseNumber);
