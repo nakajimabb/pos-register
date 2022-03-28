@@ -14,6 +14,7 @@ type Props = {
   paymentType: 'Cash' | 'Credit';
   basketItems: BasketItem[];
   setBasketItems: React.Dispatch<React.SetStateAction<BasketItem[]>>;
+  setRegisterMode: React.Dispatch<React.SetStateAction<'Sales' | 'Return'>>;
   onClose: () => void;
 };
 
@@ -25,6 +26,7 @@ const RegisterPayment: React.FC<Props> = ({
   paymentType,
   basketItems,
   setBasketItems,
+  setRegisterMode,
   onClose,
 }) => {
   const { currentShop, productBulks, incrementStock } = useAppContext();
@@ -99,6 +101,7 @@ const RegisterPayment: React.FC<Props> = ({
     onAfterPrint: () => {
       save();
       setBasketItems([]);
+      setRegisterMode('Sales');
       onClose();
     },
   });
@@ -250,6 +253,7 @@ const RegisterPayment: React.FC<Props> = ({
                           } else {
                             save();
                             setBasketItems([]);
+                            setRegisterMode('Sales');
                             onClose();
                           }
                         }
@@ -406,6 +410,7 @@ const RegisterPayment: React.FC<Props> = ({
             } else {
               save();
               setBasketItems([]);
+              setRegisterMode('Sales');
               onClose();
             }
           }}

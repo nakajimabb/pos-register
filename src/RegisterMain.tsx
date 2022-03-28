@@ -205,6 +205,7 @@ const RegisterMain: React.FC = () => {
         paymentType={paymentType}
         basketItems={basketItems}
         setBasketItems={setBasketItems}
+        setRegisterMode={setRegisterMode}
         onClose={() => {
           setOpenPayment(false);
           document.getElementById('productCode')?.focus();
