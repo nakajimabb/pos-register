@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useHistory } from 'react-router-dom';
 import Select from 'react-select';
 import {
   doc,
@@ -58,7 +59,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   });
   const [purchase, setPurchase] = useState<Purchase>({
     shopCode,
-    purchaseNumber: purchaseNumber ?? -1,
+    purchaseNumber,
     shopName: shopName ?? '',
     srcType: 'supplier',
     srcCode: '',
@@ -77,6 +78,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   const { registListner, incrementStock, shops, suppliers } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
+  const hisotry = useHistory();
 
   useEffect(() => {
     registListner('shops');
@@ -129,6 +131,21 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
       quantity: null,
       costPrice: null,
     });
+  };
+
+  const resetPurchase = () => {
+    resetCurrentItem();
+    setPurchase({
+      shopCode,
+      purchaseNumber: -1,
+      shopName: shopName ?? '',
+      srcType: 'supplier',
+      srcCode: '',
+      srcName: '',
+      date: Timestamp.fromDate(new Date()),
+      fixed: false,
+    });
+    setItems(new Map());
   };
 
   const loadPurchaseDetails = async (shopCode: string, purchaseNumber: number) => {
@@ -316,9 +333,13 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
             incrementStock(purch.shopCode, item.productCode, item.productName, diff, transaction);
           }
         });
-        loadPurchaseDetails(purch.shopCode, purch.purchaseNumber);
         setProcessing(false);
         alert('保存しました。');
+        if (purchaseNumber > 0) {
+          hisotry.push('/purchase_new');
+        } else {
+          resetPurchase();
+        }
       } catch (error) {
         setProcessing(false);
         console.log({ error });
