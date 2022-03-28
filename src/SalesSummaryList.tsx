@@ -73,7 +73,7 @@ const SalesSummaryList: React.FC = () => {
     if (shopCode) {
       try {
         const salesItemsData: { [code: string]: { [code: string]: number | string } } = {};
-        const conds: QueryConstraint[] = [limit(30)];
+        const conds: QueryConstraint[] = [];
         conds.push(where('shopCode', '==', shopCode));
         if (dateTimeFrom) {
           conds.push(where('createdAt', '>=', dateTimeFrom));
@@ -182,21 +182,25 @@ const SalesSummaryList: React.FC = () => {
             toNumber(salesItemsData[productCode]['salesTotal']),
             toNumber(salesItemsData[productCode]['costTotal']),
             toNumber(salesItemsData[productCode]['salesTotal']) > 0
-              ? `${(
-                  (toNumber(salesItemsData[productCode]['costTotal']) /
-                    toNumber(salesItemsData[productCode]['salesTotal'])) *
-                  100
-                ).toFixed(1)}%`
-              : '-',
+              ? parseFloat(
+                  (
+                    (toNumber(salesItemsData[productCode]['costTotal']) /
+                      toNumber(salesItemsData[productCode]['salesTotal'])) *
+                    100
+                  ).toFixed(1)
+                )
+              : 0,
             toNumber(salesItemsData[productCode]['salesTotal']) - toNumber(salesItemsData[productCode]['costTotal']),
             toNumber(salesItemsData[productCode]['salesTotal']) > 0
-              ? `${(
-                  ((toNumber(salesItemsData[productCode]['salesTotal']) -
-                    toNumber(salesItemsData[productCode]['costTotal'])) /
-                    toNumber(salesItemsData[productCode]['salesTotal'])) *
-                  100
-                ).toFixed(1)}%`
-              : '-',
+              ? parseFloat(
+                  (
+                    ((toNumber(salesItemsData[productCode]['salesTotal']) -
+                      toNumber(salesItemsData[productCode]['costTotal'])) /
+                      toNumber(salesItemsData[productCode]['salesTotal'])) *
+                    100
+                  ).toFixed(1)
+                )
+              : 0,
             toNumber(salesItemsData[productCode]['stockCount']),
             toNumber(salesItemsData[productCode]['stockCount']) * toNumber(salesItemsData[productCode]['costPrice']),
           ]);
