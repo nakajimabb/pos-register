@@ -11,33 +11,70 @@ import {
   getDoc,
 } from 'firebase/firestore';
 import { addDays } from 'date-fns';
+import Select from 'react-select';
+import * as xlsx from 'xlsx';
 import { Alert, Button, Card, Form, Table } from './components';
 import { useAppContext } from './AppContext';
-import { toNumber, toDateString, OTC_DIVISION } from './tools';
+import { toNumber, toDateString, nameWithCode, OTC_DIVISION } from './tools';
 import firebaseError from './firebaseError';
 import { ProductCostPrice, Sale, SaleDetail, Stock, Supplier } from './types';
+
+type Row = (string | number)[];
 
 const db = getFirestore();
 
 const SalesSummaryList: React.FC = () => {
   const [completed, setCompleted] = useState<boolean>(false);
   const [salesItems, setSalesItems] = useState<{ [code: string]: { [code: string]: number | string } }>({});
+  const [shopCode, setShopCode] = useState<string>();
+  const [shopOptions, setShopsOptions] = useState<{ label: string; value: string }[]>([]);
   const [dateTimeFrom, setDateTimeFrom] = useState<Date>();
   const [dateTimeTo, setDateTimeTo] = useState<Date>();
   const [messages, setMessages] = useState<string[]>([]);
-  const { currentShop } = useAppContext();
+  const { currentShop, shops, role, registListner } = useAppContext();
 
-  useEffect(() => {}, [completed]);
+  useEffect(() => {
+    registListner('shops');
+  }, []);
+
+  useEffect(() => {
+    if (shops) {
+      if (role === 'shop') {
+        if (currentShop) {
+          setShopsOptions([{ value: currentShop.code, label: nameWithCode(currentShop) }]);
+        }
+      } else {
+        const options = Object.entries(shops).map(([code, shop]) => ({
+          value: code,
+          label: nameWithCode(shop),
+        }));
+        setShopsOptions(options);
+      }
+      if (currentShop) {
+        setShopCode(currentShop.code);
+      }
+    }
+  }, [shops, currentShop]);
+
+  const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
+    return value ? options.find((option) => option.value === value) : { label: '', value: '' };
+  };
+
+  const s2ab = (s: any) => {
+    const buf = new ArrayBuffer(s.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i !== s.length; ++i) view[i] = s.charCodeAt(i) & 0xff;
+    return buf;
+  };
 
   const querySales = async (e: React.FormEvent) => {
     e.preventDefault();
     setCompleted(false);
-    if (currentShop) {
+    if (shopCode) {
       try {
         const salesItemsData: { [code: string]: { [code: string]: number | string } } = {};
-        const saleDetails: { [code: string]: SaleDetail } = {};
         const conds: QueryConstraint[] = [limit(30)];
-        conds.push(where('shopCode', '==', currentShop.code));
+        conds.push(where('shopCode', '==', shopCode));
         if (dateTimeFrom) {
           conds.push(where('createdAt', '>=', dateTimeFrom));
         }
@@ -60,7 +97,7 @@ const SalesSummaryList: React.FC = () => {
                   }
                   salesItemsData[detail.product.code]['costPrice'] = toNumber(detail.product.costPrice);
                   salesItemsData[detail.product.code]['productName'] = detail.product.name;
-                  const costPricesRef = collection(db, 'shops', currentShop.code, 'productCostPrices');
+                  const costPricesRef = collection(db, 'shops', shopCode, 'productCostPrices');
                   salesItemsData[detail.product.code]['salesCount'] =
                     toNumber(salesItemsData[detail.product.code]['salesCount']) + detail.quantity * registerSign;
                   salesItemsData[detail.product.code]['salesTotal'] =
@@ -93,7 +130,7 @@ const SalesSummaryList: React.FC = () => {
         await Promise.all(
           Object.keys(salesItemsData).map(async (productCode) => {
             if (productCode) {
-              const stockRef = doc(collection(db, 'shops', currentShop.code, 'stocks'), productCode);
+              const stockRef = doc(collection(db, 'shops', shopCode, 'stocks'), productCode);
               const stockDoc = await getDoc(stockRef);
               if (stockDoc.exists()) {
                 const stock = stockDoc.data() as Stock;
@@ -104,9 +141,9 @@ const SalesSummaryList: React.FC = () => {
             }
           })
         );
-        console.log({ ...salesItemsData });
         setSalesItems(salesItemsData);
         setCompleted(true);
+        return salesItemsData;
       } catch (error) {
         console.log({ error });
         setCompleted(true);
@@ -115,12 +152,88 @@ const SalesSummaryList: React.FC = () => {
     }
   };
 
+  const downloadExcel = async (e: React.FormEvent) => {
+    const salesItemsData = await querySales(e);
+    const dataArray: Row[] = [];
+    dataArray.push([
+      '商品コード',
+      '商品名',
+      '仕入先コード',
+      '仕入先名',
+      '売上数',
+      '売上税抜',
+      '評価原価',
+      '原価率',
+      '粗利',
+      '粗利率',
+      '在庫数',
+      '在庫金額',
+    ]);
+    if (salesItemsData) {
+      Object.keys(salesItemsData)
+        .sort()
+        .map((productCode) => {
+          dataArray.push([
+            productCode,
+            salesItemsData[productCode]['productName'],
+            salesItemsData[productCode]['supplierCode'],
+            salesItemsData[productCode]['supplierName'],
+            toNumber(salesItemsData[productCode]['salesCount']),
+            toNumber(salesItemsData[productCode]['salesTotal']),
+            toNumber(salesItemsData[productCode]['costTotal']),
+            toNumber(salesItemsData[productCode]['salesTotal']) > 0
+              ? `${(
+                  (toNumber(salesItemsData[productCode]['costTotal']) /
+                    toNumber(salesItemsData[productCode]['salesTotal'])) *
+                  100
+                ).toFixed(1)}%`
+              : '-',
+            toNumber(salesItemsData[productCode]['salesTotal']) - toNumber(salesItemsData[productCode]['costTotal']),
+            toNumber(salesItemsData[productCode]['salesTotal']) > 0
+              ? `${(
+                  ((toNumber(salesItemsData[productCode]['salesTotal']) -
+                    toNumber(salesItemsData[productCode]['costTotal'])) /
+                    toNumber(salesItemsData[productCode]['salesTotal'])) *
+                  100
+                ).toFixed(1)}%`
+              : '-',
+            toNumber(salesItemsData[productCode]['stockCount']),
+            toNumber(salesItemsData[productCode]['stockCount']) * toNumber(salesItemsData[productCode]['costPrice']),
+          ]);
+        });
+    }
+    const sheet = xlsx.utils.aoa_to_sheet(dataArray);
+    const wscols = [15, 30, 15, 15, 10, 10, 10, 10, 10, 10, 10, 10].map((value) => ({ wch: value }));
+    sheet['!cols'] = wscols;
+    const wb = {
+      SheetNames: ['売上帳票'],
+      Sheets: { 売上帳票: sheet },
+    };
+    const wb_out = xlsx.write(wb, { type: 'binary' });
+    var blob = new Blob([s2ab(wb_out)], {
+      type: 'application/octet-stream',
+    });
+
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = `売上帳票.xlsx`;
+    link.click();
+  };
+
   return (
     <div className="pt-12">
       <div className="p-4">
         <h1 className="text-xl font-bold mb-2">売上帳票</h1>
         <Card className="p-5 overflow-visible">
           <Form className="flex space-x-2 mb-2" onSubmit={querySales}>
+            <Select
+              value={selectValue(shopCode, shopOptions)}
+              options={shopOptions}
+              onChange={(e) => {
+                setShopCode(String(e?.value));
+              }}
+              className="mb-3 sm:mb-0 w-72"
+            />
             <Form.Date
               value={dateTimeFrom ? toDateString(dateTimeFrom, 'YYYY-MM-DD') : ''}
               onChange={(e) => {
@@ -135,6 +248,9 @@ const SalesSummaryList: React.FC = () => {
               }}
             />
             <Button className="w-48">検索</Button>
+            <Button className="w-48" onClick={downloadExcel}>
+              Excel
+            </Button>
           </Form>
           {messages.length > 0 && (
             <Alert severity="error" onClose={() => setMessages([])}>
