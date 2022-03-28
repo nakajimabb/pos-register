@@ -51,6 +51,7 @@ const RegisterModify: React.FC<Props> = ({ open, itemIndex, basketItems, setBask
               name: discountName,
               hidden: false,
               costPrice: null,
+              avgCostPrice: null,
               sellingPrice: discountPrice,
               stockTaxClass: null,
               sellingTaxClass: basketItems[itemIndex].product.sellingTaxClass,

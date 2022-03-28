@@ -35,6 +35,7 @@ export type Product = {
   unregistered?: boolean;
   sellingPrice: number | null; // 売価(税抜)
   costPrice: number | null; // 下代（原価）
+  avgCostPrice: number | null; // 移動平均原価
   sellingTaxClass: TaxClass | null; // 税区分(売価)
   stockTaxClass: TaxClass | null; // 税区分(仕入)
   sellingTax: number | null; // 売価消費税

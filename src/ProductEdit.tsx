@@ -40,6 +40,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
     abbr: '',
     hidden: false,
     costPrice: null,
+    avgCostPrice: null,
     sellingPrice: null,
     stockTaxClass: null,
     sellingTaxClass: null,
@@ -113,6 +114,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
       abbr: '',
       hidden: false,
       costPrice: null,
+      avgCostPrice: null,
       sellingPrice: null,
       stockTaxClass: null,
       sellingTaxClass: null,
@@ -129,6 +131,7 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
     e.preventDefault();
     setError('');
     try {
+      if (!product.avgCostPrice) product.avgCostPrice = product.costPrice;
       if (docId) {
         await setDoc(doc(db, 'products', docId), { ...product, updatedAt: serverTimestamp() });
       } else {
@@ -212,6 +215,8 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
               value={String(product.costPrice)}
               onChange={(e) => setProduct({ ...product, costPrice: +e.target.value })}
             />
+            <Form.Label>移動平均原価</Form.Label>
+            <Form.Number placeholder="移動平均原価" disabled value={String(product.avgCostPrice)} />
             <Form.Label>税区分(売価)</Form.Label>
             <Form.Select
               className="mb-3 sm:mb-0"

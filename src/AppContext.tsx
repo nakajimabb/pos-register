@@ -270,6 +270,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
             name: productBundle.name,
             hidden: false,
             costPrice: null,
+            avgCostPrice: null,
             sellingPrice: discountPrice,
             stockTaxClass: null,
             sellingTaxClass: productBundle.sellingTaxClass,

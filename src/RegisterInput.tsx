@@ -39,6 +39,7 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
           name: registerItem.name,
           hidden: false,
           costPrice: costPrice,
+          avgCostPrice: null,
           sellingPrice: price,
           stockTaxClass: null,
           sellingTaxClass: registerItem.taxClass,

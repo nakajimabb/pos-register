@@ -319,6 +319,9 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                 <Table.Cell type="th">カテゴリ</Table.Cell>
                 <Table.Cell type="th">売価</Table.Cell>
                 <Table.Cell type="th">原価</Table.Cell>
+                <Table.Cell type="th">
+                  <small>移動平均原価</small>
+                </Table.Cell>
                 <Table.Cell type="th">ｾﾙﾒ</Table.Cell>
                 <Table.Cell type="th">仕入先</Table.Cell>
                 <Table.Cell type="th">登録日</Table.Cell>
@@ -334,6 +337,7 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                     <Table.Cell>{truncate(categoryName(product), { length: 10 })}</Table.Cell>
                     <Table.Cell className="text-right">{product.sellingPrice?.toLocaleString()}</Table.Cell>
                     <Table.Cell className="text-right">{product.costPrice?.toLocaleString()}</Table.Cell>
+                    <Table.Cell className="text-right">{product.avgCostPrice?.toLocaleString()}</Table.Cell>
                     <Table.Cell className="text-center">{product.selfMedication && '○'}</Table.Cell>
                     <Table.Cell>{truncate(supplierName(product), { length: 10 })}</Table.Cell>
                     <Table.Cell>
