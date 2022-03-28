@@ -242,7 +242,7 @@ const InventoryMain: React.FC = () => {
             // 在庫更新
             items.forEach((item) => {
               const diff = item.quantity - item.stock;
-              incrementStock(inventory.shopCode, item.productCode, item.productName, diff, transaction);
+              incrementStock(inventory.shopCode, item.productCode, item.productName, fix ? diff : -diff, transaction);
             });
             // 棚卸更新
             const ref = doc(db, inventoryPath(inventory.shopCode, inventory.date.toDate()));
@@ -275,26 +275,38 @@ const InventoryMain: React.FC = () => {
   };
 
   const getSortItems = () => {
+    console.log({ inventoryDetails });
     return Array.from(inventoryDetails.values()).sort((item1, item2) => {
+      let v1: number | null = null;
+      let v2: number | null = null;
       const countedAt1 = item1.countedAt;
       const countedAt2 = item2.countedAt;
-      if (countedAt1 && countedAt2) {
-        const diff = sortType === 'diff';
-        const v1 = diff ? Math.abs(item1.quantity - item1.stock) : item1[sortType];
-        const v2 = diff ? Math.abs(item2.quantity - item2.stock) : item2[sortType];
-        if (v1 !== null && v2 !== null) {
-          if (v1 > v2) return -1;
-          else if (v1 < v2) return 1;
-          else return 0;
-        }
+      if (sortType === 'diff') {
+        v1 = countedAt1 ? Math.abs(item1.quantity - item1.stock) : null;
+        v2 = countedAt2 ? Math.abs(item1.quantity - item1.stock) : null;
+      } else if (sortType === 'countedAt') {
+        v1 = countedAt1 ? Number(item1.countedAt?.toDate()) : null;
+        v2 = countedAt2 ? Number(item2.countedAt?.toDate()) : null;
+      } else {
+        v1 = item1[sortType];
+        v2 = item2[sortType];
       }
-
-      const code1 = item1.productCode;
-      const code2 = item2.productCode;
-      if (code1 > code2) return 1;
-      else if (code1 < code2) return -1;
-      else return 0;
+      return comp(v1, v2);
     });
+  };
+
+  const comp = (v1: number | null, v2: number | null) => {
+    if (v1 !== null && v2 !== null) {
+      if (v1 > v2) return -1;
+      else if (v1 < v2) return 1;
+      else return 0;
+    } else if (v1) {
+      return -1;
+    } else if (v2) {
+      return 1;
+    } else {
+      return 0;
+    }
   };
 
   const existCountedItems = () => {
