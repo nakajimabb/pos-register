@@ -18,44 +18,54 @@ import { toDateString } from './tools';
 import { Inventory } from './types';
 
 const db = getFirestore();
-type Status = '' | 'untouched' | 'progress' | 'fixed';
+type Status = '' | 'progress' | 'fixed';
 
 const InventoryList: React.FC = () => {
   const [search, setSearch] = useState<{
-    shopCode: string;
-    date: Date | null;
+    minDate: Date | null;
+    maxDate: Date | null;
     status: Status;
     loaded: boolean;
   }>({
-    shopCode: '',
-    date: null,
+    minDate: null,
+    maxDate: null,
     status: '',
     loaded: false,
   });
   const [target, setTarget] = useState<{ delivery: Inventory; mode: 'modal' | 'print' } | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
-  const [inventories, setInventories] = useState<Map<string, Inventory>>(new Map());
+  const [inventories, setInventories] = useState<Map<string, Inventory[]>>(new Map());
   const { registListner, shops } = useAppContext();
 
   useEffect(() => {
-    const date = new Date();
-    date.setDate(1);
-    setSearch((prev) => ({ ...prev, date }));
+    const minDate = new Date();
+    minDate.setDate(1);
+    setSearch((prev) => ({ ...prev, minDate }));
   }, []);
+
+  const existSearch = () => search.minDate || search.maxDate || search.status;
 
   const queryInventories = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       registListner('shops');
       const conds: QueryConstraint[] = [limit(30)];
-      if (search.date) conds.push(where('date', '>=', Timestamp.fromDate(search.date)));
+      if (search.minDate) {
+        conds.push(where('date', '>=', Timestamp.fromDate(search.minDate)));
+      }
+      if (search.maxDate) {
+        const date = new Date(search.maxDate);
+        date.setDate(date.getDate() + 1);
+        conds.push(where('date', '<=', Timestamp.fromDate(date)));
+      }
 
       const q = query(collectionGroup(db, 'inventories'), ...conds) as Query<Inventory>;
       const snap = await getDocs(q);
-      const items: Map<string, Inventory> = new Map();
+      const items: Map<string, Inventory[]> = new Map();
       snap.docs.forEach((item) => {
         const invt = item.data();
-        items.set(invt.shopCode, invt);
+        const prev = items.get(invt.shopCode);
+        items.set(invt.shopCode, prev ? [...prev, invt] : [invt]);
       });
       setInventories(items);
       setSearch((prev) => ({ ...prev, loaded: true }));
@@ -67,18 +77,12 @@ const InventoryList: React.FC = () => {
 
   const sortedShops = () => {
     if (shops && search.loaded) {
-      const results = Object.values(shops)
-        .filter((shop) => !search.shopCode || shop.code === search.shopCode)
+      const targetShops = Object.values(shops);
+      const results = targetShops
         .filter((shop) => {
           if (!search.status) return true;
-          const invt = inventories.get(shop.code);
-          if (search.status === 'untouched') {
-            return !invt;
-          } else if (search.status === 'progress') {
-            return invt && !invt.fixedAt;
-          } else {
-            return invt && invt.fixedAt;
-          }
+          const invts = targetInventory(shop.code);
+          return invts && invts.length > 0;
         })
         .sort((shop1, shop2) => {
           if (shop1.code < shop2.code) return -1;
@@ -87,6 +91,19 @@ const InventoryList: React.FC = () => {
         });
       return results;
     } else return [];
+  };
+
+  const targetInventory = (shopCode: string) => {
+    const invts = inventories.get(shopCode);
+    if (invts && search.status) {
+      if (search.status === 'progress') {
+        return invts.filter((invt) => !invt.fixedAt);
+      } else {
+        return invts.filter((invt) => invt.fixedAt);
+      }
+    } else {
+      return invts;
+    }
   };
 
   return (
@@ -104,10 +121,18 @@ const InventoryList: React.FC = () => {
           )}
           <Form className="flex space-x-2 mb-2" onSubmit={queryInventories}>
             <Form.Date
-              value={search.date ? toDateString(search.date, 'YYYY-MM-DD') : ''}
+              value={search.minDate ? toDateString(search.minDate, 'YYYY-MM-DD') : ''}
               onChange={(e) => {
-                const date = e.target.value ? new Date(e.target.value) : null;
-                setSearch((prev) => ({ ...prev, date }));
+                const minDate = e.target.value ? new Date(e.target.value) : null;
+                setSearch((prev) => ({ ...prev, minDate }));
+              }}
+            />
+            <p className="py-2">〜</p>
+            <Form.Date
+              value={search.maxDate ? toDateString(search.maxDate, 'YYYY-MM-DD') : ''}
+              onChange={(e) => {
+                const maxDate = e.target.value ? new Date(e.target.value) : null;
+                setSearch((prev) => ({ ...prev, maxDate }));
               }}
             />
             <Form.Select
@@ -115,7 +140,6 @@ const InventoryList: React.FC = () => {
               value={search.status}
               options={[
                 { value: '', label: '-- ｽﾃｰﾀｽ --' },
-                { value: 'untouched', label: '未着手' },
                 { value: 'progress', label: '作業中' },
                 { value: 'fixed', label: '確定済' },
               ]}
@@ -144,22 +168,24 @@ const InventoryList: React.FC = () => {
             </Table.Head>
             <Table.Body>
               {sortedShops().map((shop, i) => {
-                const item = inventories.get(shop.code);
-                return (
-                  <Table.Row key={i}>
-                    <Table.Cell>{shop.code}</Table.Cell>
-                    <Table.Cell>{shop.name}</Table.Cell>
-                    {item && (
-                      <>
-                        <Table.Cell>{toDateString(item.date.toDate(), 'MM/DD hh:mm')}</Table.Cell>
-                        <Table.Cell>{item.fixedAt && toDateString(item.fixedAt.toDate(), 'MM/DD hh:mm')}</Table.Cell>
-                        <Table.Cell>{item.sum && item.sum[0]?.amount?.toLocaleString()}</Table.Cell>
-                        <Table.Cell>{item && item.fixedAt ? '確定済' : '作業中'}</Table.Cell>
+                const invts = targetInventory(shop.code);
+                if (invts) {
+                  const rowSpan = Math.max(invts.length, 1);
+                  return (
+                    invts &&
+                    invts.map((invt, i) => (
+                      <Table.Row key={i}>
+                        {i === 0 && <Table.Cell rowSpan={rowSpan}>{shop.code}</Table.Cell>}
+                        {i === 0 && <Table.Cell rowSpan={rowSpan}>{shop.name}</Table.Cell>}
+                        <Table.Cell>{toDateString(invt?.date?.toDate(), 'MM/DD hh:mm')}</Table.Cell>
+                        <Table.Cell>{invt.fixedAt && toDateString(invt.fixedAt.toDate(), 'MM/DD hh:mm')}</Table.Cell>
+                        <Table.Cell>{invt.sum && invt.sum[0]?.amount?.toLocaleString()}</Table.Cell>
+                        <Table.Cell>{invt && invt.fixedAt ? '確定済' : '作業中'}</Table.Cell>
                         <Table.Cell>
                           <Button
                             color="light"
                             size="sm"
-                            onClick={() => setTarget({ delivery: item, mode: 'modal' })}
+                            onClick={() => setTarget({ delivery: invt, mode: 'modal' })}
                             className="mx-1"
                           >
                             詳細
@@ -167,16 +193,23 @@ const InventoryList: React.FC = () => {
                           <Button
                             color="light"
                             size="sm"
-                            onClick={() => setTarget({ delivery: item, mode: 'print' })}
+                            onClick={() => setTarget({ delivery: invt, mode: 'print' })}
                             className="mx-1"
                           >
                             印刷
                           </Button>
                         </Table.Cell>
-                      </>
-                    )}
-                  </Table.Row>
-                );
+                      </Table.Row>
+                    ))
+                  );
+                } else {
+                  return (
+                    <Table.Row key={i}>
+                      <Table.Cell>{shop.code}</Table.Cell>
+                      <Table.Cell>{shop.name}</Table.Cell>
+                    </Table.Row>
+                  );
+                }
               })}
             </Table.Body>
           </Table>

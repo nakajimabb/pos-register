@@ -37,6 +37,7 @@ type CellProps = {
   size?: 'xs' | 'sm' | 'md';
   border?: boolean;
   textAlign?: 'left' | 'center' | 'right' | 'justify';
+  rowSpan?: number;
   className?: string;
 };
 
@@ -45,12 +46,14 @@ const TableCell: React.FC<CellProps> = ({
   size = 'md',
   border = false,
   textAlign,
+  rowSpan,
   className,
   children,
 }) => {
   const padding = { xs: 'p-1', sm: 'p-1', md: 'px-3 py-2', lg: 'px-6 py-4' };
   return (
     <Component
+      rowSpan={rowSpan}
       className={clsx(
         padding[size],
         border && 'border',
