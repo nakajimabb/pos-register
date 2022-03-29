@@ -93,7 +93,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
         console.log({ data });
 
         // 共通データと店舗用データに分割
-        const commonData = data.filter((item) => item.shopCode === '00');
+        const commonData = data;
         const shopData = data.filter((item) => item.shopCode !== '00');
 
         // 仕入れ先情報取得
@@ -166,10 +166,8 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
                   let supplierRef: DocumentReference<Supplier> | null = null;
                   // 仕入先情報
                   const supCode = String(item.supplierCode);
-                  if (item.supplierCode) {
-                    const supCode2 = supplierCodes.includes(supCode) ? supCode : '0'; // 存在しなければ その他(0)
-                    supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
-                  }
+                  const supCode2 = supplierCodes.includes(supCode) ? supCode : '0'; // 存在しなければ その他(0)
+                  supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
                   if (!item.createdAt) item.createdAt = today;
                   if (item.hidden === undefined) item.hidden = false;
                   headerInfo.forEach((info) => {
