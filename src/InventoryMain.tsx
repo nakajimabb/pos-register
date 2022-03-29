@@ -35,9 +35,11 @@ type SortType = 'countedAt' | 'stock' | 'quantity' | 'diff';
 const InventoryMain: React.FC = () => {
   const [currentItem, setCurrentItem] = useState<{
     productCode: string;
+    productName: string;
     quantity: number | null;
   }>({
     productCode: '',
+    productName: '',
     quantity: null,
   });
   const [inventoryDetails, setInventoryDetails] = useState<Map<string, InventoryDetail>>(new Map());
@@ -67,6 +69,7 @@ const InventoryMain: React.FC = () => {
   const resetCurrentItem = () => {
     setCurrentItem({
       productCode: '',
+      productName: '',
       quantity: null,
     });
   };
@@ -228,13 +231,15 @@ const InventoryMain: React.FC = () => {
       const snap = (await getDoc(doc(db, 'products', currentItem.productCode))) as DocumentSnapshot<Product>;
       const product = snap.data();
       if (product) {
-        setCurrentItem((prev) => ({ ...prev, costPrice: product.costPrice })); // TODO: 後で移動平均に変更
+        setCurrentItem((prev) => ({ ...prev, productName: product.name }));
         quantityRef.current?.focus();
       } else {
         if (checkDigit(currentItem.productCode)) {
           setOpenProductEdit(true);
+          setCurrentItem((prev) => ({ ...prev, productName: '' }));
         } else {
           setErrors((prev) => [...prev, '不正なPLUコードです。']);
+          setCurrentItem((prev) => ({ ...prev, productName: '' }));
         }
       }
     }
@@ -368,7 +373,7 @@ const InventoryMain: React.FC = () => {
   };
 
   const updateNewProduct = (product: Product) => {
-    addItem(product.code, currentItem.quantity);
+    setCurrentItem((prev) => ({ ...prev, productCode: product.code, productName: product.name }));
     quantityRef.current?.focus();
   };
 
@@ -465,7 +470,9 @@ const InventoryMain: React.FC = () => {
               <Form className="flex space-x-2 mb-2" onSubmit={handleSubmit}>
                 <Form.Text
                   value={currentItem.productCode}
-                  onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
+                  onChange={(e) =>
+                    setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value), productName: '' }))
+                  }
                   onKeyPress={loadProduct}
                   disabled={!inventory || !!inventory.fixedAt}
                   placeholder="商品コード"
@@ -491,6 +498,7 @@ const InventoryMain: React.FC = () => {
                 >
                   追加
                 </Button>
+                <p>{currentItem.productName}</p>
               </Form>
               <Form.Select
                 className="mb-3 sm:mb-0"
