@@ -171,6 +171,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
                     supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
                   }
                   if (!item.createdAt) item.createdAt = today;
+                  if (item.hidden === undefined) item.hidden = false;
                   headerInfo.forEach((info) => {
                     if (item[info.name] === undefined) item[info.name] = null;
                   });
