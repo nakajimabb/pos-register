@@ -76,9 +76,7 @@ const ImportStock: React.FC = () => {
               .slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT)
               .filter((item) => !noneProductCodes.includes(String(item.productCode)));
             sliced.forEach((item) => {
-              const quantity = +item.quantity;
-              if (isNaN(quantity))
-                throw Error(`不正な在庫数。${item.productCode} ${item.productName} ${item.quantity}`);
+              const quantity = Number(item.quantity);
               const path = stockPath(String(item.shopCode), String(item.productCode));
               batch.set(doc(db, path), { ...item, quantity: +quantity, updatedAt: serverTimestamp() });
             });

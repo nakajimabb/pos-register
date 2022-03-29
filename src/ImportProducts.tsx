@@ -1,5 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getFirestore, doc, getDoc, getDocs, collection, writeBatch, DocumentReference } from 'firebase/firestore';
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  getDocs,
+  collection,
+  writeBatch,
+  DocumentReference,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 import { Alert, Button, Card, Flex, Form, Table, Progress } from './components';
 import { readExcelAsOjects, HeaderInfo } from './readExcel';
@@ -35,7 +44,6 @@ const headerInfo: HeaderInfo = [
   { label: '備考', name: 'note' },
   { label: '作成日時', name: 'createdAt' },
   { label: '更新日時', name: 'updatedAt' },
-  { label: '有効', name: 'valid', mapping: { '0': false, '1': false, '2': true, '3': true } },
 ];
 
 type Props = {
@@ -142,7 +150,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
         let prgs = 0;
         if (common) {
           // 商品マスタ(共通)
-          const defaultDate = new Date('2022/01/01');
+          const today = new Date();
           const taskSize = Math.ceil(commonData.length / BATCH_UNIT);
           const sequential = [...Array(taskSize)].map((_, i) => i);
           const tasks = sequential.map(async (_, i) => {
@@ -154,7 +162,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
 
               sliced.forEach((item) => {
                 const code = String(item.code);
-                if (item.valid && checkDigit(code)) {
+                if (checkDigit(code)) {
                   let supplierRef: DocumentReference<Supplier> | null = null;
                   // 仕入先情報
                   const supCode = String(item.supplierCode);
@@ -162,12 +170,17 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
                     const supCode2 = supplierCodes.includes(supCode) ? supCode : '0'; // 存在しなければ その他(0)
                     supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
                   }
-                  if (!item.createdAt) item.createdAt = defaultDate;
-                  if (!item.updatedAt) item.updatedAt = defaultDate;
+                  if (!item.createdAt) item.createdAt = today;
+                  headerInfo.forEach((info) => {
+                    if (item[info.name] === undefined) item[info.name] = null;
+                  });
                   delete item.shopCode;
-                  delete item.valid;
                   delete item.supplierCode;
-                  batch.set(doc(db, 'products', code), { ...item, supplierRef }, { merge: true });
+                  batch.set(
+                    doc(db, 'products', code),
+                    { ...item, supplierRef, updatedAt: serverTimestamp() },
+                    { merge: true }
+                  );
                   count += 1;
                 }
               });
@@ -208,7 +221,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
                 const code = String(item.code);
                 const shopCode = String(item.shopCode);
                 // 共通の商品マスタに存在しないものは読込まない
-                if (item.valid && checkDigit(code) && shopCodes.includes(shopCode) && !noneProductCodes.has(code)) {
+                if (checkDigit(code) && shopCodes.includes(shopCode) && !noneProductCodes.has(code)) {
                   let supplierRef: DocumentReference<Supplier> | null = null;
                   // 仕入先情報
                   const supCode = String(item.supplierCode);
@@ -223,7 +236,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
                     productName: String(item.name),
                     supplierCode: supplier.code ?? '0',
                     supplierName: supplier.name ?? 'その他',
-                    costPrice: +item.costPrice,
+                    costPrice: item.costPrice === null ? null : +item.costPrice,
                   };
                   batch.set(doc(db, productCostPricePath(productCostPrice)), productCostPrice, { merge: true });
                   count += 1;
@@ -251,7 +264,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
               sliced.forEach((item) => {
                 const code = String(item.code);
                 const shopCode = String(item.shopCode);
-                if (item.valid && checkDigit(code) && shopCodes.includes(shopCode) && !noneProductCodes.has(code)) {
+                if (checkDigit(code) && shopCodes.includes(shopCode) && !noneProductCodes.has(code)) {
                   batch.set(
                     doc(db, 'shops', shopCode, 'productSellingPrices', code),
                     { shopCode, productCode: code, productName: item.name, sellingPrice: item.sellingPrice },

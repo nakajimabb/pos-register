@@ -1,6 +1,6 @@
 import * as xlsx from 'xlsx';
 
-export type FieldType = string | Date | number | boolean;
+export type FieldType = string | Date | number | boolean | null;
 export type ValueMapping = { [key: string]: FieldType };
 export type HeaderInfo = {
   label: string;
