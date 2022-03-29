@@ -61,19 +61,10 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
   const { counters, searchProducts } = useAppContext();
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'productCategories'), (snapshot) => {
-      const categories = sortedProductCategories(snapshot as QuerySnapshot<ProductCategory>);
-      setProductCategories(categories);
-      const options = categories.map(({ id, productCategory }) => ({
-        value: id,
-        label: '　'.repeat(productCategory.level) + productCategory.name,
-      }));
-      options.unshift({ label: '-- カテゴリ --', value: '' });
-      setCategoryOptions(options);
-    });
-    queryProducts(search, 'head')();
-    return () => unsubscribe();
-  }, []);
+    if (counters) {
+      queryProducts(search, 'head')();
+    }
+  }, [counters]);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
@@ -83,7 +74,13 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
     return () => unsubscribe();
   }, []);
 
-  const existSearch = (search: SearchType) => search.text.trim() || search.categoryId.trim();
+  const existSearch = (search: SearchType, includeDate: boolean) => {
+    if (includeDate) {
+      return search.text.trim() || search.categoryId.trim() || search.minDate || search.maxDate;
+    } else {
+      return search.text.trim() || search.categoryId.trim();
+    }
+  };
 
   const queryProducts = (search: SearchType, action: 'head' | 'prev' | 'next' | 'current') => async () => {
     try {
@@ -102,7 +99,7 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
         if (unregistered) {
           conds.push(where('unregistered', '==', true));
         } else {
-          if (!existSearch(search)) conds.push(where('hidden', '==', false));
+          if (!existSearch(search, true)) conds.push(where('hidden', '==', false));
           if (search.minDate) {
             conds.push(where('createdAt', '>=', search.minDate));
           }
@@ -320,7 +317,7 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
               <Button
                 color="light"
                 size="xs"
-                disabled={!!existSearch(search) || page <= 0 || !snapshot || snapshot.size === 0}
+                disabled={!!existSearch(search, false) || page <= 0 || !snapshot || snapshot.size === 0}
                 className="mr-2"
                 onClick={queryProducts(search, 'prev')}
               >
@@ -330,7 +327,7 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                 color="light"
                 size="xs"
                 disabled={
-                  !!existSearch(search) ||
+                  !!existSearch(search, false) ||
                   PER_PAGE * page + snapshot.size >= productCount ||
                   !snapshot ||
                   snapshot.size === 0
