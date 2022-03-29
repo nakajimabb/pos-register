@@ -20,11 +20,12 @@ import {
 import { useReactToPrint } from 'react-to-print';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import { useAppContext } from './AppContext';
-import { isToday, toDateString } from './tools';
+import { isToday, toDateString, checkDigit } from './tools';
 import firebaseError from './firebaseError';
 import { Product, Inventory, InventoryDetail, inventoryPath, inventoryDetailPath, Stock, stockPath } from './types';
 import InventorySum from './InventorySum';
 import InventoryDetailEdit from './InventoryDetailEdit';
+import UnregisteredProductEdit from './UnregisteredProductEdit';
 import clsx from 'clsx';
 
 const db = getFirestore();
@@ -46,6 +47,7 @@ const InventoryMain: React.FC = () => {
   const [editTarget, setEditTarget] = useState<InventoryDetail | undefined>(undefined);
   const [processing, setProcessing] = useState<boolean>(false);
   const [sortType, setSortType] = useState<SortType>('countedAt');
+  const [openProductEdit, setOpenProductEdit] = useState<boolean>(false);
   const { currentShop, incrementStock } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
@@ -178,9 +180,9 @@ const InventoryMain: React.FC = () => {
     }
   };
 
-  const addItem = async () => {
-    if (inventory && currentItem.productCode && currentItem.quantity) {
-      saveItem(inventory.shopCode, inventory.date.toDate(), currentItem.productCode, currentItem.quantity, 'add');
+  const addItem = async (productCode: string, quantity: number | null) => {
+    if (inventory && productCode && quantity !== null) {
+      saveItem(inventory.shopCode, inventory.date.toDate(), productCode, quantity, 'add');
       resetCurrentItem();
       codeRef.current?.focus();
     }
@@ -229,7 +231,11 @@ const InventoryMain: React.FC = () => {
         setCurrentItem((prev) => ({ ...prev, costPrice: product.costPrice })); // TODO: 後で移動平均に変更
         quantityRef.current?.focus();
       } else {
-        setErrors((prev) => [...prev, '商品が見つかりません。']);
+        if (checkDigit(currentItem.productCode)) {
+          setOpenProductEdit(true);
+        } else {
+          setErrors((prev) => [...prev, '不正なPLUコードです。']);
+        }
       }
     }
   };
@@ -361,6 +367,11 @@ const InventoryMain: React.FC = () => {
     return new Date() > nextDate;
   };
 
+  const updateNewProduct = (product: Product) => {
+    addItem(product.code, currentItem.quantity);
+    quantityRef.current?.focus();
+  };
+
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
     pageStyle,
@@ -380,6 +391,14 @@ const InventoryMain: React.FC = () => {
               }
             }}
             onClose={() => setEditTarget(undefined)}
+          />
+        )}
+        {openProductEdit && (
+          <UnregisteredProductEdit
+            open
+            productCode={currentItem.productCode}
+            onClose={() => setOpenProductEdit(false)}
+            onUpdate={updateNewProduct}
           />
         )}
         <Card className="p-5 overflow-visible">
@@ -460,13 +479,16 @@ const InventoryMain: React.FC = () => {
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      addItem();
+                      addItem(currentItem.productCode, currentItem.quantity);
                     }
                   }}
                   disabled={!inventory || !!inventory.fixedAt}
                   className="w-36"
                 />
-                <Button onClick={addItem} disabled={!inventory || !!inventory.fixedAt}>
+                <Button
+                  onClick={() => addItem(currentItem.productCode, currentItem.quantity)}
+                  disabled={!inventory || !!inventory.fixedAt}
+                >
                   追加
                 </Button>
               </Form>
