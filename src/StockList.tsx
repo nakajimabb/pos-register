@@ -38,6 +38,7 @@ const StockList: React.FC = () => {
       options.unshift({ label: '', value: '' });
       setShopOptions(options);
       readStocks();
+      if (currentShop) setShopCode(currentShop.code);
     }
   }, [shops]);
 

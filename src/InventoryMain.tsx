@@ -446,11 +446,7 @@ const InventoryMain: React.FC = () => {
                     確定取消
                   </Button>
                 )}
-                <Button
-                  className="w-32"
-                  disabled={!inventory || !!inventory.fixedAt || processing}
-                  onClick={handlePrint}
-                >
+                <Button className="w-32" disabled={!inventory || processing} onClick={handlePrint}>
                   印刷
                 </Button>
               </Flex>

@@ -20,6 +20,7 @@ import {
   onSnapshot,
   Timestamp,
   serverTimestamp,
+  writeBatch,
   Bytes,
 } from 'firebase/firestore';
 import clsx from 'clsx';
@@ -35,6 +36,7 @@ import { Product, ProductCategory, Supplier } from './types';
 const zlib = require('zlib');
 
 const db = getFirestore();
+const MAX_BATCH = 500;
 const PER_PAGE = 25;
 
 type SearchType = { text: string; categoryId: string; minDate: Date | null; maxDate: Date | null };
@@ -55,6 +57,7 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
   const [productCount, setProductCount] = useState<number | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
+  const [processing, setProcessing] = useState<boolean>(false);
   const { counters, searchProducts } = useAppContext();
 
   useEffect(() => {
@@ -99,44 +102,43 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
         if (unregistered) {
           conds.push(where('unregistered', '==', true));
         } else {
-          conds.push(where('hidden', '==', false));
+          if (!existSearch(search)) conds.push(where('hidden', '==', false));
           if (search.minDate) {
-            if (search.minDate) {
-              conds.push(where('createdAt', '>=', Timestamp.fromDate(search.minDate)));
-            }
-            if (search.maxDate) {
-              const date = new Date(search.maxDate);
-              date.setDate(date.getDate() + 1);
-              conds.push(where('createdAt', '<=', Timestamp.fromDate(date)));
-            }
+            conds.push(where('createdAt', '>=', search.minDate));
+          }
+          if (search.maxDate) {
+            const date = new Date(search.maxDate);
+            date.setDate(date.getDate() + 1);
+            conds.push(where('createdAt', '<=', date));
+          }
+          if (search.minDate || search.maxDate) {
             conds.push(orderBy('createdAt', 'desc'));
           } else {
-            if (action === 'head') {
-              conds.push(orderBy('code'));
+            conds.push(orderBy('code', 'desc'));
+          }
+          if (action === 'head') {
+            conds.push(limit(PER_PAGE));
+            setPage(0);
+          } else if (action === 'next') {
+            if (snapshot) {
+              const last = snapshot.docs[snapshot.docs.length - 1];
+              conds.push(startAfter(last));
               conds.push(limit(PER_PAGE));
-              setPage(0);
-            } else if (action === 'next') {
-              if (snapshot) {
-                conds.push(orderBy('code'));
-                const last = snapshot.docs[snapshot.docs.length - 1];
-                conds.push(startAfter(last));
-                conds.push(limit(PER_PAGE));
-                setPage(page + 1);
-              }
-            } else if (action === 'prev') {
-              if (snapshot) {
-                conds.push(orderBy('code', 'asc'));
-                const last = snapshot.docs[0];
-                conds.push(endBefore(last));
-                conds.push(limitToLast(PER_PAGE));
-                setPage(page - 1);
-              }
-            } else if (action === 'current') {
-              if (snapshot) {
-                const first = snapshot.docs[0];
-                conds.push(startAt(first));
-                conds.push(limit(PER_PAGE));
-              }
+              setPage(page + 1);
+            }
+          } else if (action === 'prev') {
+            if (snapshot) {
+              conds.push(orderBy('code', 'asc'));
+              const last = snapshot.docs[0];
+              conds.push(endBefore(last));
+              conds.push(limitToLast(PER_PAGE));
+              setPage(page - 1);
+            }
+          } else if (action === 'current') {
+            if (snapshot) {
+              const first = snapshot.docs[0];
+              conds.push(startAt(first));
+              conds.push(limit(PER_PAGE));
             }
           }
         }
@@ -189,6 +191,7 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
 
   const createFullTextSearch = async () => {
     if (window.confirm('全文検索用のデータを作成しますか？')) {
+      setProcessing(true);
       const q = query(collection(db, 'products'), where('hidden', '==', false));
       const snap = await getDocs(q);
 
@@ -212,6 +215,37 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
       );
 
       alert('全文検索用のデータを作成しました。');
+      setProcessing(false);
+    }
+  };
+
+  const initAvgCostPrices = async () => {
+    if (window.confirm('移動平均原価をセットしますか？')) {
+      setProcessing(true);
+      const q = collection(db, 'products');
+      const snap = (await getDocs(q)) as QuerySnapshot<Product>;
+      const taskSize = Math.ceil(snap.docs.length / MAX_BATCH);
+      const sequential = [...Array(taskSize)].map((_, i) => i);
+      const tasks = sequential.map(async (_, i) => {
+        try {
+          const batch = writeBatch(db);
+          const sliced = snap.docs.slice(i * MAX_BATCH, (i + 1) * MAX_BATCH);
+          sliced.forEach((item) => {
+            const pdct = item.data();
+            if (!pdct.avgCostPrice && pdct.costPrice) {
+              batch.set(doc(db, 'products', pdct.code), { ...pdct, avgCostPrice: pdct.costPrice }, { merge: true });
+            }
+          });
+          await batch.commit();
+          return { result: true };
+        } catch (error) {
+          return { result: false, error };
+        }
+      });
+      const results = await Promise.all(tasks);
+      console.log({ results });
+      alert('移動平均原価をセットしました。');
+      setProcessing(false);
     }
   };
 
@@ -237,14 +271,14 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                   id="select"
                   size="md"
                   placeholder="PLUコード 商品名"
-                  className="mr-2 w-80"
+                  className="mr-2 w-64"
                   value={search.text}
                   onChange={(e) => setSearch({ ...search, text: e.target.value })}
                 />
                 <Form.Select
                   id="select"
                   size="md"
-                  className="mr-2 w-64"
+                  className="mr-2 w-48"
                   value={search.categoryId}
                   options={categoryOptions}
                   onChange={(e) => setSearch({ ...search, categoryId: e.target.value })}
@@ -274,6 +308,9 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                 </Button>
                 <Button variant="outlined" className="mr-2" onClick={createFullTextSearch}>
                   検索データ作成
+                </Button>
+                <Button variant="outlined" className="mr-2" onClick={initAvgCostPrices}>
+                  <small>移動平均原価セット</small>
                 </Button>
               </>
             )}
