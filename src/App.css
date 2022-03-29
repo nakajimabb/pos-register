@@ -44,3 +44,9 @@
   border-right: 6px solid transparent;
   border-top: 6px solid darkgray;
 }
+
+@media print {
+  .hidden-print {
+    display: none;
+  }
+}

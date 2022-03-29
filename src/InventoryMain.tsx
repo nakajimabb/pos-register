@@ -17,6 +17,7 @@ import {
   setDoc,
   DocumentReference,
 } from 'firebase/firestore';
+import { useReactToPrint } from 'react-to-print';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import { useAppContext } from './AppContext';
 import { isToday, toDateString } from './tools';
@@ -48,6 +49,12 @@ const InventoryMain: React.FC = () => {
   const { currentShop, incrementStock } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
+  const componentRef = useRef(null);
+  const pageStyle = `
+    @media print {
+      @page { size: JIS-B5 portrait; margin: 0; }
+    }  
+  `;
 
   useEffect(() => {
     if (currentShop) {
@@ -275,8 +282,11 @@ const InventoryMain: React.FC = () => {
   };
 
   const getSortItems = () => {
-    console.log({ inventoryDetails });
-    return Array.from(inventoryDetails.values()).sort((item1, item2) => {
+    let items = Array.from(inventoryDetails.values());
+    if (sortType === 'diff') {
+      items = items.filter((item) => item.countedAt && Math.abs(item.quantity - item.stock) > 0);
+    }
+    return items.sort((item1, item2) => {
       let v1: number | null = null;
       let v2: number | null = null;
       const countedAt1 = item1.countedAt;
@@ -351,6 +361,11 @@ const InventoryMain: React.FC = () => {
     return new Date() > nextDate;
   };
 
+  const handlePrint = useReactToPrint({
+    content: () => componentRef.current,
+    pageStyle,
+  });
+
   return (
     <div className="pt-12">
       <div className="p-4">
@@ -407,6 +422,13 @@ const InventoryMain: React.FC = () => {
                     確定取消
                   </Button>
                 )}
+                <Button
+                  className="w-32"
+                  disabled={!inventory || !!inventory.fixedAt || processing}
+                  onClick={handlePrint}
+                >
+                  印刷
+                </Button>
               </Flex>
             </div>
             {inventory && <InventorySum inventory={inventory} />}
@@ -456,53 +478,55 @@ const InventoryMain: React.FC = () => {
                   { value: 'countedAt', label: '追加順' },
                   { value: 'stock', label: '理論値順' },
                   { value: 'quantity', label: '実数順' },
-                  { value: 'diff', label: '差異順' },
+                  { value: 'diff', label: '差異のみ' },
                 ]}
                 onChange={(e) => setSortType(e.target.value as SortType)}
               />
             </Flex>
           )}
-          <Table className="w-full">
-            <Table.Head>
-              <Table.Row>
-                <Table.Cell>No</Table.Cell>
-                <Table.Cell>商品コード</Table.Cell>
-                <Table.Cell>商品名</Table.Cell>
-                <Table.Cell>理論値</Table.Cell>
-                <Table.Cell>実数</Table.Cell>
-                <Table.Cell>差異(合計)</Table.Cell>
-                <Table.Cell></Table.Cell>
-              </Table.Row>
-            </Table.Head>
-            <Table.Body>
-              {getSortItems().map((item, i) => (
-                <Table.Row
-                  key={i}
-                  className={clsx(item.countedAt && item.quantity !== item.stock && 'text-red-600 font-bold')}
-                >
-                  <Table.Cell>{i + 1}</Table.Cell>
-                  <Table.Cell>{item.productCode}</Table.Cell>
-                  <Table.Cell>{item.productName}</Table.Cell>
-                  <Table.Cell>{item.stock}</Table.Cell>
-                  <Table.Cell>{item.countedAt ? item.quantity : ''}</Table.Cell>
-                  <Table.Cell>{item.countedAt ? item.quantity - item.stock : ''}</Table.Cell>
-                  <Table.Cell>
-                    {inventory && !inventory.fixedAt && (
-                      <Button
-                        variant="icon"
-                        size="xs"
-                        color="none"
-                        className="hover:bg-gray-300"
-                        onClick={() => setEditTarget(item)}
-                      >
-                        <Icon name="pencil-alt" />
-                      </Button>
-                    )}
-                  </Table.Cell>
+          <div ref={componentRef}>
+            <Table className="w-full">
+              <Table.Head>
+                <Table.Row>
+                  <Table.Cell>No</Table.Cell>
+                  <Table.Cell>商品コード</Table.Cell>
+                  <Table.Cell>商品名</Table.Cell>
+                  <Table.Cell>理論値</Table.Cell>
+                  <Table.Cell>実数</Table.Cell>
+                  <Table.Cell>差異</Table.Cell>
+                  <Table.Cell></Table.Cell>
                 </Table.Row>
-              ))}
-            </Table.Body>
-          </Table>
+              </Table.Head>
+              <Table.Body>
+                {getSortItems().map((item, i) => (
+                  <Table.Row
+                    key={i}
+                    className={clsx(item.countedAt && item.quantity !== item.stock && 'text-red-600 font-bold')}
+                  >
+                    <Table.Cell>{i + 1}</Table.Cell>
+                    <Table.Cell>{item.productCode}</Table.Cell>
+                    <Table.Cell>{item.productName}</Table.Cell>
+                    <Table.Cell>{item.stock}</Table.Cell>
+                    <Table.Cell>{item.countedAt ? item.quantity : ''}</Table.Cell>
+                    <Table.Cell>{item.countedAt ? item.quantity - item.stock : ''}</Table.Cell>
+                    <Table.Cell>
+                      {inventory && !inventory.fixedAt && (
+                        <Button
+                          variant="icon"
+                          size="xs"
+                          color="none"
+                          className="hover:bg-gray-300 hidden-print"
+                          onClick={() => setEditTarget(item)}
+                        >
+                          <Icon name="pencil-alt" />
+                        </Button>
+                      )}
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          </div>
         </Card>
       </div>
     </div>
