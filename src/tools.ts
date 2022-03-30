@@ -228,3 +228,10 @@ export const isToday = (date: Date) => {
     date.getFullYear() === today.getFullYear()
   );
 };
+
+export const arrToPieces = (arr: unknown[], n: number) => {
+  return [...Array(Math.ceil(arr.length / n))].reduce((acc, _, idx) => {
+    acc.push(arr.slice(n * idx, n * (idx + 1)));
+    return acc;
+  }, []);
+};

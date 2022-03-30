@@ -6,16 +6,20 @@ import {
   getDocs,
   collection,
   writeBatch,
+  query,
+  QueryConstraint,
   DocumentReference,
   serverTimestamp,
+  QuerySnapshot,
+  where,
 } from 'firebase/firestore';
 
 import { Alert, Button, Card, Flex, Form, Table, Progress } from './components';
-import { readExcelAsOjects, HeaderInfo } from './readExcel';
+import { readExcelAsOjects, HeaderInfo, FieldType } from './readExcel';
 import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
-import { Product, Supplier, ProductCostPrice, productCostPricePath } from './types';
-import { checkDigit } from './tools';
+import { Product, Supplier, ProductCostPrice, productSellingPricePath, productCostPricePath } from './types';
+import { checkDigit, arrToPieces } from './tools';
 
 const db = getFirestore();
 
@@ -46,21 +50,19 @@ const headerInfo: HeaderInfo = [
   { label: '更新日時', name: 'updatedAt' },
 ];
 
-type Props = {
-  common: boolean;
-};
-
-const ImportProducts: React.FC<Props> = ({ common }) => {
+const ImportProducts: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [messages, setMessages] = useState<string[]>([]);
   const [progress, setProgress] = useState(100);
   const [headerDisp, setHeaderDisp] = useState<Map<string, Set<string>>>(new Map());
   const [errors, setErrors] = useState<string[]>([]);
-  const { registListner, suppliers } = useAppContext();
+  const [overwrite, setOverwrite] = useState<boolean>(false);
+  const { registListner, shops, suppliers } = useAppContext();
   const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     registListner('suppliers');
+    registListner('shops');
   }, []);
 
   useEffect(() => {
@@ -84,7 +86,7 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
 
     const files = ref?.current?.files;
     const blob = files && files[0];
-    if (blob && blob.name && suppliers) {
+    if (blob && blob.name) {
       setLoading(true);
       setProgress(0);
       try {
@@ -92,223 +94,191 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
         const data = await readExcelAsOjects(blob, headerInfo);
         console.log({ data });
 
-        // 共通データと店舗用データに分割
-        const commonData = data;
-        const shopData = data.filter((item) => item.shopCode !== '00');
+        const unknownSupplierCodes = new Set<string>(); // 不明な仕入先コード
+        const unknownShopCodes = new Set<string>(); // 不明な店舗コード
+        const ngJanCodes = new Set<string>(); // 不正なJANコード
 
-        // 仕入れ先情報取得
-        const suppliersRef = collection(db, 'suppliers');
-        const suppliersSnap = await getDocs(suppliersRef);
-        const supplierCodes = suppliersSnap.docs.map((item) => item.id);
-
-        // 不明な仕入先コード
-        const unknownSupplierCodes: string[] = [];
-        data.forEach((item) => {
-          const supCode = String(item.supplierCode);
-          if (!supplierCodes.includes(supCode) && !unknownSupplierCodes.includes(supCode)) {
-            unknownSupplierCodes.push(supCode);
-          }
-        });
-        unknownSupplierCodes.sort((a, b) => +a - +b);
-
-        // 店舗情報取得
-        const shopsRef = collection(db, 'shops');
-        const shopsSnap = await getDocs(shopsRef);
-        const shopCodes = shopsSnap.docs.map((item) => item.id);
-
-        // 不明な店舗コード
-        const unknownShopCodes: string[] = [];
-        shopData.forEach((item) => {
-          const shopCode = String(item.shopCode);
-          if (!shopCodes.includes(shopCode) && !unknownShopCodes.includes(shopCode)) {
-            unknownShopCodes.push(shopCode);
-          }
-        });
-        unknownShopCodes.sort((a, b) => +a - +b);
-        console.log({ unknownShopCodes });
-
-        // 不正なJANコード
-        const ngJanCodes = new Set<string>();
-        const productCodes = new Set<string>();
-        data.forEach((item) => {
-          const code = String(item.code);
-          if (code.match(/^\d{8}$|^\d{13}$/)) {
-            if (checkDigit(code)) productCodes.add(code);
-            else ngJanCodes.add(code);
-          }
-        });
-        console.log({ ngJanCodes: Array.from(ngJanCodes).join(',') });
+        const productCodes = new Set(data.map((item) => String(item.code)));
+        const products = await readProducts(productCodes);
+        console.log({ products, ngJanCodes: Array.from(ngJanCodes).join(',') });
 
         // db 書き込み
-        const BATCH_UNIT = 300;
-        const counter = { products: 0, productCostPrices: 0, productSellingPrices: 0 };
-        const errors: {
-          products: string[];
-          productCostPrices: string[];
-          productSellingPrices: string[];
-        } = { products: [], productCostPrices: [], productSellingPrices: [] };
         let prgs = 0;
-        if (common) {
-          // 商品マスタ(共通)
-          const today = new Date();
-          const taskSize = Math.ceil(commonData.length / BATCH_UNIT);
-          const sequential = [...Array(taskSize)].map((_, i) => i);
-          const tasks = sequential.map(async (_, i) => {
-            try {
-              let count = 0;
-              let error = '';
-              const batch = writeBatch(db);
-              const sliced = commonData.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+        const BATCH_UNIT = 300;
+        const pieces: { [key: string]: FieldType }[][] = arrToPieces(data, BATCH_UNIT);
+        const tasks = pieces.map(async (pdcts) => {
+          const errors: string[] = [];
+          let addProducts = 0,
+            updateProducts = 0,
+            setSellingPrices = 0,
+            setCostPrices = 0;
+          try {
+            // 商品マスタ（共通）保存
+            const batch1 = writeBatch(db);
+            pdcts.forEach((item) => {
+              const pdct = { ...item }; // copy
+              if (!products.has(String(pdct.code)) || overwrite) {
+                const productCode = String(pdct.code);
+                const suppCode = String(pdct.supplierCode ?? '');
+                const existSupplier = suppCode && suppliers.has(suppCode);
+                if (!existSupplier) unknownSupplierCodes.add(suppCode);
+                const supplierCode = existSupplier ? suppCode : '0';
+                const supplierRef = doc(db, 'suppliers', supplierCode) as DocumentReference<Supplier>;
+                // 保存しないフィールドを削除
+                headerInfo.forEach((info) => {
+                  if (pdct[info.name] === undefined) delete pdct[info.name];
+                });
+                delete pdct.shopCode;
+                delete pdct.supplierCode;
 
-              sliced.forEach((item) => {
-                const code = String(item.code);
-                if (checkDigit(code)) {
-                  let supplierRef: DocumentReference<Supplier> | null = null;
-                  // 仕入先情報
-                  const supCode = String(item.supplierCode);
-                  const supCode2 = supplierCodes.includes(supCode) ? supCode : '0'; // 存在しなければ その他(0)
-                  supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
-                  if (!item.createdAt) item.createdAt = today;
-                  if (item.hidden === undefined) item.hidden = false;
-                  headerInfo.forEach((info) => {
-                    if (item[info.name] === undefined) item[info.name] = null;
-                  });
-                  delete item.shopCode;
-                  delete item.supplierCode;
-                  batch.set(
-                    doc(db, 'products', code),
-                    { ...item, supplierRef, updatedAt: serverTimestamp() },
-                    { merge: true }
-                  );
-                  count += 1;
-                }
-              });
-              await batch.commit();
-              prgs = prgs + 100.0 / taskSize;
-              if (prgs > 100) prgs = 100;
-              setProgress(prgs);
-              console.log({ progress, taskSize, prgs });
-              return { count, error };
-            } catch (error) {
-              console.log({ error });
-              return { count: 0, error: firebaseError(error) };
-            }
-          });
-          const results = await Promise.all(tasks);
-          counter.products = results.reduce((cnt, res) => cnt + res.count, 0);
-          errors.products = results.filter((res) => !!res.error).map((res) => res.error);
-        } else {
-          const noneProductCodes = new Set<string>();
-          for await (const code of Array.from(productCodes)) {
-            const snap = await getDoc(doc(db, 'products', code));
-            if (!snap.exists()) noneProductCodes.add(code);
-          }
-          console.log({ noneProductCodes, shopCodes, data });
-
-          const taskSize = Math.ceil(shopData.length / BATCH_UNIT);
-          const sequential = [...Array(taskSize)].map((_, i) => i);
-
-          // 店舗原価
-          const tasks = sequential.map(async (_, i) => {
-            try {
-              let count = 0;
-              let error = '';
-              const batch = writeBatch(db);
-              const sliced = shopData.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
-
-              sliced.forEach((item) => {
-                const code = String(item.code);
-                const shopCode = String(item.shopCode);
-                // 共通の商品マスタに存在しないものは読込まない
-                if (checkDigit(code) && shopCodes.includes(shopCode) && !noneProductCodes.has(code)) {
-                  let supplierRef: DocumentReference<Supplier> | null = null;
-                  // 仕入先情報
-                  const supCode = String(item.supplierCode);
-                  if (item.supplierCode) {
-                    const supCode2 = supplierCodes.includes(supCode) ? supCode : '0'; // 存在しなければ その他(0)
-                    supplierRef = doc(db, 'suppliers', supCode2) as DocumentReference<Supplier>;
+                // 保存
+                const ref = doc(db, 'products', productCode);
+                const product = products.get(String(pdct.code));
+                const updatedAt = pdct.updatedAt instanceof Date ? pdct.updatedAt : serverTimestamp();
+                if (product) {
+                  if (!product.avgCostPrice && pdct.costPrice) product.avgCostPrice = Number(pdct.costPrice);
+                  delete pdct.createdAt;
+                  batch1.set(ref, { ...pdct, supplierRef, updatedAt }, { merge: true });
+                  updateProducts++;
+                } else {
+                  if (checkDigit(productCode)) {
+                    const createdAt = pdct.createdAt instanceof Date ? pdct.createdAt : serverTimestamp();
+                    batch1.set(
+                      ref,
+                      {
+                        ...pdct,
+                        supplierRef,
+                        avgCostPrice: pdct.costPrice,
+                        unregistered: true,
+                        createdAt,
+                        updatedAt,
+                      },
+                      { merge: true }
+                    );
+                    addProducts++;
+                  } else {
+                    ngJanCodes.add(productCode);
                   }
-                  const supplier = suppliers[String(item.supplierCode)];
-                  const productCostPrice: ProductCostPrice = {
-                    shopCode,
-                    productCode: code,
-                    productName: String(item.name),
-                    supplierCode: supplier.code ?? '0',
-                    supplierName: supplier.name ?? 'その他',
-                    costPrice: item.costPrice === null ? null : +item.costPrice,
-                  };
-                  batch.set(doc(db, productCostPricePath(productCostPrice)), productCostPrice, { merge: true });
-                  count += 1;
                 }
-              });
-              await batch.commit();
-              return { count, error };
-            } catch (error) {
-              console.log({ error });
-              return { count: 0, error: firebaseError(error) };
-            }
-          });
-          const results = await Promise.all(tasks);
-          counter.productCostPrices = results.reduce((cnt, res) => cnt + res.count, 0);
-          errors.productCostPrices = results.filter((res) => !!res.error).map((res) => res.error);
+              }
+            });
+            await batch1.commit();
 
-          // 店舗売価
-          const tasks2 = sequential.map(async (_, i) => {
-            try {
-              let count = 0;
-              let error = '';
-              const batch = writeBatch(db);
-              const sliced = shopData.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+            // 店舗売価
+            const batch2 = writeBatch(db);
+            pdcts.forEach((item) => {
+              const pdct = { ...item }; // copy
+              const productCode = String(pdct.code);
+              // 店舗チェック
+              const shopCode = String(pdct.shopCode ?? '');
+              const existShop = shopCode && shops.has(shopCode);
+              if (!existShop && shopCode !== '00') unknownShopCodes.add(shopCode);
+              // 保存
+              const sellingPrice = pdct.sellingPrice ? Number(pdct.sellingPrice) : null;
+              if (existShop && checkDigit(productCode) && sellingPrice) {
+                const productName = overwrite
+                  ? String(pdct.name)
+                  : products.get(productCode)?.name ?? String(pdct.name);
+                const updatedAt = pdct.updatedAt instanceof Date ? pdct.updatedAt : serverTimestamp();
+                const path = productSellingPricePath(shopCode, productCode);
+                batch2.set(doc(db, path), {
+                  shopCode,
+                  productCode,
+                  productName,
+                  sellingPrice,
+                  updatedAt,
+                });
+                setSellingPrices++;
+              }
+            });
+            await batch2.commit();
 
-              sliced.forEach((item) => {
-                const code = String(item.code);
-                const shopCode = String(item.shopCode);
-                if (checkDigit(code) && shopCodes.includes(shopCode) && !noneProductCodes.has(code)) {
-                  batch.set(
-                    doc(db, 'shops', shopCode, 'productSellingPrices', code),
-                    { shopCode, productCode: code, productName: item.name, sellingPrice: item.sellingPrice },
-                    { merge: true }
-                  );
-                  count += 1;
-                }
-              });
-              await batch.commit();
-              return { count, error };
-            } catch (error) {
-              console.log({ error });
-              return { count: 0, error: firebaseError(error) };
-            }
-          });
-          const results2 = await Promise.all(tasks2);
-          counter.productSellingPrices = results2.reduce((cnt, res) => cnt + res.count, 0);
-          errors.productSellingPrices = results2.filter((res) => !!res.error).map((res) => res.error);
-        }
+            // 店舗原価
+            const batch3 = writeBatch(db);
+            pdcts.forEach((item) => {
+              const pdct = { ...item }; // copy
+              const productCode = String(pdct.code);
+              // 店舗チェック
+              const shopCode = String(pdct.shopCode ?? '');
+              const existShop = shopCode && shops.has(shopCode);
+              if (!existShop && shopCode !== '00') unknownShopCodes.add(shopCode);
+              // 仕入先チェック
+              const suppCode = String(pdct.supplierCode ?? '');
+              const existSupplier = suppCode && suppliers.has(suppCode);
+              if (!existSupplier) unknownSupplierCodes.add(suppCode);
+              const supplierCode = existSupplier ? suppCode : '0';
+              const supplierName = suppliers.get(supplierCode)?.name ?? '';
 
-        setMessages([
-          'データを読み込みました。',
-          `商品マスタ:${counter.products}件`,
-          `店舗原価マスタ:${counter.productCostPrices}件`,
-          `店舗売価マスタ:${counter.productSellingPrices}件`,
-        ]);
+              const costPrice = pdct.costPrice ? Number(pdct.costPrice) : null;
+              if (existShop && checkDigit(productCode) && costPrice) {
+                const productName = overwrite
+                  ? String(pdct.name)
+                  : products.get(productCode)?.name ?? String(pdct.name);
+                const path = productCostPricePath(shopCode, productCode, supplierCode);
+                const updatedAt = pdct.updatedAt instanceof Date ? pdct.updatedAt : serverTimestamp();
+                batch3.set(doc(db, path), {
+                  shopCode,
+                  productCode,
+                  productName,
+                  supplierCode,
+                  supplierName,
+                  costPrice,
+                  updatedAt,
+                });
+                setCostPrices++;
+              }
+            });
+            await batch3.commit();
 
-        const errs: string[] = [];
-        if (unknownShopCodes.length > 0) {
+            // 進捗更新
+            prgs = pieces.length > 0 ? Math.floor(prgs + 100.0 / pieces.length) : 100;
+            if (prgs > 100) prgs = 100;
+            setProgress(prgs);
+          } catch (error) {
+            console.log({ error });
+            errors.push(firebaseError(error));
+          }
+          return { counter: { addProducts, updateProducts, setSellingPrices, setCostPrices }, errors };
+        });
+        const results = await Promise.all(tasks);
+
+        // 結果の集計
+        const errors: string[] = [];
+        const counter = { addProducts: 0, updateProducts: 0, setSellingPrices: 0, setCostPrices: 0 };
+        results.forEach((result) => {
+          const cntr = result.counter;
+          counter.addProducts += cntr.addProducts;
+          counter.updateProducts += cntr.updateProducts;
+          counter.setSellingPrices += cntr.setSellingPrices;
+          counter.setCostPrices += cntr.setCostPrices;
+          errors.push(...result.errors);
+        });
+
+        if (errors.length > 0) setErrors((prev) => [...prev, ...errors]);
+        if (unknownShopCodes.size > 0) {
           const codes = Array.from(unknownShopCodes);
-          errs.push(`店舗コードが見つかりません: ${codes.join(' ')}`);
+          setErrors((prev) => [...prev, `不明な店舗コード: ${codes.join(' ')}`]);
         }
         if (ngJanCodes.size > 0) {
           const codes = Array.from(ngJanCodes);
-          errs.push(`不正なJANコード: ${codes.join(' ')}`);
+          setErrors((prev) => [...prev, `不正なJANコード: ${codes.join(' ')}`]);
         }
-        if (unknownSupplierCodes.length > 0) {
+        if (unknownSupplierCodes.size > 0) {
           const codes = Array.from(new Set(unknownSupplierCodes));
-          errs.push(`仕入先がみつかりません(仕入先コード: ${codes.join(' ')})`);
+          setErrors((prev) => [
+            ...prev,
+            `不明な仕入れ先は「その他(0)」で登録しました(仕入先コード: ${codes.join(' ')})。`,
+          ]);
         }
-        if (errors.products.length > 0) errs.push(...errors.products);
-        if (errors.productCostPrices.length > 0) errs.push(...errors.productCostPrices);
-        if (errors.productSellingPrices.length > 0) errs.push(...errors.productSellingPrices);
 
-        if (errs.length > 0) setErrors(errs);
+        console.log({ errors, counter });
+        setMessages([
+          'データを読み込みました。',
+          `商品マスタ追加: ${counter.addProducts}件`,
+          `商品マスタ更新: ${counter.updateProducts}件`,
+          `店舗売価更新: ${counter.setSellingPrices}件`,
+          `店舗原価更新: ${counter.setCostPrices}件`,
+        ]);
 
         setLoading(false);
       } catch (error) {
@@ -319,12 +289,48 @@ const ImportProducts: React.FC<Props> = ({ common }) => {
     }
   };
 
+  const readProducts = async (productCodes: Set<string>) => {
+    const pieces: string[][] = arrToPieces(Array.from(productCodes), 10);
+    const products = new Map<string, Product>();
+    if (productCodes.size < 1000) {
+      // 取得件数が1000未満の時は、10個づつ取得して結合
+      await Promise.all(
+        pieces.map(async (codes) => {
+          const conds: QueryConstraint[] = [where('code', 'in', codes)];
+          const q = query(collection(db, 'products'), ...conds);
+          const snap = (await getDocs(q)) as QuerySnapshot<Product>;
+          snap.docs.forEach((item) => {
+            const product = item.data();
+            products.set(product.code, product);
+          });
+        })
+      );
+    } else {
+      // 取得件数が1000以上の時は、すべて取得
+      const snap = (await getDocs(collection(db, 'products'))) as QuerySnapshot<Product>;
+      snap.docs.forEach((item) => {
+        const product = item.data();
+        products.set(product.code, product);
+      });
+    }
+    return products;
+  };
+
   return (
     <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
-      <h1 className="text-xl font-bold mb-2">商品マスタ({common ? '共通' : '店舗'})取込</h1>
+      <h1 className="text-xl font-bold mb-2">商品マスタ取込</h1>
       <Card className="p-5">
         <Form onSubmit={importExcel} className="p-3">
-          <input type="file" name="ref" ref={ref} accept=".xlsx" disabled={loading} required />
+          <div className="mb-2">
+            <input type="file" name="ref" ref={ref} accept=".xlsx" disabled={loading} required />
+          </div>
+          <div>
+            <Form.Checkbox
+              label="既存データを上書き"
+              checked={overwrite}
+              onChange={(e) => setOverwrite(e.target.checked)}
+            />
+          </div>
           <Button disabled={loading} className="w-full mt-4">
             取込実行
           </Button>
