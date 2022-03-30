@@ -54,6 +54,7 @@ export type ProductCostPrice = {
   supplierCode: string; // 仕入先コード
   supplierName: string;
   costPrice: number | null; // 原価(税抜)
+  updatedAt?: Timestamp;
 };
 
 export type ProductSellingPrice = {
@@ -61,6 +62,7 @@ export type ProductSellingPrice = {
   productCode: string; // JANコード
   productName: string;
   sellingPrice: number | null; // 売価(税抜)
+  updatedAt?: Timestamp;
 };
 
 export type ProductCategory = {
@@ -262,8 +264,11 @@ export const purchaseDetailPath = (
   productCode: string | undefined = undefined
 ) => purchasePath(shopCode, purchaseyNumber) + `/purchaseDetails/${productCode ?? ''}`;
 
-export const productCostPricePath = (data: { shopCode: string; productCode: string; supplierCode: string }) =>
-  `shops/${data.shopCode}/productCostPrices/${data.productCode}|${data.supplierCode}`;
+export const productCostPricePath = (shopCode: string, productCode: string, supplierCode: string) =>
+  `shops/${shopCode}/productCostPrices/${productCode}|${supplierCode}`;
+
+export const productSellingPricePath = (shopCode: string, productCode: string) =>
+  `shops/${shopCode}/productSellingPrices/${productCode}`;
 
 export const stockPath = (shopCode: string, productCode: string | undefined = undefined) =>
   `shops/${shopCode}/stocks/${productCode ?? ''}`;

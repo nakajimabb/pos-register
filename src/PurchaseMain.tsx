@@ -117,7 +117,10 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
       }));
       options.unshift({ label: '', value: '' });
       setShopOptions(options);
-      setPurchase((prev) => ({ ...prev, shopName: shops[prev.shopCode]?.name }));
+      setPurchase((prev) => {
+        const shopName = shops.get(prev.shopCode)?.name ?? '';
+        return { ...prev, shopName };
+      });
     }
   }, [shops]);
 
@@ -229,14 +232,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
         let costPrice: number | null = null;
         if (purchase.srcType === 'supplier') {
           const snap = (await getDoc(
-            doc(
-              db,
-              productCostPricePath({
-                shopCode: purchase.shopCode,
-                productCode: currentItem.productCode,
-                supplierCode: purchase.srcCode,
-              })
-            )
+            doc(db, productCostPricePath(purchase.shopCode, currentItem.productCode, purchase.srcCode))
           )) as DocumentSnapshot<ProductCostPrice>;
           if (snap.exists()) {
             costPrice = snap.data().costPrice;
@@ -383,7 +379,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
             const deliv = snap.docs.length > 0 ? snap.docs[0].data() : null;
             if (deliv) {
               if (deliv.dstShopCode !== shopCode)
-                throw Error(`指定された出庫情報の宛先は${shops[shopCode]?.name}に指定されていません。`);
+                throw Error(`指定された出庫情報の宛先は${shops.get(shopCode)?.name}に指定されていません。`);
               setPurchase((prev) => ({
                 ...prev,
                 purchaseNumber: deliveryNumber,
@@ -421,10 +417,10 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   const getSrcName = (srcType: 'supplier' | 'shop', srcCode: string) => {
     if (srcType === 'supplier') {
       if (suppliers) {
-        return suppliers[srcCode]?.name;
+        return suppliers.get(srcCode)?.name;
       }
     } else {
-      if (shops) return shops[srcCode]?.name;
+      if (shops) return shops.get(srcCode)?.name;
     }
   };
 

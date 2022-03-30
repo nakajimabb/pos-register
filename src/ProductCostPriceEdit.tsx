@@ -67,8 +67,8 @@ const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, path, onClose, 
   const setSupplier = (e: SingleValue<{ label: string; value: string }>) => {
     const supplierCode = e?.value || '';
     if (supplierCode && suppliers) {
-      const supplier = suppliers[supplierCode];
-      setProductCostPrice({ ...productCostPrice, supplierCode, supplierName: supplier.name });
+      const supplier = suppliers.get(supplierCode);
+      setProductCostPrice({ ...productCostPrice, supplierCode, supplierName: supplier?.name ?? '' });
     }
   };
 
@@ -155,7 +155,11 @@ const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, path, onClose, 
       } else {
         if (!productCostPrice.productCode) throw Error('商品が指定されていません。');
 
-        const path = productCostPricePath(productCostPrice);
+        const path = productCostPricePath(
+          productCostPrice.shopCode,
+          productCostPrice.productCode,
+          productCostPrice.supplierCode
+        );
         const ref = doc(db, path);
         const snap = await getDoc(ref);
         if (snap.exists()) throw Error('指定された商品は既に登録されています。');

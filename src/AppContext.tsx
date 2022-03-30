@@ -50,8 +50,8 @@ export type ContextType = {
   productBundles: ProductBundle[];
   productBulks: ProductBulk[];
   fixedCostRates: FixedCostRate[];
-  suppliers: { [code: string]: Supplier } | null;
-  shops: { [code: string]: Shop } | null;
+  suppliers: Map<string, Supplier>;
+  shops: Map<string, Supplier>;
   role: Role | null;
   addBundleDiscount: (basketItems: BasketItem[]) => BasketItem[];
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;
@@ -70,8 +70,8 @@ const AppContext = createContext({
   currentUser: null,
   currentShop: null,
   counters: null,
-  suppliers: null,
-  shops: null,
+  suppliers: new Map(),
+  shops: new Map(),
   productBundles: [],
   productBulks: [],
   fixedCostRates: [],
@@ -109,8 +109,8 @@ export const AppContextProvider: React.FC = ({ children }) => {
   const [productBundles, setProductBundles] = useState<ProductBundle[]>([]);
   const [productBulks, setProductBulks] = useState<ProductBulk[]>([]);
   const [fixedCostRates, setFixedCostRates] = useState<FixedCostRate[]>([]);
-  const [suppliers, setSuppliers] = useState<{ [code: string]: Supplier }>({});
-  const [shops, setShops] = useState<{ [code: string]: Shop }>({});
+  const [suppliers, setSuppliers] = useState<Map<string, Supplier>>(new Map());
+  const [shops, setShops] = useState<Map<string, Shop>>(new Map());
   const [listeners, setListeners] = useState<{ suppliers: boolean; shops: boolean }>({
     suppliers: false,
     shops: false,
@@ -193,11 +193,12 @@ export const AppContextProvider: React.FC = ({ children }) => {
   useEffect(() => {
     if (listeners.suppliers) {
       const unsubscribe = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
-        const suppliersData: { [code: string]: Supplier } = {};
+        const supps = new Map<string, Supplier>();
         snapshot.docs.forEach((doc) => {
-          suppliersData[doc.id] = doc.data() as Supplier;
+          const sup = doc.data() as Supplier;
+          supps.set(sup.code, sup);
         });
-        setSuppliers(suppliersData);
+        setSuppliers(supps);
       });
       console.log('...start realtime listener on suppliers.');
       return () => unsubscribe();
@@ -207,11 +208,12 @@ export const AppContextProvider: React.FC = ({ children }) => {
   useEffect(() => {
     if (listeners.shops) {
       const unsubscribe = onSnapshot(collection(db, 'shops'), (snapshot) => {
-        const shopsData: { [code: string]: Shop } = {};
+        const shps = new Map<string, Shop>();
         snapshot.docs.forEach((doc) => {
-          shopsData[doc.id] = doc.data() as Shop;
+          const shop = doc.data() as Shop;
+          shps.set(shop.code, shop);
         });
-        setShops(shopsData);
+        setShops(shps);
       });
       console.log('...start realtime listener on shops.');
       return () => unsubscribe();

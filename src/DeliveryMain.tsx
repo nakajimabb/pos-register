@@ -55,6 +55,7 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
   const { registListner, incrementStock, shops } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
+  const dstShop = shops?.get(delivery.dstShopCode);
 
   useEffect(() => {
     registListner('shops');
@@ -79,7 +80,10 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
       }));
       options.unshift({ label: '', value: '' });
       setShopsOptions(options);
-      setDelivery((prev) => ({ ...prev, shopName: shops[prev.shopCode]?.name }));
+      setDelivery((prev) => {
+        const shopName = shops.get(prev.shopCode)?.name ?? '';
+        return { ...prev, shopName };
+      });
     }
   }, [shops]);
 
@@ -317,7 +321,8 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
               onChange={(e) => {
                 const dstShopCode = String(e?.value);
                 if (shops) {
-                  setDelivery((prev) => ({ ...prev, dstShopCode, dstShopName: shops[dstShopCode]?.name }));
+                  const shopName = shops.get(dstShopCode)?.name ?? '';
+                  setDelivery((prev) => ({ ...prev, dstShopCode, dstShopName: shopName }));
                 }
                 codeRef.current?.focus();
               }}
@@ -395,12 +400,7 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
               </div>
             </Flex>
             <div>
-              <span className="text-xl">
-                {shops &&
-                  delivery.dstShopCode &&
-                  shops[delivery.dstShopCode] &&
-                  nameWithCode(shops[delivery.dstShopCode])}
-              </span>
+              <span className="text-xl">{shops && dstShop && nameWithCode(dstShop)}</span>
               行き
             </div>
           </Flex>

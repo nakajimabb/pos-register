@@ -18,7 +18,6 @@ import {
   QueryConstraint,
   QuerySnapshot,
   onSnapshot,
-  Timestamp,
   serverTimestamp,
   writeBatch,
   Bytes,
@@ -29,7 +28,7 @@ import { useAppContext } from './AppContext';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import ProductEdit from './ProductEdit';
-import { sortedProductCategories, toDateString } from './tools';
+import { toDateString } from './tools';
 import { Product, ProductCategory, Supplier } from './types';
 
 // import * as zlib from 'zlib';
@@ -359,6 +358,7 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                 <Table.Cell type="th">ｾﾙﾒ</Table.Cell>
                 <Table.Cell type="th">仕入先</Table.Cell>
                 <Table.Cell type="th">登録日</Table.Cell>
+                <Table.Cell type="th">更新日</Table.Cell>
                 <Table.Cell type="th"></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -376,6 +376,9 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                     <Table.Cell>{truncate(supplierName(product), { length: 10 })}</Table.Cell>
                     <Table.Cell>
                       {product.createdAt ? toDateString(product.createdAt.toDate(), 'YYYY-MM-DD') : ''}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {product.updatedAt ? toDateString(product.updatedAt.toDate(), 'YYYY-MM-DD') : ''}
                     </Table.Cell>
                     <Table.Cell>
                       <Button
