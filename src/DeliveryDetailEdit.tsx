@@ -59,11 +59,11 @@ const DeliveryDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate })
             />
           </Grid>
         </Modal.Body>
-        <Modal.Footer className="flex justify-end">
-          <Button color="secondary" variant="outlined" className="mr-3" onClick={onClose}>
+        <Modal.Footer className="flex justify-end space-x-2">
+          <Button color="primary">OK</Button>
+          <Button color="secondary" variant="outlined" onClick={onClose}>
             Cancel
           </Button>
-          <Button color="primary">OK</Button>
         </Modal.Footer>
       </Form>
     </Modal>

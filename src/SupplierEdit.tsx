@@ -78,42 +78,29 @@ const SupplierEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
               {error}
             </Alert>
           )}
-          <Grid
-            cols="1 sm:2"
-            gap="0 sm:3"
-            auto_cols="fr"
-            className="max-w-xl row-end-2"
-          >
+          <Grid cols="1 sm:2" gap="0 sm:3" auto_cols="fr" className="max-w-xl row-end-2">
             <Form.Label>仕入先コード</Form.Label>
             <Form.Text
               placeholder="仕入先コード"
               disabled={!!docId}
               required
               value={docId ? docId : supplier.code}
-              onChange={(e) =>
-                setSupplier({ ...supplier, code: e.target.value })
-              }
+              onChange={(e) => setSupplier({ ...supplier, code: e.target.value })}
             />
             <Form.Label>仕入先名称</Form.Label>
             <Form.Text
               placeholder="仕入先名称"
+              required
               value={supplier.name}
-              onChange={(e) =>
-                setSupplier({ ...supplier, name: e.target.value })
-              }
+              onChange={(e) => setSupplier({ ...supplier, name: e.target.value })}
             />
           </Grid>
         </Modal.Body>
-        <Modal.Footer className="flex justify-end">
-          <Button
-            color="secondary"
-            variant="outlined"
-            className="mr-3"
-            onClick={onClose}
-          >
+        <Modal.Footer className="flex justify-end space-x-2">
+          <Button color="primary">保存</Button>
+          <Button color="secondary" variant="outlined" onClick={onClose}>
             Cancel
           </Button>
-          <Button color="primary">保存</Button>
         </Modal.Footer>
       </Form>
     </Modal>

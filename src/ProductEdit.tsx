@@ -286,11 +286,13 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
             </Flex>
           </Grid>
         </Modal.Body>
-        <Modal.Footer className="flex justify-end">
-          <Button color="secondary" variant="outlined" className="mr-3" onClick={onClose}>
+        <Modal.Footer className="flex justify-end space-x-2">
+          <Button type="submit" color="primary">
+            保存
+          </Button>
+          <Button type="button" color="secondary" variant="outlined" onClick={onClose}>
             Cancel
           </Button>
-          <Button color="primary">保存</Button>
         </Modal.Footer>
       </Form>
     </Modal>

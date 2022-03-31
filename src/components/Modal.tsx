@@ -12,13 +12,7 @@ type HeaderProps = {
   className?: string;
 };
 
-const ModalHeader: React.FC<HeaderProps> = ({
-  centered = false,
-  padding = 3,
-  onClose,
-  className,
-  children,
-}) => {
+const ModalHeader: React.FC<HeaderProps> = ({ centered = false, padding = 3, onClose, className, children }) => {
   return (
     <h1
       className={clsx(
@@ -30,12 +24,7 @@ const ModalHeader: React.FC<HeaderProps> = ({
     >
       <Flex align_items="center">
         <div className="flex-1">{children}</div>
-        {onClose && (
-          <CloseButton
-            onClose={onClose}
-            className={clsx(padding === 0 && 'mx-2')}
-          />
-        )}
+        {onClose && <CloseButton onClose={onClose} className={clsx(padding === 0 && 'mx-2')} />}
       </Flex>
     </h1>
   );
@@ -47,11 +36,7 @@ type Props = {
 };
 
 const ModalBody: React.FC<Props> = ({ padding = 4, className, children }) => {
-  return (
-    <div className={clsx('bg-white', `p-${padding}`, className)}>
-      {children}
-    </div>
-  );
+  return <div className={clsx('bg-white', `p-${padding}`, className)}>{children}</div>;
 };
 
 const ModalFooter: React.FC<Props> = ({ className, children }) => {
@@ -66,6 +51,7 @@ type CloseButtonProps = {
 const CloseButton: React.FC<CloseButtonProps> = ({ onClose, className }) => {
   return (
     <Button
+      type="button"
       variant="icon"
       color="none"
       size="xs"
@@ -93,22 +79,11 @@ type ModalType = React.FC<ModalProps> & {
   Footer: typeof ModalFooter;
 };
 
-const Modal: ModalType = ({
-  open,
-  size = 'lg',
-  onClose,
-  className,
-  children,
-}) => {
+const Modal: ModalType = ({ open, size = 'lg', onClose, className, children }) => {
   if (!open) return null;
 
   return (
-    <div
-      className="fixed z-20 inset-0 overflow-y-auto"
-      aria-labelledby="modal-title"
-      role="dialog"
-      aria-modal="true"
-    >
+    <div className="fixed z-20 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex items-center justify-center min-h-screen p-3 text-center">
         {/* Background overlay */}
         <div

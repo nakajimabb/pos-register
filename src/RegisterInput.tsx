@@ -86,12 +86,12 @@ const RegisterInput: React.FC<Props> = ({ open, registerItem, basketItems, setBa
           </Table.Body>
         </Table>
       </Modal.Body>
-      <Modal.Footer className="flex justify-end">
-        <Button color="secondary" variant="outlined" className="mr-3" onClick={onClose}>
-          キャンセル
-        </Button>
+      <Modal.Footer className="flex justify-end space-x-2">
         <Button color="primary" onClick={save}>
           OK
+        </Button>
+        <Button color="secondary" variant="outlined" onClick={onClose}>
+          キャンセル
         </Button>
       </Modal.Footer>
     </Modal>

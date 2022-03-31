@@ -118,7 +118,9 @@ const SupplierList: React.FC = () => {
 
   return (
     <div className="pt-12 mx-auto max-w-4xl">
-      <SupplierEdit open={open} docId={docId} onClose={() => setOpen(false)} onUpdate={querySuppliers('current')} />
+      {open && (
+        <SupplierEdit open={open} docId={docId} onClose={() => setOpen(false)} onUpdate={querySuppliers('current')} />
+      )}
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">仕入先マスタ</h1>
       <Card className="mx-8 mb-4">
         <Flex justify_content="between" align_items="center" className="p-4">

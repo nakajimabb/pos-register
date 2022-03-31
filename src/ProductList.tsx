@@ -247,14 +247,16 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
 
   return (
     <div className="pt-12">
-      <ProductEdit
-        open={open}
-        docId={docId}
-        productCategories={productCategories}
-        suppliers={suppliers}
-        onClose={() => setOpen(false)}
-        onUpdate={queryProducts(search, 'current')}
-      />
+      {open && (
+        <ProductEdit
+          open={open}
+          docId={docId}
+          productCategories={productCategories}
+          suppliers={suppliers}
+          onClose={() => setOpen(false)}
+          onUpdate={queryProducts(search, 'current')}
+        />
+      )}
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">
         {unregistered ? '未登録商品' : '商品マスタ(共通)'}
       </h1>

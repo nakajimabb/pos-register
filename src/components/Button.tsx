@@ -5,6 +5,7 @@ import { useTheme } from './ThemeProvider';
 import { Size, Brand } from './type';
 
 type Props = {
+  type?: 'submit' | 'button' | 'reset';
   variant?: 'contained' | 'outlined' | 'text' | 'icon';
   color?: Brand;
   size?: Size;
@@ -15,6 +16,7 @@ type Props = {
 };
 
 const Button: React.FC<Props> = ({
+  type,
   variant = 'contained',
   color = 'primary',
   size = 'md',
@@ -163,6 +165,7 @@ const Button: React.FC<Props> = ({
 
   return (
     <button
+      type={type}
       className={clsx(classes.join(' '), className)}
       onClick={onClick}
       disabled={disabled}

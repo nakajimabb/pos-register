@@ -145,12 +145,12 @@ const RegisterModify: React.FC<Props> = ({ open, itemIndex, basketItems, setBask
           </Table.Body>
         </Table>
       </Modal.Body>
-      <Modal.Footer className="flex justify-end">
-        <Button color="secondary" variant="outlined" className="mr-3" onClick={onClose}>
-          キャンセル
-        </Button>
+      <Modal.Footer className="flex justify-end space-x-2">
         <Button color="primary" disabled={toNumber(quantityText) <= 0} onClick={save}>
           OK
+        </Button>
+        <Button color="secondary" variant="outlined" onClick={onClose}>
+          キャンセル
         </Button>
       </Modal.Footer>
     </Modal>
