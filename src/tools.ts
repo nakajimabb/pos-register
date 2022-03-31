@@ -235,3 +235,5 @@ export const arrToPieces = (arr: unknown[], n: number) => {
     return acc;
   }, []);
 };
+
+export const isNum = (n: unknown) => (typeof n === 'string' || typeof n === 'number') && !isNaN(Number(n));

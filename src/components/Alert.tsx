@@ -54,17 +54,9 @@ const Alert: React.FC<Props> = ({ severity, onClose, className, children }) => {
     <div className={clsx('rounded-md p-4', color.bg[severity], className)}>
       <div className="flex">
         <div className="flex-shrink-0">
-          <Icon
-            name={icons[severity]}
-            variant="solid"
-            className={clsx('h-5 w-5', color.icon[severity])}
-          />
+          <Icon name={icons[severity]} variant="solid" className={clsx('h-5 w-5', color.icon[severity])} />
         </div>
-        <div className="ml-3">
-          <p className={clsx('text-sm font-medium', color.text[severity])}>
-            {children}
-          </p>
-        </div>
+        <div className={clsx('text-sm font-medium', color.text[severity])}>{children}</div>
         {onClose && (
           <div className="ml-auto pl-3">
             <div className="-mx-1.5 -my-1.5">

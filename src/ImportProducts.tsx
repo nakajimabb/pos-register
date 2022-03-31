@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   getFirestore,
   doc,
-  getDoc,
   getDocs,
   collection,
   writeBatch,
@@ -18,8 +17,8 @@ import { Alert, Button, Card, Flex, Form, Table, Progress } from './components';
 import { readExcelAsOjects, HeaderInfo, FieldType } from './readExcel';
 import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
-import { Product, Supplier, ProductCostPrice, productSellingPricePath, productCostPricePath } from './types';
-import { checkDigit, arrToPieces } from './tools';
+import { Product, Supplier, productSellingPricePath, productCostPricePath } from './types';
+import { checkDigit, arrToPieces, isNum } from './tools';
 
 const db = getFirestore();
 
@@ -92,7 +91,6 @@ const ImportProducts: React.FC = () => {
       try {
         // EXCEL 読み込み
         const data = await readExcelAsOjects(blob, headerInfo);
-        console.log({ data });
 
         const unknownSupplierCodes = new Set<string>(); // 不明な仕入先コード
         const unknownShopCodes = new Set<string>(); // 不明な店舗コード
@@ -100,25 +98,24 @@ const ImportProducts: React.FC = () => {
 
         const productCodes = new Set(data.map((item) => String(item.code)));
         const products = await readProducts(productCodes);
-        console.log({ products, ngJanCodes: Array.from(ngJanCodes).join(',') });
+        console.log({ data, products });
 
         // db 書き込み
         let prgs = 0;
+        const headCode = '00'; // 本部コード
         const BATCH_UNIT = 300;
         const pieces: { [key: string]: FieldType }[][] = arrToPieces(data, BATCH_UNIT);
         const tasks = pieces.map(async (pdcts) => {
           const errors: string[] = [];
-          let addProducts = 0,
-            updateProducts = 0,
-            setSellingPrices = 0,
-            setCostPrices = 0;
+          const counter = { addProducts: 0, updateProducts: 0, setSellingPrices: 0, setCostPrices: 0 };
           try {
             // 商品マスタ（共通）保存
             const batch1 = writeBatch(db);
             pdcts.forEach((item) => {
               const pdct = { ...item }; // copy
-              if (!products.has(String(pdct.code)) || overwrite) {
-                const productCode = String(pdct.code);
+              const productCode = String(pdct.code);
+              // 商品マスタが存在しないか、上書きモードでかつ店舗コードが本部(00)またはブランクのときのみ保存する
+              if (!products.has(productCode) || (overwrite && (!productCode || productCode === headCode))) {
                 const suppCode = String(pdct.supplierCode ?? '');
                 const existSupplier = suppCode && suppliers.has(suppCode);
                 if (!existSupplier) unknownSupplierCodes.add(suppCode);
@@ -135,11 +132,14 @@ const ImportProducts: React.FC = () => {
                 const ref = doc(db, 'products', productCode);
                 const product = products.get(String(pdct.code));
                 const updatedAt = pdct.updatedAt instanceof Date ? pdct.updatedAt : serverTimestamp();
+                // 移動平均原価
+                if ((!product || !product.avgCostPrice) && isNum(pdct.costPrice)) {
+                  pdct.avgCostPrice = Number(pdct.costPrice);
+                }
                 if (product) {
-                  if (!product.avgCostPrice && pdct.costPrice) product.avgCostPrice = Number(pdct.costPrice);
                   delete pdct.createdAt;
                   batch1.set(ref, { ...pdct, supplierRef, updatedAt }, { merge: true });
-                  updateProducts++;
+                  counter.updateProducts++;
                 } else {
                   if (checkDigit(productCode)) {
                     const createdAt = pdct.createdAt instanceof Date ? pdct.createdAt : serverTimestamp();
@@ -148,14 +148,13 @@ const ImportProducts: React.FC = () => {
                       {
                         ...pdct,
                         supplierRef,
-                        avgCostPrice: pdct.costPrice,
-                        unregistered: true,
+                        unregistered: true, // 未登録フラグ
                         createdAt,
                         updatedAt,
                       },
                       { merge: true }
                     );
-                    addProducts++;
+                    counter.addProducts++;
                   } else {
                     ngJanCodes.add(productCode);
                   }
@@ -163,6 +162,7 @@ const ImportProducts: React.FC = () => {
               }
             });
             await batch1.commit();
+            setProgress((prev) => prev + Math.floor(100.0 / (3 * pieces.length))); // 進捗更新
 
             // 店舗売価
             const batch2 = writeBatch(db);
@@ -172,26 +172,27 @@ const ImportProducts: React.FC = () => {
               // 店舗チェック
               const shopCode = String(pdct.shopCode ?? '');
               const existShop = shopCode && shops.has(shopCode);
-              if (!existShop && shopCode !== '00') unknownShopCodes.add(shopCode);
+              if (!existShop) unknownShopCodes.add(shopCode);
               // 保存
-              const sellingPrice = pdct.sellingPrice ? Number(pdct.sellingPrice) : null;
-              if (existShop && checkDigit(productCode) && sellingPrice) {
-                const productName = overwrite
-                  ? String(pdct.name)
-                  : products.get(productCode)?.name ?? String(pdct.name);
+              if (existShop && checkDigit(productCode) && isNum(pdct.sellingPrice)) {
+                const productName =
+                  overwrite && (!productCode || productCode === headCode)
+                    ? String(pdct.name)
+                    : products.get(productCode)?.name ?? String(pdct.name);
                 const updatedAt = pdct.updatedAt instanceof Date ? pdct.updatedAt : serverTimestamp();
                 const path = productSellingPricePath(shopCode, productCode);
                 batch2.set(doc(db, path), {
                   shopCode,
                   productCode,
                   productName,
-                  sellingPrice,
+                  sellingPrice: Number(pdct.sellingPrice),
                   updatedAt,
                 });
-                setSellingPrices++;
+                counter.setSellingPrices++;
               }
             });
             await batch2.commit();
+            setProgress((prev) => prev + Math.floor(100.0 / (3 * pieces.length))); // 進捗更新
 
             // 店舗原価
             const batch3 = writeBatch(db);
@@ -201,7 +202,7 @@ const ImportProducts: React.FC = () => {
               // 店舗チェック
               const shopCode = String(pdct.shopCode ?? '');
               const existShop = shopCode && shops.has(shopCode);
-              if (!existShop && shopCode !== '00') unknownShopCodes.add(shopCode);
+              if (!existShop) unknownShopCodes.add(shopCode);
               // 仕入先チェック
               const suppCode = String(pdct.supplierCode ?? '');
               const existSupplier = suppCode && suppliers.has(suppCode);
@@ -209,11 +210,11 @@ const ImportProducts: React.FC = () => {
               const supplierCode = existSupplier ? suppCode : '0';
               const supplierName = suppliers.get(supplierCode)?.name ?? '';
 
-              const costPrice = pdct.costPrice ? Number(pdct.costPrice) : null;
-              if (existShop && checkDigit(productCode) && costPrice) {
-                const productName = overwrite
-                  ? String(pdct.name)
-                  : products.get(productCode)?.name ?? String(pdct.name);
+              if (existShop && checkDigit(productCode) && isNum(pdct.costPrice)) {
+                const productName =
+                  overwrite && (!productCode || productCode === headCode)
+                    ? String(pdct.name)
+                    : products.get(productCode)?.name ?? String(pdct.name);
                 const path = productCostPricePath(shopCode, productCode, supplierCode);
                 const updatedAt = pdct.updatedAt instanceof Date ? pdct.updatedAt : serverTimestamp();
                 batch3.set(doc(db, path), {
@@ -222,23 +223,19 @@ const ImportProducts: React.FC = () => {
                   productName,
                   supplierCode,
                   supplierName,
-                  costPrice,
+                  costPrice: Number(pdct.costPrice),
                   updatedAt,
                 });
-                setCostPrices++;
+                counter.setCostPrices++;
               }
             });
             await batch3.commit();
-
-            // 進捗更新
-            prgs = pieces.length > 0 ? Math.floor(prgs + 100.0 / pieces.length) : 100;
-            if (prgs > 100) prgs = 100;
-            setProgress(prgs);
+            setProgress((prev) => prev + Math.floor(100.0 / (3 * pieces.length))); // 進捗更新
           } catch (error) {
             console.log({ error });
             errors.push(firebaseError(error));
           }
-          return { counter: { addProducts, updateProducts, setSellingPrices, setCostPrices }, errors };
+          return { counter, errors };
         });
         const results = await Promise.all(tasks);
 
@@ -253,25 +250,23 @@ const ImportProducts: React.FC = () => {
           counter.setCostPrices += cntr.setCostPrices;
           errors.push(...result.errors);
         });
+        console.log({ errors, counter });
 
         if (errors.length > 0) setErrors((prev) => [...prev, ...errors]);
         if (unknownShopCodes.size > 0) {
-          const codes = Array.from(unknownShopCodes);
-          setErrors((prev) => [...prev, `不明な店舗コード: ${codes.join(' ')}`]);
+          const codes = Array.from(unknownShopCodes).filter((code) => code && code != headCode);
+          if (codes.length > 0) setErrors((prev) => [...prev, `不明な店舗コード: ${codes.join(', ')}`]);
         }
         if (ngJanCodes.size > 0) {
           const codes = Array.from(ngJanCodes);
-          setErrors((prev) => [...prev, `不正なJANコード: ${codes.join(' ')}`]);
+          setErrors((prev) => [...prev, `不正なJANコード: ${codes.join(', ')}`]);
         }
         if (unknownSupplierCodes.size > 0) {
-          const codes = Array.from(new Set(unknownSupplierCodes));
-          setErrors((prev) => [
-            ...prev,
-            `不明な仕入れ先は「その他(0)」で登録しました(仕入先コード: ${codes.join(' ')})。`,
-          ]);
+          const codes = Array.from(new Set(unknownSupplierCodes)).filter((code) => !!code);
+          setErrors((prev) => [...prev, '不明な仕入先は「その他(0)」で登録しました。']);
+          if (codes.length > 0) setErrors((prev) => [...prev, `不明な仕入先コード: ${codes.join(', ')}`]);
         }
 
-        console.log({ errors, counter });
         setMessages([
           'データを読み込みました。',
           `商品マスタ追加: ${counter.addProducts}件`,
@@ -317,7 +312,7 @@ const ImportProducts: React.FC = () => {
   };
 
   return (
-    <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
+    <Flex direction="col" justify_content="center" align_items="center">
       <h1 className="text-xl font-bold mb-2">商品マスタ取込</h1>
       <Card className="p-5">
         <Form onSubmit={importExcel} className="p-3">
@@ -326,10 +321,17 @@ const ImportProducts: React.FC = () => {
           </div>
           <div>
             <Form.Checkbox
-              label="既存データを上書き"
+              label="既存の商品マスタを上書きする"
               checked={overwrite}
               onChange={(e) => setOverwrite(e.target.checked)}
             />
+            <p>
+              <small>
+                ※ 上書きは店舗コードがブランク、または本部(00)のときのみ実行。
+                <br />
+                商品マスタが存在しないときは新規作成し、未登録フラグを設定する。
+              </small>
+            </p>
           </div>
           <Button disabled={loading} className="w-full mt-4">
             取込実行
@@ -337,14 +339,14 @@ const ImportProducts: React.FC = () => {
           {messages.length > 0 && (
             <Alert severity="success" className="mt-4">
               {messages.map((msg) => (
-                <p>{msg}</p>
+                <div>{msg}</div>
               ))}
             </Alert>
           )}
           {errors.length > 0 && (
             <Alert severity="error" className="mt-4">
               {errors.map((err) => (
-                <p>{err}</p>
+                <div>{err}</div>
               ))}
             </Alert>
           )}
@@ -361,7 +363,7 @@ const ImportProducts: React.FC = () => {
               ))}
             </Table.Body>
           </Table>
-          {loading && <Progress label={`${progress}%`} value={progress} />}
+          {loading && <Progress value={Math.floor(progress <= 100 ? progress : 100)} />}
         </Form>
       </Card>
     </Flex>
