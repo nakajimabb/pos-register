@@ -38,21 +38,19 @@ const SalesSummaryList: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (shops) {
-      if (role === 'shop') {
-        if (currentShop) {
-          setShopsOptions([{ value: currentShop.code, label: nameWithCode(currentShop) }]);
-        }
-      } else {
-        const options = Object.entries(shops).map(([code, shop]) => ({
-          value: code,
-          label: nameWithCode(shop),
-        }));
-        setShopsOptions(options);
-      }
+    if (role === 'shop') {
       if (currentShop) {
-        setShopCode(currentShop.code);
+        setShopsOptions([{ value: currentShop.code, label: nameWithCode(currentShop) }]);
       }
+    } else {
+      const options = Array.from(shops.entries()).map(([code, shop]) => ({
+        value: code,
+        label: nameWithCode(shop),
+      }));
+      setShopsOptions(options);
+    }
+    if (currentShop) {
+      setShopCode(currentShop.code);
     }
   }, [shops, currentShop]);
 

@@ -76,8 +76,8 @@ const InventoryList: React.FC = () => {
   };
 
   const sortedShops = () => {
-    if (shops && search.loaded) {
-      const targetShops = Object.values(shops);
+    if (search.loaded) {
+      const targetShops = Array.from(shops.values());
       const results = targetShops
         .filter((shop) => {
           if (!search.status) return true;

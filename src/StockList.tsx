@@ -31,7 +31,7 @@ const StockList: React.FC = () => {
 
   useEffect(() => {
     if (shops && role === 'manager') {
-      const options = Object.entries(shops).map(([code, shop]) => ({
+      const options = Array.from(shops.entries()).map(([code, shop]) => ({
         value: code,
         label: nameWithCode(shop),
       }));

@@ -50,14 +50,12 @@ const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, path, onClose, 
   }, [open]);
 
   useEffect(() => {
-    if (suppliers) {
-      const options = Object.entries(suppliers).map(([code, supplier]) => ({
-        value: code,
-        label: nameWithCode(supplier),
-      }));
-      options.unshift({ label: '', value: '' });
-      setSuppliersOptions(options);
-    }
+    const options = Array.from(suppliers.entries()).map(([code, supplier]) => ({
+      value: code,
+      label: nameWithCode(supplier),
+    }));
+    options.unshift({ label: '', value: '' });
+    setSuppliersOptions(options);
   }, [suppliers]);
 
   const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
@@ -66,7 +64,7 @@ const ProductCostPriceEdit: React.FC<Props> = ({ open, shopCode, path, onClose, 
 
   const setSupplier = (e: SingleValue<{ label: string; value: string }>) => {
     const supplierCode = e?.value || '';
-    if (supplierCode && suppliers) {
+    if (supplierCode) {
       const supplier = suppliers.get(supplierCode);
       setProductCostPrice({ ...productCostPrice, supplierCode, supplierName: supplier?.name ?? '' });
     }

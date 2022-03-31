@@ -73,18 +73,16 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
   }, [delivery.dstShopCode]);
 
   useEffect(() => {
-    if (shops) {
-      const options = Object.entries(shops).map(([code, shop]) => ({
-        value: code,
-        label: nameWithCode(shop),
-      }));
-      options.unshift({ label: '', value: '' });
-      setShopsOptions(options);
-      setDelivery((prev) => {
-        const shopName = shops.get(prev.shopCode)?.name ?? '';
-        return { ...prev, shopName };
-      });
-    }
+    const options = Array.from(shops.entries()).map(([code, shop]) => ({
+      value: code,
+      label: nameWithCode(shop),
+    }));
+    options.unshift({ label: '', value: '' });
+    setShopsOptions(options);
+    setDelivery((prev) => {
+      const shopName = shops.get(prev.shopCode)?.name ?? '';
+      return { ...prev, shopName };
+    });
   }, [shops]);
 
   const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {

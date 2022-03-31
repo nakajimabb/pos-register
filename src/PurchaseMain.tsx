@@ -99,29 +99,25 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   }, [purchase.srcCode, purchaseNumber]);
 
   useEffect(() => {
-    if (suppliers) {
-      const options = Object.entries(suppliers).map(([code, supplier]) => ({
-        value: code,
-        label: nameWithCode(supplier),
-      }));
-      options.unshift({ label: '', value: '' });
-      setSuppliersOptions(options);
-    }
+    const options = Array.from(suppliers.entries()).map(([code, supplier]) => ({
+      value: code,
+      label: nameWithCode(supplier),
+    }));
+    options.unshift({ label: '', value: '' });
+    setSuppliersOptions(options);
   }, [suppliers]);
 
   useEffect(() => {
-    if (shops) {
-      const options = Object.entries(shops).map(([code, shop]) => ({
-        value: code,
-        label: nameWithCode(shop),
-      }));
-      options.unshift({ label: '', value: '' });
-      setShopOptions(options);
-      setPurchase((prev) => {
-        const shopName = shops.get(prev.shopCode)?.name ?? '';
-        return { ...prev, shopName };
-      });
-    }
+    const options = Array.from(shops.entries()).map(([code, shop]) => ({
+      value: code,
+      label: nameWithCode(shop),
+    }));
+    options.unshift({ label: '', value: '' });
+    setShopOptions(options);
+    setPurchase((prev) => {
+      const shopName = shops.get(prev.shopCode)?.name ?? '';
+      return { ...prev, shopName };
+    });
   }, [shops]);
 
   const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
@@ -264,83 +260,81 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   };
 
   const save = async () => {
-    if (shops && suppliers) {
-      try {
-        setProcessing(true);
-        const purch = { ...purchase, fixed: true };
-        await runTransaction(db, async (transaction) => {
-          // get existing Data
-          const details = new Map<string, PurchaseDetail>();
-          const notFoundStockCodes = new Set<string>();
-          const productCodes = Array.from(items.keys());
-          if (purch.purchaseNumber > 0) {
-            // 既存詳細データの読み込み
-            for await (const productCode of productCodes) {
-              const ref2 = doc(db, purchaseDetailPath(purch.shopCode, purch.purchaseNumber, productCode));
-              const snap = (await transaction.get(ref2)) as DocumentSnapshot<PurchaseDetail>;
-              if (snap.exists()) {
-                details.set(productCode, snap.data());
-              }
-            }
-          }
-          // 既存在庫データの読み込み
+    try {
+      setProcessing(true);
+      const purch = { ...purchase, fixed: true };
+      await runTransaction(db, async (transaction) => {
+        // get existing Data
+        const details = new Map<string, PurchaseDetail>();
+        const notFoundStockCodes = new Set<string>();
+        const productCodes = Array.from(items.keys());
+        if (purch.purchaseNumber > 0) {
+          // 既存詳細データの読み込み
           for await (const productCode of productCodes) {
-            const stockRef = doc(db, 'shops', purch.shopCode, 'stocks', productCode);
-            const stockSnap = (await transaction.get(stockRef)) as DocumentSnapshot<Stock>;
-            if (!stockSnap.exists()) {
-              notFoundStockCodes.add(productCode);
+            const ref2 = doc(db, purchaseDetailPath(purch.shopCode, purch.purchaseNumber, productCode));
+            const snap = (await transaction.get(ref2)) as DocumentSnapshot<PurchaseDetail>;
+            if (snap.exists()) {
+              details.set(productCode, snap.data());
             }
           }
-
-          // purchase
-          if (purch.purchaseNumber <= 0) {
-            const functions = getFunctions(app, 'asia-northeast1');
-            // deliveries と purchases のドキュメントIDは同一にする
-            const result = await httpsCallable(functions, 'getSequence')({ docId: 'purchases' });
-            if (Number(result.data) > 0) {
-              purch.purchaseNumber = Number(result.data);
-              setPurchase(purch);
-            } else {
-              throw Error('不正な仕入番号。');
-            }
-          }
-          const ref = doc(db, purchasePath(purch.shopCode, purch.purchaseNumber));
-          transaction.set(ref, purch);
-
-          // 詳細データ保存 => fixしていないデータのみ(削除データ含む)保存
-          const unfixedItems = getUnfixedItems();
-          for await (const item of unfixedItems) {
-            const detail = details.get(item.productCode);
-            const ref2 = doc(db, purchaseDetailPath(purch.shopCode, purch.purchaseNumber, item.productCode));
-            // 詳細データ更新
-            if (item.quantity === 0) {
-              transaction.delete(ref2);
-            } else {
-              transaction.set(ref2, {
-                productCode: item.productCode,
-                productName: item.productName,
-                quantity: item.quantity,
-                costPrice: item.costPrice,
-                fixed: true,
-              });
-            }
-            // 在庫更新
-            const diff = detail ? item.quantity - detail.quantity : item.quantity;
-            incrementStock(purch.shopCode, item.productCode, item.productName, diff, transaction);
-          }
-        });
-        setProcessing(false);
-        alert('保存しました。');
-        if (purchaseNumber > 0) {
-          hisotry.push('/purchase_new');
-        } else {
-          resetPurchase();
         }
-      } catch (error) {
-        setProcessing(false);
-        console.log({ error });
-        alert(firebaseError(error));
+        // 既存在庫データの読み込み
+        for await (const productCode of productCodes) {
+          const stockRef = doc(db, 'shops', purch.shopCode, 'stocks', productCode);
+          const stockSnap = (await transaction.get(stockRef)) as DocumentSnapshot<Stock>;
+          if (!stockSnap.exists()) {
+            notFoundStockCodes.add(productCode);
+          }
+        }
+
+        // purchase
+        if (purch.purchaseNumber <= 0) {
+          const functions = getFunctions(app, 'asia-northeast1');
+          // deliveries と purchases のドキュメントIDは同一にする
+          const result = await httpsCallable(functions, 'getSequence')({ docId: 'purchases' });
+          if (Number(result.data) > 0) {
+            purch.purchaseNumber = Number(result.data);
+            setPurchase(purch);
+          } else {
+            throw Error('不正な仕入番号。');
+          }
+        }
+        const ref = doc(db, purchasePath(purch.shopCode, purch.purchaseNumber));
+        transaction.set(ref, purch);
+
+        // 詳細データ保存 => fixしていないデータのみ(削除データ含む)保存
+        const unfixedItems = getUnfixedItems();
+        for await (const item of unfixedItems) {
+          const detail = details.get(item.productCode);
+          const ref2 = doc(db, purchaseDetailPath(purch.shopCode, purch.purchaseNumber, item.productCode));
+          // 詳細データ更新
+          if (item.quantity === 0) {
+            transaction.delete(ref2);
+          } else {
+            transaction.set(ref2, {
+              productCode: item.productCode,
+              productName: item.productName,
+              quantity: item.quantity,
+              costPrice: item.costPrice,
+              fixed: true,
+            });
+          }
+          // 在庫更新
+          const diff = detail ? item.quantity - detail.quantity : item.quantity;
+          incrementStock(purch.shopCode, item.productCode, item.productName, diff, transaction);
+        }
+      });
+      setProcessing(false);
+      alert('保存しました。');
+      if (purchaseNumber > 0) {
+        hisotry.push('/purchase_new');
+      } else {
+        resetPurchase();
       }
+    } catch (error) {
+      setProcessing(false);
+      console.log({ error });
+      alert(firebaseError(error));
     }
   };
 
@@ -358,7 +352,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   const loadDelivery = async (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (shopCode && shops) {
+      if (shopCode) {
         try {
           const value = getBarcodeValue(String(barcode), CLASS_DELIV);
           const deliveryNumber = value ? +value : +barcode;
@@ -416,11 +410,9 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
 
   const getSrcName = (srcType: 'supplier' | 'shop', srcCode: string) => {
     if (srcType === 'supplier') {
-      if (suppliers) {
-        return suppliers.get(srcCode)?.name;
-      }
+      return suppliers.get(srcCode)?.name;
     } else {
-      if (shops) return shops.get(srcCode)?.name;
+      return shops.get(srcCode)?.name;
     }
   };
 
