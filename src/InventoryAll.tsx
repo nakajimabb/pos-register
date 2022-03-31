@@ -18,7 +18,7 @@ import { toDateString } from './tools';
 import { Inventory } from './types';
 
 const db = getFirestore();
-type Status = '' | 'progress' | 'fixed';
+type Status = '' | 'progress' | 'fixed' | 'untouched';
 
 const InventoryList: React.FC = () => {
   const [search, setSearch] = useState<{
@@ -81,8 +81,12 @@ const InventoryList: React.FC = () => {
       const results = targetShops
         .filter((shop) => {
           if (!search.status) return true;
-          const invts = targetInventory(shop.code);
-          return invts && invts.length > 0;
+          const invts = targetInventory(shop.code, search.status);
+          if (search.status === 'untouched') {
+            return !invts || invts.length === 0;
+          } else {
+            return invts && invts.length > 0;
+          }
         })
         .sort((shop1, shop2) => {
           if (shop1.code < shop2.code) return -1;
@@ -93,12 +97,12 @@ const InventoryList: React.FC = () => {
     } else return [];
   };
 
-  const targetInventory = (shopCode: string) => {
+  const targetInventory = (shopCode: string, status: '' | 'progress' | 'fixed' | 'untouched') => {
     const invts = inventories.get(shopCode);
-    if (invts && search.status) {
-      if (search.status === 'progress') {
+    if (invts && status) {
+      if (status === 'progress') {
         return invts.filter((invt) => !invt.fixedAt);
-      } else {
+      } else if (status === 'fixed') {
         return invts.filter((invt) => invt.fixedAt);
       }
     } else {
@@ -142,6 +146,7 @@ const InventoryList: React.FC = () => {
                 { value: '', label: '-- ｽﾃｰﾀｽ --' },
                 { value: 'progress', label: '作業中' },
                 { value: 'fixed', label: '確定済' },
+                { value: 'untouched', label: '未着手' },
               ]}
               onChange={(e) => setSearch((prev) => ({ ...prev, status: String(e.target.value) as Status }))}
             />
@@ -168,7 +173,7 @@ const InventoryList: React.FC = () => {
             </Table.Head>
             <Table.Body>
               {sortedShops().map((shop, i) => {
-                const invts = targetInventory(shop.code);
+                const invts = targetInventory(shop.code, search.status);
                 if (invts) {
                   const rowSpan = Math.max(invts.length, 1);
                   return (
@@ -207,6 +212,10 @@ const InventoryList: React.FC = () => {
                     <Table.Row key={i}>
                       <Table.Cell>{shop.code}</Table.Cell>
                       <Table.Cell>{shop.name}</Table.Cell>
+                      <Table.Cell></Table.Cell>
+                      <Table.Cell></Table.Cell>
+                      <Table.Cell></Table.Cell>
+                      <Table.Cell>未着手</Table.Cell>
                     </Table.Row>
                   );
                 }
