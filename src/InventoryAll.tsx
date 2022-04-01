@@ -43,8 +43,6 @@ const InventoryList: React.FC = () => {
     setSearch((prev) => ({ ...prev, minDate }));
   }, []);
 
-  const existSearch = () => search.minDate || search.maxDate || search.status;
-
   const queryInventories = async (e: React.FormEvent) => {
     e.preventDefault();
     try {

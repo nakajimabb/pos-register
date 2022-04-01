@@ -48,8 +48,6 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
   const [search, setSearch] = useState<SearchType>({ text: '', categoryId: '', minDate: null, maxDate: null });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Product> | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [productCategories, setProductCategories] = useState<{ id: string; productCategory: ProductCategory }[]>([]);
-  const [suppliers, setSuppliers] = useState<{ id: string; supplier: Supplier }[]>([]);
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState(false);
   const [docId, setDocId] = useState<string | null>(null);
@@ -57,21 +55,13 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
   const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
-  const { counters, searchProducts } = useAppContext();
+  const { role, counters, searchProducts } = useAppContext();
 
   useEffect(() => {
     if (counters) {
       queryProducts(search, 'head')();
     }
   }, [counters]);
-
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
-      const newSuppliers = snapshot.docs.map((item) => ({ id: item.id, supplier: item.data() as Supplier }));
-      setSuppliers(newSuppliers);
-    });
-    return () => unsubscribe();
-  }, []);
 
   const existSearch = (search: SearchType, includeDate: boolean) => {
     if (includeDate) {
@@ -171,20 +161,6 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
     }
   };
 
-  const categoryName = (product: Product) => {
-    if (product.supplierRef) {
-      const category = productCategories.find((s) => s.id === product.categoryRef?.id);
-      return category?.productCategory?.name;
-    }
-  };
-
-  const supplierName = (product: Product) => {
-    if (product.supplierRef) {
-      const supplier = suppliers.find((s) => s.id === product.supplierRef?.id);
-      return supplier?.supplier?.name;
-    }
-  };
-
   const createFullTextSearch = async () => {
     if (window.confirm('全文検索用のデータを作成しますか？')) {
       setProcessing(true);
@@ -251,8 +227,6 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
         <ProductEdit
           open={open}
           docId={docId}
-          productCategories={productCategories}
-          suppliers={suppliers}
           onClose={() => setOpen(false)}
           onUpdate={queryProducts(search, 'current')}
         />
@@ -272,14 +246,6 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                   className="mr-2 w-64"
                   value={search.text}
                   onChange={(e) => setSearch({ ...search, text: e.target.value })}
-                />
-                <Form.Select
-                  id="select"
-                  size="md"
-                  className="mr-2 w-48"
-                  value={search.categoryId}
-                  options={categoryOptions}
-                  onChange={(e) => setSearch({ ...search, categoryId: e.target.value })}
                 />
                 <Form.Date
                   value={search.minDate ? toDateString(search.minDate, 'YYYY-MM-DD') : ''}
@@ -304,12 +270,16 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                 <Button variant="outlined" className="mr-2" onClick={newProduct}>
                   新規
                 </Button>
-                <Button variant="outlined" className="mr-2" onClick={createFullTextSearch}>
-                  検索データ作成
-                </Button>
-                <Button variant="outlined" className="mr-2" onClick={initAvgCostPrices}>
-                  <small>移動平均原価セット</small>
-                </Button>
+                {role === 'manager' && (
+                  <>
+                    <Button variant="outlined" className="mr-2" onClick={createFullTextSearch}>
+                      <small>全文検索データ作成</small>
+                    </Button>
+                    <Button variant="outlined" className="mr-2" onClick={initAvgCostPrices}>
+                      <small>移動平均原価作成</small>
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </Flex>
@@ -351,14 +321,12 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
               <Table.Row>
                 <Table.Cell type="th">PLUコード</Table.Cell>
                 <Table.Cell type="th">商品名称</Table.Cell>
-                <Table.Cell type="th">カテゴリ</Table.Cell>
                 <Table.Cell type="th">売価</Table.Cell>
                 <Table.Cell type="th">原価</Table.Cell>
                 <Table.Cell type="th">
                   <small>移動平均原価</small>
                 </Table.Cell>
                 <Table.Cell type="th">ｾﾙﾒ</Table.Cell>
-                <Table.Cell type="th">仕入先</Table.Cell>
                 <Table.Cell type="th">登録日</Table.Cell>
                 <Table.Cell type="th">更新日</Table.Cell>
                 <Table.Cell type="th"></Table.Cell>
@@ -370,12 +338,10 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                   <Table.Row key={i} className={clsx(product.hidden && 'text-gray-300')}>
                     <Table.Cell>{product.code}</Table.Cell>
                     <Table.Cell>{product.name}</Table.Cell>
-                    <Table.Cell>{truncate(categoryName(product), { length: 10 })}</Table.Cell>
                     <Table.Cell className="text-right">{product.sellingPrice?.toLocaleString()}</Table.Cell>
                     <Table.Cell className="text-right">{product.costPrice?.toLocaleString()}</Table.Cell>
                     <Table.Cell className="text-right">{product.avgCostPrice?.toLocaleString()}</Table.Cell>
                     <Table.Cell className="text-center">{product.selfMedication && '○'}</Table.Cell>
-                    <Table.Cell>{truncate(supplierName(product), { length: 10 })}</Table.Cell>
                     <Table.Cell>
                       {product.createdAt ? toDateString(product.createdAt.toDate(), 'YYYY-MM-DD') : ''}
                     </Table.Cell>

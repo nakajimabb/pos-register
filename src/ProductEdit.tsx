@@ -4,8 +4,9 @@ import Select, { SingleValue } from 'react-select';
 
 import { Alert, Button, Flex, Form, Grid, Modal } from './components';
 import firebaseError from './firebaseError';
-import { Product, ProductCategory, Supplier, TaxClass } from './types';
-import { checkDigit } from './tools';
+import { Product, Supplier, TaxClass } from './types';
+import { useAppContext } from './AppContext';
+import { checkDigit, nameWithCode } from './tools';
 import clsx from 'clsx';
 
 const db = getFirestore();
@@ -26,13 +27,11 @@ const TAX_OPTIONS = [
 type Props = {
   open: boolean;
   docId: string | null;
-  productCategories: { id: string; productCategory: ProductCategory }[];
-  suppliers: { id: string; supplier: Supplier }[];
   onClose: () => void;
   onUpdate: (product: Product) => void;
 };
 
-const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, suppliers, onClose, onUpdate }) => {
+const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
   const [product, setProduct] = useState<Product>({
     code: '',
     name: '',
@@ -52,22 +51,17 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
     note: '',
   });
   const [error, setError] = useState('');
-  const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
   const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
+  const { suppliers, registListner } = useAppContext();
 
   useEffect(() => {
-    const options = productCategories.map(({ id, productCategory }) => ({
-      value: id,
-      label: '　'.repeat(productCategory.level) + productCategory.name,
-    }));
-    options.unshift({ label: '', value: '' });
-    setCategoryOptions(options);
-  }, [productCategories]);
+    registListner('suppliers');
+  }, []);
 
   useEffect(() => {
-    const options = suppliers.map(({ id, supplier }) => ({
-      value: id,
-      label: `${supplier.name}(${supplier.code})`,
+    const options = Array.from(suppliers.entries()).map(([code, shop]) => ({
+      value: code,
+      label: nameWithCode(shop),
     }));
     options.unshift({ label: '', value: '' });
     setSuppliersOptions(options);
@@ -80,11 +74,6 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
   const setSupplierRef = (e: SingleValue<{ label: string; value: string }>) => {
     const ref = e?.value ? doc(db, 'suppliers', e.value) : null;
     setProduct({ ...product, supplierRef: ref as DocumentReference<Supplier> | null });
-  };
-
-  const setCategoryRef = (e: SingleValue<{ label: string; value: string }>) => {
-    const ref = e?.value ? doc(db, 'productCategories', e.value) : null;
-    setProduct({ ...product, categoryRef: ref as DocumentReference<ProductCategory> | null });
   };
 
   useEffect(() => {
@@ -193,13 +182,6 @@ const ProductEdit: React.FC<Props> = ({ open, docId, productCategories, supplier
               placeholder="商品名略"
               value={product.abbr}
               onChange={(e) => setProduct({ ...product, abbr: e.target.value })}
-            />
-            <Form.Label>カテゴリ</Form.Label>
-            <Select
-              className="mb-3 sm:mb-0 select2"
-              value={selectValue(product.categoryRef?.id, categoryOptions)}
-              options={categoryOptions}
-              onChange={setCategoryRef}
             />
             <Form.Label>売価税抜</Form.Label>
             <Form.Number
