@@ -54,7 +54,8 @@ export type ProductCostPrice = {
   supplierCode: string; // 仕入先コード
   supplierName: string;
   costPrice: number | null; // 原価(税抜)
-  updatedAt?: Timestamp;
+  updatedAt?: Timestamp; // 更新日
+  purchasedAt?: Timestamp; // 仕入日
 };
 
 export type ProductSellingPrice = {
@@ -264,6 +265,7 @@ export const purchaseDetailPath = (
   productCode: string | undefined = undefined
 ) => purchasePath(shopCode, purchaseyNumber) + `/purchaseDetails/${productCode ?? ''}`;
 
+export const productCostPricesPath = (shopCode: string) => `shops/${shopCode}/productCostPrices`;
 export const productCostPricePath = (shopCode: string, productCode: string, supplierCode: string) =>
   `shops/${shopCode}/productCostPrices/${productCode}|${supplierCode}`;
 

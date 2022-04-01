@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { truncate } from 'lodash';
 import {
   collection,
-  collectionGroup,
   doc,
   query,
   getDocs,
@@ -13,16 +12,15 @@ import {
   endAt,
   QueryConstraint,
   QuerySnapshot,
-  onSnapshot,
 } from 'firebase/firestore';
 import Select from 'react-select';
 
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import { useAppContext } from './AppContext';
-import ProductCostPriceEdit from './ProductCostPriceEdit';
-import { ProductCostPrice, Shop } from './types';
-import { nameWithCode, userCodeFromEmail } from './tools';
+import ShopProductEdit from './ShopProductEdit';
+import { ProductCostPrice } from './types';
+import { toDateString, nameWithCode } from './tools';
 
 const db = getFirestore();
 
@@ -30,38 +28,32 @@ const ProductCostPriceList: React.FC = () => {
   const [search, setSearch] = useState({ text: '', shopCode: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<ProductCostPrice> | null>(null);
   const [open, setOpen] = useState(false);
-  const [targetPath, setTargetPath] = useState<string | null>(null);
+  const [targetProductCode, setTargetProductCode] = useState<string | null>(null);
   const [shopOptions, setShopOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
-  const { currentUser } = useAppContext();
+  const { shops, currentShop, role, registListner } = useAppContext();
 
   useEffect(() => {
-    if (currentUser && currentUser.email) {
-      const shopCode = userCodeFromEmail(currentUser.email);
-      if (shopCode) setSearch((prev) => ({ ...prev, shopCode }));
-    }
-  }, [currentUser]);
-
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'shops'), (snapshot) => {
-      const options = snapshot.docs.map((item) => {
-        const shop = item.data() as Shop;
-        return { value: item.id, label: nameWithCode(shop) };
-      });
-      options.unshift({ label: '', value: '' });
+    if (currentShop) {
+      const options = [{ label: currentShop.name, value: currentShop.code }];
       setShopOptions(options);
-    });
-    return () => unsubscribe();
-  }, []);
+      setSearch((prev) => ({ ...prev, shopCode: currentShop.code }));
+    }
+  }, [currentShop]);
+
+  useEffect(() => {
+    if (role === 'manager' && shops.size > 0) {
+      const options = Array.from(shops.entries()).map(([code, shop]) => ({
+        value: code,
+        label: nameWithCode(shop),
+      }));
+      setShopOptions(options);
+    }
+  }, [shops, currentShop]);
 
   const queryResults = async () => {
     try {
-      if (!search.shopCode) {
-        setError('店舗を指定してください。');
-        return;
-      } else {
-        setError('');
-      }
+      setError('');
       const searchText = search.text.trim();
       const conds: QueryConstraint[] = [];
       if (searchText) {
@@ -87,13 +79,13 @@ const ProductCostPriceList: React.FC = () => {
   const newProductCostPrice = (shopCode: string) => () => {
     if (shopCode) {
       setOpen(true);
-      setTargetPath(null);
+      setTargetProductCode(null);
     }
   };
 
-  const editProductCostPrice = (path: string) => () => {
+  const editProductCostPrice = (productCode: string) => () => {
     setOpen(true);
-    setTargetPath(path);
+    setTargetProductCode(productCode);
   };
 
   const deleteProductCostPrice = (path: string) => async () => {
@@ -116,11 +108,12 @@ const ProductCostPriceList: React.FC = () => {
 
   return (
     <div className="pt-12">
-      {search.shopCode && (
-        <ProductCostPriceEdit
+      {open && (
+        <ShopProductEdit
           open={open}
+          mode="costPrice"
           shopCode={search.shopCode}
-          path={targetPath}
+          productCode={targetProductCode}
           onClose={() => setOpen(false)}
           onUpdate={queryResults}
         />
@@ -140,6 +133,11 @@ const ProductCostPriceList: React.FC = () => {
               value={selectValue(search.shopCode, shopOptions)}
               options={shopOptions}
               onChange={(e) => setSearch({ ...search, shopCode: String(e?.value) })}
+              onMenuOpen={() => {
+                if (role === 'manager') {
+                  registListner('shops');
+                }
+              }}
             />
             <Button variant="outlined" onClick={queryResults} className="mr-2">
               検索
@@ -158,6 +156,8 @@ const ProductCostPriceList: React.FC = () => {
                 <Table.Cell type="th">商品名称</Table.Cell>
                 <Table.Cell type="th">原価</Table.Cell>
                 <Table.Cell type="th">仕入先</Table.Cell>
+                <Table.Cell type="th">更新日</Table.Cell>
+                <Table.Cell type="th">仕入日</Table.Cell>
                 <Table.Cell type="th"></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -174,12 +174,18 @@ const ProductCostPriceList: React.FC = () => {
                       <Table.Cell className="text-right">{item.costPrice?.toLocaleString()}</Table.Cell>
                       <Table.Cell>{truncate(item.supplierName, { length: 10 })}</Table.Cell>
                       <Table.Cell>
+                        {item.updatedAt ? toDateString(item.updatedAt.toDate(), 'YYYY-MM-DD') : ''}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {item.purchasedAt ? toDateString(item.purchasedAt.toDate(), 'YYYY-MM-DD') : ''}
+                      </Table.Cell>
+                      <Table.Cell>
                         <Button
                           variant="icon"
                           size="xs"
                           color="none"
                           className="hover:bg-gray-300 "
-                          onClick={editProductCostPrice(path)}
+                          onClick={editProductCostPrice(item.productCode)}
                         >
                           <Icon name="pencil-alt" />
                         </Button>

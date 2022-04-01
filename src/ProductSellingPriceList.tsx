@@ -11,16 +11,15 @@ import {
   endAt,
   QueryConstraint,
   QuerySnapshot,
-  onSnapshot,
 } from 'firebase/firestore';
 import Select from 'react-select';
 
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
-import ProductSellingPriceEdit from './ProductSellingPriceEdit';
-import { ProductSellingPrice, Shop } from './types';
-import { nameWithCode, userCodeFromEmail } from './tools';
+import ShopProductEdit from './ShopProductEdit';
+import { ProductSellingPrice } from './types';
+import { toDateString, nameWithCode } from './tools';
 
 const db = getFirestore();
 
@@ -28,41 +27,32 @@ const ProductSellingPriceList: React.FC = () => {
   const [search, setSearch] = useState({ text: '', shopCode: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<ProductSellingPrice> | null>(null);
   const [open, setOpen] = useState(false);
-  const [target, setTarget] = useState<{ shopCode: string | null; productCode: string | null }>({
-    shopCode: null,
-    productCode: null,
-  });
+  const [targetProductCode, setTargetProductCode] = useState<string | null>(null);
   const [shopOptions, setShopOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
-  const { currentUser } = useAppContext();
+  const { shops, currentShop, role, registListner } = useAppContext();
 
   useEffect(() => {
-    if (currentUser && currentUser.email) {
-      const shopCode = userCodeFromEmail(currentUser.email);
-      if (shopCode) setSearch((prev) => ({ ...prev, shopCode }));
-    }
-  }, [currentUser]);
-
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'shops'), (snapshot) => {
-      const options = snapshot.docs.map((item) => {
-        const shop = item.data() as Shop;
-        return { value: item.id, label: nameWithCode(shop) };
-      });
-      options.unshift({ label: '', value: '' });
+    if (currentShop) {
+      const options = [{ label: currentShop.name, value: currentShop.code }];
       setShopOptions(options);
-    });
-    return () => unsubscribe();
-  }, []);
+      setSearch((prev) => ({ ...prev, shopCode: currentShop.code }));
+    }
+  }, [currentShop]);
+
+  useEffect(() => {
+    if (role === 'manager' && shops.size > 0) {
+      const options = Array.from(shops.entries()).map(([code, shop]) => ({
+        value: code,
+        label: nameWithCode(shop),
+      }));
+      setShopOptions(options);
+    }
+  }, [shops, currentShop]);
 
   const queryResults = async () => {
     try {
-      if (!search.shopCode) {
-        setError('店舗を指定してください。');
-        return;
-      } else {
-        setError('');
-      }
+      setError('');
       const searchText = search.text.trim();
       const conds: QueryConstraint[] = [];
       if (searchText) {
@@ -88,20 +78,20 @@ const ProductSellingPriceList: React.FC = () => {
   const newProductSellingPrice = (shopCode: string) => () => {
     if (shopCode) {
       setOpen(true);
-      setTarget({ shopCode, productCode: null });
+      setTargetProductCode(null);
     }
   };
 
-  const editProductSellingPrice = (shopCode: string, productCode: string) => () => {
+  const editProductSellingPrice = (productCode: string) => () => {
     setOpen(true);
-    setTarget({ shopCode, productCode });
+    setTargetProductCode(productCode);
   };
 
-  const deleteProductSellingPrice = (shopCode: string, productCode: string) => async () => {
+  const deleteProductSellingPrice = (path: string) => async () => {
     if (window.confirm('削除してもよろしいですか？')) {
       try {
-        if (shopCode && productCode) {
-          await deleteDoc(doc(db, 'shops', shopCode, 'productSellingPrices', productCode));
+        if (path) {
+          await deleteDoc(doc(db, path));
           queryResults();
         }
       } catch (error) {
@@ -117,11 +107,12 @@ const ProductSellingPriceList: React.FC = () => {
 
   return (
     <div className="pt-12">
-      {target.shopCode && (
-        <ProductSellingPriceEdit
+      {open && (
+        <ShopProductEdit
           open={open}
-          shopCode={target.shopCode}
-          productCode={target.productCode}
+          mode="sellingPrice"
+          shopCode={search.shopCode}
+          productCode={targetProductCode}
           onClose={() => setOpen(false)}
           onUpdate={queryResults}
         />
@@ -141,6 +132,11 @@ const ProductSellingPriceList: React.FC = () => {
               value={selectValue(search.shopCode, shopOptions)}
               options={shopOptions}
               onChange={(e) => setSearch({ ...search, shopCode: String(e?.value) })}
+              onMenuOpen={() => {
+                if (role === 'manager') {
+                  registListner('shops');
+                }
+              }}
             />
             <Button variant="outlined" onClick={queryResults} className="mr-2">
               検索
@@ -158,6 +154,7 @@ const ProductSellingPriceList: React.FC = () => {
                 <Table.Cell type="th">PLUコード</Table.Cell>
                 <Table.Cell type="th">商品名称</Table.Cell>
                 <Table.Cell type="th">売価</Table.Cell>
+                <Table.Cell type="th">更新日</Table.Cell>
                 <Table.Cell type="th"></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -165,9 +162,7 @@ const ProductSellingPriceList: React.FC = () => {
               {snapshot &&
                 snapshot.docs.map((doc, i) => {
                   const item = doc.data();
-                  const ref = doc.ref;
-                  const id = ref.id; // productCode
-                  const shopId = String(ref.parent.parent?.id); // shopCode
+                  const path = doc.ref.path;
 
                   return (
                     <Table.Row key={i}>
@@ -175,12 +170,15 @@ const ProductSellingPriceList: React.FC = () => {
                       <Table.Cell>{item.productName}</Table.Cell>
                       <Table.Cell className="text-right">{item.sellingPrice?.toLocaleString()}</Table.Cell>
                       <Table.Cell>
+                        {item.updatedAt ? toDateString(item.updatedAt.toDate(), 'YYYY-MM-DD') : ''}
+                      </Table.Cell>
+                      <Table.Cell>
                         <Button
                           variant="icon"
                           size="xs"
                           color="none"
                           className="hover:bg-gray-300 "
-                          onClick={editProductSellingPrice(shopId, id)}
+                          onClick={editProductSellingPrice(item.productCode)}
                         >
                           <Icon name="pencil-alt" />
                         </Button>
@@ -189,7 +187,7 @@ const ProductSellingPriceList: React.FC = () => {
                           size="xs"
                           color="none"
                           className="hover:bg-gray-300"
-                          onClick={deleteProductSellingPrice(shopId, id)}
+                          onClick={deleteProductSellingPrice(path)}
                         >
                           <Icon name="trash" />
                         </Button>
