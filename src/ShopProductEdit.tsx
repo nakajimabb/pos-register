@@ -113,7 +113,7 @@ const ShopProductEdit: React.FC<Props> = ({ open, mode, shopCode, productCode, o
           setProductSellingPrice(pdctSellingPrice);
           setInputSellingPrice(pdctSellingPrice.sellingPrice);
         } else {
-          setInputSellingPrice(pdct.sellingPrice);
+          if (mode === 'sellingPrice') setInputSellingPrice(pdct.sellingPrice);
         }
         const cond: QueryConstraint = where('productCode', '==', productCode);
         const q = query(collection(db, productCostPricesPath(shopCode)), cond) as Query<ProductCostPrice>;
