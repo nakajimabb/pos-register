@@ -14,13 +14,15 @@ import {
   startAt,
   endAt,
   increment,
-  QueryConstraint,
-  QuerySnapshot,
   Timestamp,
   where,
   Transaction,
+  Query,
+  QueryConstraint,
+  QuerySnapshot,
   serverTimestamp,
   setDoc,
+  DocumentSnapshot,
 } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
 import { userCodeFromEmail, OTC_DIVISION, hiraToKana } from './tools';
@@ -36,6 +38,10 @@ import {
   BasketItem,
   FixedCostRate,
   stockPath,
+  ProductCostPrice,
+  ProductSellingPrice,
+  productCostPricesPath,
+  productSellingPricePath,
 } from './types';
 
 const zlib = require('zlib');
@@ -64,6 +70,11 @@ export type ContextType = {
     incr: number,
     transaction?: Transaction
   ) => void;
+  getProductPrice: (
+    shopCode: string,
+    productCode: string,
+    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice')[]
+  ) => Promise<{ costPrice?: number; sellingPrice?: number; avgCostPrice?: number }>;
 };
 
 const AppContext = createContext({
@@ -87,6 +98,11 @@ const AppContext = createContext({
     incr: number,
     transaction?: Transaction
   ) => {},
+  getProductPrice: async (
+    shopCode: string,
+    productCode: string,
+    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice')[]
+  ) => ({}),
 } as ContextType);
 
 type FullTextSearch = {
@@ -251,6 +267,78 @@ export const AppContextProvider: React.FC = ({ children }) => {
     }
   };
 
+  // 店舗最終原価、店舗売価、移動平均原価を取得
+  const getProductPrice = async (
+    shopCode: string,
+    productCode: string,
+    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice')[]
+  ) => {
+    // 商品マスタ（共通）取得メソッド
+    const pdct = async () => {
+      const snap = (await getDoc(doc(db, 'products', productCode))) as DocumentSnapshot<Product>;
+      if (snap.exists()) return snap.data();
+    };
+    let product: Product | undefined = undefined;
+    const prices: { costPrice?: number; sellingPrice?: number; avgCostPrice?: number } = {};
+    // 店舗最終原価
+    if (types.find((type) => type === 'CostPrice')) {
+      const conds = [where('productCode', '==', productCode)];
+      const q = query(collection(db, productCostPricesPath(shopCode)), ...conds) as Query<ProductCostPrice>;
+      const qsnap = await getDocs(q);
+      if (qsnap.size > 0) {
+        const costPrices = qsnap.docs
+          .map((dsnap) => dsnap.data())
+          .sort((p1, p2) => {
+            if (!p1.updatedAt) {
+              return 1;
+            } else if (!p2.updatedAt) {
+              return -1;
+            } else {
+              return Number(p2.updatedAt.toDate()) - Number(p1.updatedAt.toDate());
+            }
+          });
+        const costPrice = costPrices[0];
+        if (costPrice.costPrice) {
+          prices.costPrice = costPrice.costPrice;
+        } else {
+          if (!product) product = await pdct();
+          if (product && product.costPrice) prices.costPrice = product.costPrice;
+        }
+      } else {
+        if (!product) product = await pdct();
+        if (product && product.costPrice) prices.costPrice = product.costPrice;
+      }
+    }
+    // 店舗売価
+    if (types.find((type) => type === 'SellingPrice')) {
+      const path = productSellingPricePath(shopCode, productCode);
+      console.log({ path });
+      const dsnap = (await getDoc(
+        doc(db, productSellingPricePath(shopCode, productCode))
+      )) as DocumentSnapshot<ProductSellingPrice>;
+      if (dsnap.exists()) {
+        const sellingPrice = dsnap.data();
+        console.log({ sellingPrice });
+        if (sellingPrice.sellingPrice) {
+          prices.sellingPrice = sellingPrice.sellingPrice;
+        } else {
+          if (!product) product = await pdct();
+          if (product && product.sellingPrice) prices.sellingPrice = product.sellingPrice;
+        }
+      } else {
+        if (!product) product = await pdct();
+        if (product && product.sellingPrice) prices.sellingPrice = product.sellingPrice;
+      }
+    }
+    // 店舗売価
+    if (types.find((type) => type === 'AvgCostPrice')) {
+      if (!product) product = await pdct();
+      console.log({ product });
+      if (product && product.avgCostPrice) prices.avgCostPrice = product.avgCostPrice;
+    }
+    return prices;
+  };
+
   const addBundleDiscount = (basketItems: BasketItem[]) => {
     let filteredBasketItems = basketItems.filter(
       (item) => !productBundles.map((bundle) => bundle.name).includes(item.product.name)
@@ -388,6 +476,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
         searchProducts,
         registListner,
         incrementStock,
+        getProductPrice,
       }}
     >
       {children}
