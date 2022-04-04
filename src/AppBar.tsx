@@ -195,29 +195,31 @@ const AppBar: React.FC = () => {
             </Button>
           </Tooltip>
         </Link>
-        <Dropdown
-          icon={
-            <Button
-              variant="icon"
-              size="sm"
-              color="none"
-              className="m-2 text-gray-500 hover:bg-gray-200 focus:ring-inset focus:ring-gray-300"
-            >
-              <Icon name="dots-vertical" />
-            </Button>
-          }
-          align="right"
-        >
-          <Dropdown.Item title="ユーザ情報取得" onClick={getAuthUserByCode} />
-          {role === 'admin' && (
-            <>
-              <Dropdown.Item title="店舗権限" onClick={saveRole('shop')} />
-              <Dropdown.Item title="管理者権限" onClick={saveRole('manager')} />
-              <Dropdown.Item title="システム管理者権限" onClick={saveRole('admin')} />
-            </>
-          )}
-          <Dropdown.Item title="tailwind" to="/tailwind" />{' '}
-        </Dropdown>
+        {(role === 'admin' || role === 'manager') && (
+          <Dropdown
+            icon={
+              <Button
+                variant="icon"
+                size="sm"
+                color="none"
+                className="m-2 text-gray-500 hover:bg-gray-200 focus:ring-inset focus:ring-gray-300"
+              >
+                <Icon name="dots-vertical" />
+              </Button>
+            }
+            align="right"
+          >
+            <Dropdown.Item title="ユーザ情報取得" onClick={getAuthUserByCode} />
+            <Dropdown.Item title="tailwind" to="/tailwind" />{' '}
+            {role === 'admin' && (
+              <>
+                <Dropdown.Item title="店舗権限" onClick={saveRole('shop')} />
+                <Dropdown.Item title="管理者権限" onClick={saveRole('manager')} />
+                <Dropdown.Item title="システム管理者権限" onClick={saveRole('admin')} />
+              </>
+            )}
+          </Dropdown>
+        )}
       </Flex>
     </Navbar>
   );
