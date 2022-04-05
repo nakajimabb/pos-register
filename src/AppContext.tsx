@@ -73,8 +73,8 @@ export type ContextType = {
   getProductPrice: (
     shopCode: string,
     productCode: string,
-    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice')[]
-  ) => Promise<{ costPrice?: number; sellingPrice?: number; avgCostPrice?: number }>;
+    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice' | 'StockTax')[]
+  ) => Promise<{ costPrice?: number; sellingPrice?: number; avgCostPrice?: number; stockTax?: number }>;
 };
 
 const AppContext = createContext({
@@ -101,7 +101,7 @@ const AppContext = createContext({
   getProductPrice: async (
     shopCode: string,
     productCode: string,
-    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice')[]
+    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice' | 'StockTax')[]
   ) => ({}),
 } as ContextType);
 
@@ -271,7 +271,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
   const getProductPrice = async (
     shopCode: string,
     productCode: string,
-    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice')[]
+    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice' | 'StockTax')[]
   ) => {
     // 商品マスタ（共通）取得メソッド
     const pdct = async () => {
@@ -279,7 +279,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
       if (snap.exists()) return snap.data();
     };
     let product: Product | undefined = undefined;
-    const prices: { costPrice?: number; sellingPrice?: number; avgCostPrice?: number } = {};
+    const prices: { costPrice?: number; sellingPrice?: number; avgCostPrice?: number; stockTax?: number } = {};
     // 店舗最終原価
     if (types.find((type) => type === 'CostPrice')) {
       const conds = [where('productCode', '==', productCode)];
@@ -311,14 +311,11 @@ export const AppContextProvider: React.FC = ({ children }) => {
     }
     // 店舗売価
     if (types.find((type) => type === 'SellingPrice')) {
-      const path = productSellingPricePath(shopCode, productCode);
-      console.log({ path });
       const dsnap = (await getDoc(
         doc(db, productSellingPricePath(shopCode, productCode))
       )) as DocumentSnapshot<ProductSellingPrice>;
       if (dsnap.exists()) {
         const sellingPrice = dsnap.data();
-        console.log({ sellingPrice });
         if (sellingPrice.sellingPrice) {
           prices.sellingPrice = sellingPrice.sellingPrice;
         } else {
@@ -333,8 +330,12 @@ export const AppContextProvider: React.FC = ({ children }) => {
     // 店舗売価
     if (types.find((type) => type === 'AvgCostPrice')) {
       if (!product) product = await pdct();
-      console.log({ product });
       if (product && product.avgCostPrice) prices.avgCostPrice = product.avgCostPrice;
+    }
+    // 仕入消費税
+    if (types.find((type) => type === 'StockTax')) {
+      if (!product) product = await pdct();
+      if (product && product.stockTax) prices.stockTax = product.stockTax;
     }
     return prices;
   };

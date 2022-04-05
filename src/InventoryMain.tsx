@@ -50,7 +50,7 @@ const InventoryMain: React.FC = () => {
   const [processing, setProcessing] = useState<boolean>(false);
   const [sortType, setSortType] = useState<SortType>('countedAt');
   const [openProductEdit, setOpenProductEdit] = useState<boolean>(false);
-  const { currentShop, incrementStock } = useAppContext();
+  const { currentShop, incrementStock, getProductPrice } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
   const componentRef = useRef(null);
@@ -140,21 +140,28 @@ const InventoryMain: React.FC = () => {
   // 在庫データ読み込み
   const readStocks = async (shopCode: string, items: Map<string, InventoryDetail>) => {
     const snapStock = (await getDocs(collection(db, stockPath(shopCode)))) as QuerySnapshot<Stock>;
-    snapStock.docs.forEach((docSnap) => {
+    const tasks = snapStock.docs.map(async (docSnap) => {
       const stock = docSnap.data();
       const item = items.get(docSnap.id);
+      const productCode = stock.productCode;
+      const prices = await getProductPrice(shopCode, productCode, ['CostPrice', 'StockTax']);
+      const costPrice = prices.costPrice;
+      const stockTax = prices.stockTax;
       if (item) {
-        items.set(docSnap.id, { ...item, stock: stock.quantity });
+        items.set(docSnap.id, { ...item, costPrice, stockTax, stock: stock.quantity });
       } else {
         items.set(docSnap.id, {
-          productCode: stock.productCode,
+          productCode,
           productName: stock.productName,
+          costPrice,
+          stockTax,
           quantity: 0,
           stock: stock.quantity,
           countedAt: null,
         });
       }
     });
+    await Promise.all(tasks);
   };
 
   const getProduct = async (productCode: string) => {
@@ -198,10 +205,15 @@ const InventoryMain: React.FC = () => {
       if (product) {
         const item = inventoryDetails.get(productCode);
         const qty = op === 'set' ? quantity : (item?.quantity ?? 0) + quantity;
+        const prices = await getProductPrice(shopCode, productCode, ['CostPrice', 'StockTax']);
+        const costPrice = prices.costPrice;
+        const stockTax = prices.stockTax;
         const newItem = {
           productCode,
           productName: product.name,
           quantity: qty,
+          costPrice,
+          stockTax,
           stock,
           countedAt: Timestamp.fromDate(new Date()),
         };
@@ -451,7 +463,7 @@ const InventoryMain: React.FC = () => {
                 </Button>
               </Flex>
             </div>
-            {inventory && <InventorySum inventory={inventory} />}
+            {inventory && <InventorySum inventoryDetails={Array.from(inventoryDetails.values())} />}
           </Flex>
           {errors.length > 0 && (
             <Alert severity="error" onClose={() => setErrors([])}>
@@ -517,6 +529,8 @@ const InventoryMain: React.FC = () => {
                   <Table.Cell>No</Table.Cell>
                   <Table.Cell>商品コード</Table.Cell>
                   <Table.Cell>商品名</Table.Cell>
+                  <Table.Cell>原価</Table.Cell>
+                  <Table.Cell>消費税</Table.Cell>
                   <Table.Cell>理論値</Table.Cell>
                   <Table.Cell>実数</Table.Cell>
                   <Table.Cell>差異</Table.Cell>
@@ -532,6 +546,8 @@ const InventoryMain: React.FC = () => {
                     <Table.Cell>{i + 1}</Table.Cell>
                     <Table.Cell>{item.productCode}</Table.Cell>
                     <Table.Cell>{item.productName}</Table.Cell>
+                    <Table.Cell>{item.costPrice}</Table.Cell>
+                    <Table.Cell>{item.stockTax ? `${item.stockTax}%` : ''}</Table.Cell>
                     <Table.Cell>{item.stock}</Table.Cell>
                     <Table.Cell>{item.countedAt ? item.quantity : ''}</Table.Cell>
                     <Table.Cell>{item.countedAt ? item.quantity - item.stock : ''}</Table.Cell>

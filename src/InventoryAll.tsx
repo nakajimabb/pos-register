@@ -39,6 +39,7 @@ const InventoryList: React.FC = () => {
 
   useEffect(() => {
     const minDate = new Date();
+    minDate.setDate(minDate.getDate() - 10);
     minDate.setDate(1);
     setSearch((prev) => ({ ...prev, minDate }));
   }, []);
@@ -164,7 +165,6 @@ const InventoryList: React.FC = () => {
                 <Table.Cell>店舗名</Table.Cell>
                 <Table.Cell>棚卸開始</Table.Cell>
                 <Table.Cell>棚卸終了</Table.Cell>
-                <Table.Cell>金額</Table.Cell>
                 <Table.Cell>ｽﾃｰﾀｽ</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
@@ -182,7 +182,6 @@ const InventoryList: React.FC = () => {
                         {i === 0 && <Table.Cell rowSpan={rowSpan}>{shop.name}</Table.Cell>}
                         <Table.Cell>{toDateString(invt?.date?.toDate(), 'MM/DD hh:mm')}</Table.Cell>
                         <Table.Cell>{invt.fixedAt && toDateString(invt.fixedAt.toDate(), 'MM/DD hh:mm')}</Table.Cell>
-                        <Table.Cell>{invt.sum && invt.sum[0]?.amount?.toLocaleString()}</Table.Cell>
                         <Table.Cell>{invt && invt.fixedAt ? '確定済' : '作業中'}</Table.Cell>
                         <Table.Cell>
                           <Button

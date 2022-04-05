@@ -235,7 +235,6 @@ export type Inventory = {
   shopName: string; // 店舗コード
   date: Timestamp; // 出庫日時
   fixedAt?: Timestamp;
-  sum: { [tax: number]: { quantity: number; amount: number } };
 };
 
 // 出庫詳細情報
@@ -243,6 +242,8 @@ export type InventoryDetail = {
   productCode: string; // JANコード
   productName: string;
   quantity: number;
+  costPrice?: number;
+  stockTax?: number; // 仕入消費税 8 or 10
   stock: number; // 理論値(カウント時在庫)
   countedAt: Timestamp | null; // 最終カウント時刻
 };

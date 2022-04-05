@@ -1,11 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getFirestore, doc, DocumentSnapshot, getDoc, collection, getDocs, QuerySnapshot } from 'firebase/firestore';
+import {
+  getFirestore,
+  doc,
+  DocumentSnapshot,
+  getDoc,
+  collection,
+  getDocs,
+  QuerySnapshot,
+  setDoc,
+} from 'firebase/firestore';
 import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
-import { Flex, Modal, Table } from './components';
+import { Button, Flex, Modal, Table } from './components';
 import { nameWithCode, toDateString } from './tools';
 import { Inventory, InventoryDetail, inventoryPath, inventoryDetailPath } from './types';
 import InventorySum from './InventorySum';
+import { useAppContext } from './AppContext';
 
 const db = getFirestore();
 
@@ -20,6 +30,7 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
   const [items, setItems] = useState<InventoryDetail[]>([]);
   const [inventory, setInventory] = useState<Inventory | undefined>(undefined);
   const [loaded, setLoaded] = useState<boolean>(false);
+  const { getProductPrice } = useAppContext();
   const sortType = 'diff';
   const pageStyle = `
     @media print {
@@ -79,6 +90,30 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
     });
   };
 
+  const recalc = async () => {
+    if (inventory) {
+      const details = [...items];
+      for await (const item of details) {
+        const prices = await getProductPrice(inventory.shopCode, item.productCode, ['CostPrice', 'StockTax']);
+        const value: { costPrice?: number; stockTax?: number } = {};
+        if (prices.costPrice !== undefined) {
+          item.costPrice = prices.costPrice;
+          value.costPrice = prices.costPrice;
+        }
+        if (prices.stockTax !== undefined) {
+          item.stockTax = prices.stockTax;
+          value.stockTax = prices.stockTax;
+        }
+        await setDoc(
+          doc(db, inventoryDetailPath(inventory.shopCode, inventory.date.toDate(), item.productCode)),
+          value,
+          { merge: true }
+        );
+      }
+      setItems(details);
+    }
+  };
+
   return (
     <Modal open size="none" onClose={onClose} className={clsx('w-2/3 overflow-visible', mode === 'print' && 'hidden')}>
       <Modal.Body>
@@ -102,7 +137,14 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
                 </>
               )}
             </div>
-            {inventory && <InventorySum inventory={inventory} />}
+            {inventory && (
+              <Flex>
+                <Button color="light" size="sm" className="h-8 mr-2" onClick={recalc}>
+                  再計算
+                </Button>
+                <InventorySum inventoryDetails={items} />
+              </Flex>
+            )}
           </Flex>
           <Table className="w-full">
             <Table.Head>
@@ -110,6 +152,8 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
                 <Table.Cell>No</Table.Cell>
                 <Table.Cell>商品コード</Table.Cell>
                 <Table.Cell>商品名</Table.Cell>
+                <Table.Cell>原価</Table.Cell>
+                <Table.Cell>消費税</Table.Cell>
                 <Table.Cell>理論値</Table.Cell>
                 <Table.Cell>数量</Table.Cell>
                 <Table.Cell>差異</Table.Cell>
@@ -124,6 +168,8 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
                   <Table.Cell>{i + 1}</Table.Cell>
                   <Table.Cell>{item.productCode}</Table.Cell>
                   <Table.Cell>{item.productName}</Table.Cell>
+                  <Table.Cell>{item.costPrice}</Table.Cell>
+                  <Table.Cell>{item.stockTax ? `${item.stockTax}%` : ''}</Table.Cell>
                   <Table.Cell>{item.stock}</Table.Cell>
                   <Table.Cell>{item.quantity}</Table.Cell>
                   <Table.Cell>{item.quantity - item.stock}</Table.Cell>
