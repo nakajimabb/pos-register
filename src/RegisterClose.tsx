@@ -44,7 +44,7 @@ const RegisterClose: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     if (currentShop) {
-      setInterval(() => setProgress((prev) => (prev + 1) % 100), 5);
+      setInterval(() => setProgress((prev) => (prev + 1) % 100), 10);
       const statusRef = doc(db, 'shops', currentShop.code, 'status', format(closeDate, 'yyyyMMdd'));
       await updateDoc(statusRef, { closedAt: Timestamp.fromDate(new Date()) });
       const functions = getFunctions(app, 'asia-northeast1');
@@ -86,7 +86,7 @@ const RegisterClose: React.FC = () => {
               OK
             </Button>
           </div>
-          <div>{loading && <Progress value={progress} />}</div>
+          <div>{loading && <Progress value={progress} label={' '} />}</div>
         </Card.Body>
       </Card>
       <div className="m-4">
