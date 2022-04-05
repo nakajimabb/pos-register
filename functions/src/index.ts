@@ -432,17 +432,17 @@ export const sendDailyClosingData = functions
       }
 
       // KKBにログイン
-      // await loginKkb();
+      await loginKkb();
 
-      // const url = KKB_URL + '/daily_closings/trigger';
-      // const date = toDateString(new Date(data.date), 'YYYYMMDD');
-      // const params = `?date=${date}&code=${data.code}`;
-      // const resultKkb = await client.fetch(url + params);
+      const url = KKB_URL + '/daily_closings/trigger';
+      const date = toDateString(new Date(data.date), 'YYYYMMDD');
+      const params = `?date=${date}&code=${data.code}`;
+      const resultKkb = await client.fetch(url + params);
 
       // KKBからログアウト
-      // await logoutKkb();
+      await logoutKkb();
 
-      // return { resultKkb };
+      return { resultKkb };
       return {};
     } catch (error) {
       throw new functions.https.HttpsError('unknown', 'error in sendDailyClosingData', error);
