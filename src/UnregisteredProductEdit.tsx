@@ -3,7 +3,8 @@ import { doc, getDoc, setDoc, getFirestore, serverTimestamp } from 'firebase/fir
 
 import { Alert, Button, Form, Grid, Modal } from './components';
 import firebaseError from './firebaseError';
-import { Product } from './types';
+import { Product, productSellingPricePath, productCostPricePath } from './types';
+import { useAppContext } from './AppContext';
 import { checkDigit } from './tools';
 
 const db = getFirestore();
@@ -11,11 +12,13 @@ const db = getFirestore();
 type Props = {
   open: boolean;
   productCode: string;
+  shopCode: string;
+  supplierCode?: string;
   onClose: () => void;
   onUpdate: (product: Product) => void;
 };
 
-const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, onUpdate }) => {
+const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, shopCode, supplierCode, onClose, onUpdate }) => {
   const [product, setProduct] = useState<Product>({
     code: productCode,
     name: '',
@@ -35,9 +38,11 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, 
     note: '',
   });
   const [error, setError] = useState('');
+  const { suppliers, registListner } = useAppContext();
   const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    registListner('suppliers');
     ref.current?.focus();
   }, []);
 
@@ -58,12 +63,41 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, onClose, 
       if (product.sellingPrice !== null && product.costPrice !== null && product.sellingPrice <= product.costPrice) {
         throw Error('売価は原価よりも高い価格に設定してください。');
       }
+      // 商品マスタ(共通)
       await setDoc(doc(db, 'products', product.code), {
         ...product,
         unregistered: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      // 店舗売価
+      await setDoc(
+        doc(db, productSellingPricePath(shopCode, product.code)),
+        {
+          shopCode,
+          productCode: product.code,
+          productName: product.name,
+          sellingPrice: product.sellingPrice,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      const supCode = supplierCode ?? '0';
+      const supplier = suppliers.get(supCode);
+      // 店舗原価
+      await setDoc(
+        doc(db, productCostPricePath(shopCode, product.code, supCode)),
+        {
+          shopCode,
+          productCode: product.code,
+          productName: product.name,
+          supplierCode: supCode,
+          supplierName: supplier?.name ?? '',
+          costPrice: product.costPrice,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
       onUpdate(product);
       onClose();
     } catch (error) {

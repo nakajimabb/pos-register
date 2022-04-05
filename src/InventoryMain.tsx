@@ -410,9 +410,10 @@ const InventoryMain: React.FC = () => {
             onClose={() => setEditTarget(undefined)}
           />
         )}
-        {openProductEdit && (
+        {openProductEdit && currentShop && (
           <UnregisteredProductEdit
             open
+            shopCode={currentShop.code}
             productCode={currentItem.productCode}
             onClose={() => setOpenProductEdit(false)}
             onUpdate={updateNewProduct}

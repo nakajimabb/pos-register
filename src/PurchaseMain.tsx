@@ -147,6 +147,12 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
     setItems(new Map());
   };
 
+  const getSupplierCode = () => {
+    if (purchase.srcType === 'supplier') {
+      return purchase.srcCode;
+    }
+  };
+
   const loadPurchaseDetails = async (shopCode: string, purchaseNumber: number) => {
     if (shopCode && purchaseNumber > 0) {
       try {
@@ -461,6 +467,8 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
         {openProductEdit && (
           <UnregisteredProductEdit
             open
+            shopCode={shopCode}
+            supplierCode={getSupplierCode()}
             productCode={currentItem.productCode}
             onClose={() => setOpenProductEdit(false)}
             onUpdate={updateNewProduct}
