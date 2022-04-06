@@ -191,6 +191,7 @@ export type Purchase = {
   srcName: string; // 仕入元店舗名、または仕入先名称
   date: Timestamp; // 仕入日
   fixed: boolean;
+  updatedAt?: Timestamp;
 };
 
 // 仕入詳細情報
@@ -198,6 +199,7 @@ export type PurchaseDetail = {
   productCode: string; // JANコード
   productName: string;
   quantity: number;
+  history?: number[];
   costPrice: number | null; // 原価(税抜)
   noReturn?: boolean; // 返品不可
   fixed: boolean;

@@ -15,6 +15,7 @@ import {
   runTransaction,
   Timestamp,
   where,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
@@ -306,25 +307,24 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
           }
         }
         const ref = doc(db, purchasePath(purch.shopCode, purch.purchaseNumber));
-        transaction.set(ref, purch);
+        transaction.set(ref, { ...purch, updatedAt: serverTimestamp() });
 
-        // 詳細データ保存 => fixしていないデータのみ(削除データ含む)保存
+        // 詳細データ保存 => fixしていないデータのみ保存
         const unfixedItems = getUnfixedItems();
         for await (const item of unfixedItems) {
           const detail = details.get(item.productCode);
           const ref2 = doc(db, purchaseDetailPath(purch.shopCode, purch.purchaseNumber, item.productCode));
           // 詳細データ更新
-          if (item.quantity === 0) {
-            transaction.delete(ref2);
-          } else {
-            transaction.set(ref2, {
-              productCode: item.productCode,
-              productName: item.productName,
-              quantity: item.quantity,
-              costPrice: item.costPrice,
-              fixed: true,
-            });
-          }
+          const history = detail?.history ?? [];
+          if (detail && item.quantity !== detail.quantity) history.push(detail.quantity);
+          transaction.set(ref2, {
+            productCode: item.productCode,
+            productName: item.productName,
+            quantity: item.quantity,
+            costPrice: item.costPrice,
+            fixed: true,
+            history,
+          });
           // 在庫更新
           const diff = detail ? item.quantity - detail.quantity : item.quantity;
           incrementStock(purch.shopCode, item.productCode, item.productName, diff, transaction);
@@ -457,10 +457,14 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
             open
             value={items.get(targetProductCode)}
             onClose={() => setTargetProductCode('')}
-            onUpdate={(purchaseDetail: PurchaseDetail) => {
-              const newItems = new Map(items);
-              newItems.set(targetProductCode, purchaseDetail);
-              setItems(newItems);
+            onUpdate={(detail: PurchaseDetail) => {
+              const item = items.get(targetProductCode);
+              const diff = !item || item.quantity !== detail.quantity || item.costPrice !== detail.costPrice;
+              if (diff) {
+                const newItems = new Map(items);
+                newItems.set(targetProductCode, { ...detail, fixed: false });
+                setItems(newItems);
+              }
             }}
           />
         )}
@@ -537,54 +541,65 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
           <hr className="m-4" />
           <Flex justify_content="between" className="mb-2">
             <Form className="flex space-x-2" onSubmit={handleSubmit}>
-              <Form.Text
-                value={currentItem.productCode}
-                onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
-                onKeyPress={loadProduct}
-                placeholder="商品コード"
-                innerRef={codeRef}
-              />
-              <Form.Number
-                value={String(currentItem.quantity)}
-                placeholder="数量"
-                innerRef={quantityRef}
-                min={1}
-                onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice);
-                  }
-                }}
-                className="w-36"
-              />
-              <Form.Number
-                value={String(currentItem.costPrice)}
-                placeholder="金額"
-                onChange={(e) => setCurrentItem((prev) => ({ ...prev, costPrice: +e.target.value }))}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice);
-                  }
-                }}
-                className="w-36"
-              />
-              <Button onClick={() => addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice)}>
-                追加
-              </Button>
+              {!purchase.fixed && (
+                <>
+                  <Form.Text
+                    value={currentItem.productCode}
+                    onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
+                    onKeyPress={loadProduct}
+                    placeholder="商品コード"
+                    innerRef={codeRef}
+                  />
+                  <Form.Number
+                    value={String(currentItem.quantity)}
+                    placeholder="数量"
+                    innerRef={quantityRef}
+                    min={1}
+                    onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice);
+                      }
+                    }}
+                    className="w-36"
+                  />
+                  <Form.Number
+                    value={String(currentItem.costPrice)}
+                    placeholder="金額"
+                    onChange={(e) => setCurrentItem((prev) => ({ ...prev, costPrice: +e.target.value }))}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice);
+                      }
+                    }}
+                    className="w-36"
+                  />
+                  <Button onClick={() => addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice)}>
+                    追加
+                  </Button>
+                </>
+              )}
             </Form>
-            <Button
-              className="w-32"
-              disabled={!purchase.srcCode || !existUnfixedItems() || sumItemQuantity() === 0 || processing}
-              onClick={() => {
-                if (window.confirm('確定しますか？')) {
-                  save();
-                }
-              }}
-            >
-              登録
-            </Button>
+            {!purchase.fixed && (
+              <Button
+                className="w-32"
+                disabled={!purchase.srcCode || !existUnfixedItems() || sumItemQuantity() === 0 || processing}
+                onClick={() => {
+                  if (window.confirm('確定しますか？')) {
+                    save();
+                  }
+                }}
+              >
+                登録
+              </Button>
+            )}
+            {purchase.fixed && (
+              <Button className="w-32" onClick={() => setPurchase((prev) => ({ ...prev, fixed: false }))}>
+                再編集
+              </Button>
+            )}
           </Flex>
           <Flex justify_content="between" className="my-2">
             <Flex>
@@ -616,6 +631,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
                 <Table.Cell>商品名</Table.Cell>
                 <Table.Cell>数量</Table.Cell>
                 <Table.Cell>仕入価格</Table.Cell>
+                <Table.Cell>履歴</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -630,7 +646,10 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
                       <Table.Cell>{item.quantity}</Table.Cell>
                       <Table.Cell>{item.costPrice}</Table.Cell>
                       <Table.Cell>
-                        {!item.fixed && (
+                        {item.history && item.history.length > 0 && [...item.history, item.quantity].join('⇒')}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {!purchase.fixed && (
                           <>
                             <Button
                               variant="icon"
