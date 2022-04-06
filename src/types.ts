@@ -214,6 +214,7 @@ export type Delivery = {
   dstShopName: string;
   date: Timestamp; // 出庫日
   fixed: boolean;
+  updatedAt?: Timestamp;
 };
 
 // 出庫詳細情報
@@ -221,6 +222,7 @@ export type DeliveryDetail = {
   productCode: string; // JANコード
   productName: string;
   quantity: number;
+  history?: number[];
   costPrice: number | null; // 原価(税抜)
   fixed: boolean;
 };

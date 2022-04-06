@@ -20,25 +20,19 @@ const StockList: React.FC = () => {
 
   useEffect(() => {
     if (currentShop) {
-      const options = [
-        { label: '', value: '' },
-        { label: nameWithCode(currentShop), value: currentShop.code },
-      ];
+      const options = [{ label: currentShop.name, value: currentShop.code }];
       setShopOptions(options);
       setShopCode(currentShop.code);
     }
   }, [currentShop]);
 
   useEffect(() => {
-    if (shops && role === 'manager') {
+    if (role === 'manager' && shops.size > 0) {
       const options = Array.from(shops.entries()).map(([code, shop]) => ({
         value: code,
         label: nameWithCode(shop),
       }));
-      options.unshift({ label: '', value: '' });
       setShopOptions(options);
-      readStocks();
-      if (currentShop) setShopCode(currentShop.code);
     }
   }, [shops]);
 

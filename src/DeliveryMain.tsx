@@ -10,6 +10,7 @@ import {
   Timestamp,
   runTransaction,
   QuerySnapshot,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
@@ -52,6 +53,7 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
   const [errors, setErrors] = useState<string[]>([]);
   const [targetProductCode, setTargetProductCode] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
+  const [reEdit, setReEdit] = useState<boolean>(false);
   const { registListner, incrementStock, shops } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
@@ -187,6 +189,7 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
   const save = async (fixed: boolean) => {
     if (shops) {
       try {
+        fixed = fixed || delivery.fixed; // 確定後の一時保存はない
         if (sumItemCostPrice() < MIN_SUM_COST_PRICE)
           throw Error(`金額が${MIN_SUM_COST_PRICE}円以上でければ確定できません。`);
 
@@ -229,25 +232,24 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
             }
           }
           const ref = doc(db, deliveryPath(deliv.shopCode, deliv.deliveryNumber));
-          transaction.set(ref, deliv);
+          transaction.set(ref, { ...deliv, updatedAt: serverTimestamp() });
 
-          // 詳細データ保存 => fixしていないデータのみ(削除データ含む)保存
+          // 詳細データ保存 => fixしていないデータのみ保存
           const unfixedItems = getUnfixedItems();
           for await (const item of unfixedItems) {
             const detail = details.get(item.productCode);
             const ref2 = doc(db, deliveryDetailPath(deliv.shopCode, deliv.deliveryNumber, item.productCode));
             // 詳細データ更新
-            if (item.quantity === 0) {
-              transaction.delete(ref2);
-            } else {
-              transaction.set(ref2, {
-                productCode: item.productCode,
-                productName: item.productName,
-                quantity: item.quantity,
-                costPrice: item.costPrice,
-                fixed,
-              });
-            }
+            const history = detail?.history ?? [];
+            if (fixed && detail && item.quantity !== detail.quantity) history.push(detail.quantity);
+            transaction.set(ref2, {
+              productCode: item.productCode,
+              productName: item.productName,
+              quantity: item.quantity,
+              costPrice: item.costPrice,
+              fixed,
+              history,
+            });
             if (fixed) {
               // 在庫更新
               const diff = detail?.fixed ? detail.quantity - item.quantity : -item.quantity;
@@ -297,10 +299,14 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
             open
             value={items.get(targetProductCode)}
             onClose={() => setTargetProductCode('')}
-            onUpdate={(deliveryDetail: DeliveryDetail) => {
-              const newItems = new Map(items);
-              newItems.set(targetProductCode, deliveryDetail);
-              setItems(newItems);
+            onUpdate={(detail: DeliveryDetail) => {
+              const item = items.get(targetProductCode);
+              const diff = !item || item.quantity !== detail.quantity || item.costPrice !== detail.costPrice;
+              if (diff) {
+                const newItems = new Map(items);
+                newItems.set(targetProductCode, { ...detail, fixed: false });
+                setItems(newItems);
+              }
             }}
           />
         )}
@@ -337,49 +343,65 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
           <hr className="m-4" />
           <Flex justify_content="between">
             <Form className="flex space-x-2 mb-2" onSubmit={handleSubmit}>
-              <Form.Text
-                value={currentItem.productCode}
-                onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
-                onKeyPress={loadProduct}
-                placeholder="商品コード"
-                innerRef={codeRef}
-              />
-              <Form.Number
-                value={String(currentItem.quantity)}
-                placeholder="数量"
-                innerRef={quantityRef}
-                onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addItem();
-                  }
-                }}
-                className="w-36"
-              />
-              <Button onClick={addItem}>追加</Button>
+              {(!delivery.fixed || reEdit) && (
+                <>
+                  <Form.Text
+                    value={currentItem.productCode}
+                    onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
+                    onKeyPress={loadProduct}
+                    placeholder="商品コード"
+                    innerRef={codeRef}
+                  />
+                  <Form.Number
+                    value={String(currentItem.quantity)}
+                    placeholder="数量"
+                    innerRef={quantityRef}
+                    onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addItem();
+                      }
+                    }}
+                    className="w-36"
+                  />
+                  <Button onClick={addItem}>追加</Button>
+                </>
+              )}
             </Form>
             <div className="space-x-2">
-              <Button
-                className="w-32"
-                disabled={!delivery.dstShopCode || sumItemQuantity() === 0 || delivery?.fixed || processing}
-                onClick={() => save(false)}
-              >
-                保留
-              </Button>
-              <Button
-                className="w-32"
-                disabled={
-                  !delivery.dstShopCode || !existUnfixedItems() || sumItemCostPrice() < MIN_SUM_COST_PRICE || processing
-                }
-                onClick={() => {
-                  if (window.confirm('確定しますか？')) {
-                    save(true);
+              {!delivery.fixed && (
+                <Button
+                  className="w-32"
+                  disabled={!delivery.dstShopCode || sumItemQuantity() === 0 || delivery?.fixed || processing}
+                  onClick={() => save(false)}
+                >
+                  保留
+                </Button>
+              )}
+              {(!delivery.fixed || reEdit) && (
+                <Button
+                  className="w-32"
+                  disabled={
+                    !delivery.dstShopCode ||
+                    !existUnfixedItems() ||
+                    sumItemCostPrice() < MIN_SUM_COST_PRICE ||
+                    processing
                   }
-                }}
-              >
-                確定
-              </Button>
+                  onClick={() => {
+                    if (window.confirm('確定しますか？')) {
+                      save(true);
+                    }
+                  }}
+                >
+                  確定
+                </Button>
+              )}
+              {delivery.fixed && !reEdit && (
+                <Button className="w-32" onClick={() => setReEdit(true)}>
+                  再編集
+                </Button>
+              )}
             </div>
           </Flex>
           <Flex justify_content="between" className="my-2">
@@ -410,6 +432,7 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
                 <Table.Cell>商品名</Table.Cell>
                 <Table.Cell>数量</Table.Cell>
                 <Table.Cell>仕入価格</Table.Cell>
+                <Table.Cell>履歴</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -422,7 +445,10 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
                   <Table.Cell>{item.quantity}</Table.Cell>
                   <Table.Cell>{item.costPrice}</Table.Cell>
                   <Table.Cell>
-                    {!item.fixed && (
+                    {item.history && item.history.length > 0 && [...item.history, item.quantity].join('⇒')}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {(!delivery.fixed || reEdit) && (
                       <>
                         <Button
                           variant="icon"
