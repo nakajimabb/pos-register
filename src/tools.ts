@@ -177,10 +177,10 @@ export const checkDigit = (str: string) => {
 };
 
 export const nameWithCode = (obj: { code: string; name: string }) => {
-  let result = '';
-  if (obj['name']) result += obj['name'];
-  if (obj['code']) result += '(' + obj['code'] + ')';
-  return result;
+  const strs: string[] = [];
+  if (obj['code']) strs.push(obj['code']);
+  if (obj['name']) strs.push(obj['name']);
+  return strs.join(' ');
 };
 
 export const userCodeFromEmail = (email: string) => {
