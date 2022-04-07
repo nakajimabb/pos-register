@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { getAuth, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getFirestore, getDocs, collectionGroup, writeBatch } from 'firebase/firestore';
+import { getFirestore, getDocs, collection, collectionGroup, writeBatch, query, where } from 'firebase/firestore';
 
 import { Button, Flex, Dropdown, Icon, Navbar, Tooltip } from './components';
 import app from './firebase';
@@ -16,7 +16,7 @@ const db = getFirestore();
 const MAX_BATCH = 500;
 
 const AppBar: React.FC = () => {
-  const { role, currentShop } = useAppContext();
+  const { role, currentShop, getProductPrice } = useAppContext();
 
   const logout = () => {
     if (window.confirm('ログアウトしますか？')) {
@@ -44,6 +44,45 @@ const AppBar: React.FC = () => {
       } catch (error) {
         console.log({ error });
         alert('エラーが発生しました。');
+      }
+    }
+  };
+
+  const updateProductName = async () => {
+    if (currentShop) {
+      try {
+        const dateStr = window.prompt('input date', '2022-04-07');
+        if (dateStr) {
+          const date = new Date(dateStr);
+          const qq = query(collection(db, 'products'), where('updatedAt', '>', date));
+          const qqsnap = await getDocs(qq);
+          for await (const dsnap of qqsnap.docs) {
+            const pdct = dsnap.data();
+            const productCode = pdct.code;
+            const productName = pdct.name;
+            for await (const docname of ['productCostPrices', 'productSellingPrices', 'stocks']) {
+              {
+                const batch = writeBatch(db);
+                const q = query(
+                  collectionGroup(db, docname),
+                  where('productCode', '==', productCode),
+                  where('productName', '!=', productName)
+                );
+                const qsnap = await getDocs(q);
+                qsnap.forEach((dsnap) => {
+                  batch.update(dsnap.ref, { productName: pdct.name });
+                });
+                if (qsnap.size > 0) {
+                  console.log({ code: pdct.code, name: pdct.name, [docname]: qsnap.size });
+                }
+                await batch.commit();
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.log({ error });
+        alert(firebaseError(error));
       }
     }
   };
@@ -210,6 +249,7 @@ const AppBar: React.FC = () => {
             align="right"
           >
             <Dropdown.Item title="ユーザ情報取得" onClick={getAuthUserByCode} />
+            <Dropdown.Item title="商品名更新" onClick={updateProductName} />
             <Dropdown.Item title="tailwind" to="/tailwind" />{' '}
             {role === 'admin' && (
               <>
