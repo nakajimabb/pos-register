@@ -213,7 +213,7 @@ const RegisterPayment: React.FC<Props> = ({
     if (registerMode === 'Return') {
       setCashText((-salesTotal).toString());
     } else {
-      setCashText(paymentType === 'Cash' ? '0' : salesTotal.toString());
+      setCashText(salesTotal.toString());
     }
     setCurrentTimestamp(Timestamp.fromDate(new Date()));
     const inputCash = document.getElementById('inputCash') as HTMLInputElement;
@@ -223,8 +223,13 @@ const RegisterPayment: React.FC<Props> = ({
 
   return (
     <Modal open={open} size="none" onClose={onClose} className="w-1/3">
-      <Modal.Header centered={false} onClose={onClose}>
+      <Modal.Header
+        centered={false}
+        onClose={onClose}
+        className={paymentType === 'Cash' ? 'bg-blue-200' : 'bg-green-200'}
+      >
         {registerMode === 'Return' ? '返品' : 'お会計'}
+        {paymentType === 'Cash' ? '（現金）' : '（クレジット）'}
       </Modal.Header>
       <Modal.Body>
         <Table border="row" className="table-fixed w-full">
@@ -286,7 +291,7 @@ const RegisterPayment: React.FC<Props> = ({
               {currentShop?.houseNumber}
               {currentShop?.buildingName}
             </p>
-            <p className="text-right text-sm mt-2">{currentShop?.formalName}　　㊞</p>
+            <p className="text-right text-sm mt-2">{currentShop?.formalName}</p>
             <p className="text-center text-xl font-bold m-2">{registerMode === 'Return' ? '返品' : '領収書'}</p>
             <Table border="cell" className="table-fixed w-full text-sm shadow-none">
               <Table.Head>

@@ -144,7 +144,7 @@ const RegisterMain: React.FC = () => {
   useEffect(() => {
     if (!currentShop) return;
     const unsubRegisterItems = onSnapshot(
-      query(collection(db, 'registerItems'), orderBy('index')),
+      query(collection(db, 'registerItems'), orderBy('sortOrder')),
       async (snapshot) => {
         const items = new Array<RegisterItem>();
         snapshot.forEach((doc) => {
@@ -346,14 +346,14 @@ const RegisterMain: React.FC = () => {
                   {basketItems?.map((basketItem, index) => (
                     <Table.Row key={index} className={index % 2 === 1 ? 'bg-blue-50' : ''}>
                       <Table.Cell>{index + 1}</Table.Cell>
-                      <Table.Cell>{basketItem.product.code}</Table.Cell>
-                      <Table.Cell>{basketItem.product.name}</Table.Cell>
-                      <Table.Cell className="text-right">
+                      <Table.Cell className="text-base">{basketItem.product.code}</Table.Cell>
+                      <Table.Cell className="text-base">{basketItem.product.name}</Table.Cell>
+                      <Table.Cell className="text-base text-right">
                         ¥{basketItem.product.sellingPrice?.toLocaleString()}
                       </Table.Cell>
-                      <Table.Cell className="text-right">{basketItem.quantity}</Table.Cell>
+                      <Table.Cell className="text-base text-right">{basketItem.quantity}</Table.Cell>
                       <Table.Cell className="text-center">
-                        {basketItem.product.code ? (
+                        {basketItem.product.code && basketItem.division === OTC_DIVISION ? (
                           <Button
                             variant="icon"
                             size="xs"
@@ -425,7 +425,7 @@ const RegisterMain: React.FC = () => {
                     現金会計
                   </Button>
                   <Button
-                    color="info"
+                    color="success"
                     size="xs"
                     disabled={basketItems.length === 0}
                     className="h-20"

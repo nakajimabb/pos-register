@@ -85,6 +85,7 @@ export type RegisterItem = {
   division: string;
   defaultPrice: number;
   outputReceipt: boolean;
+  sortOrder: number;
   taxClass: TaxClass | null;
   tax: number | null;
 };

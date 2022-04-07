@@ -341,9 +341,6 @@ export const AppContextProvider: React.FC = ({ children }) => {
   };
 
   const addBundleDiscount = (basketItems: BasketItem[]) => {
-    let filteredBasketItems = basketItems.filter(
-      (item) => !productBundles.map((bundle) => bundle.name).includes(item.product.name)
-    );
     productBundles.forEach((productBundle) => {
       let count = 0;
       basketItems.forEach((item) => {
@@ -376,10 +373,15 @@ export const AppContextProvider: React.FC = ({ children }) => {
           outputReceipt: true,
           quantity: 1,
         };
-        filteredBasketItems.push(discountItem);
+        const existingIndex = basketItems.findIndex((item) => item.product.name === productBundle.name);
+        if (existingIndex >= 0) {
+          basketItems.splice(existingIndex, 1, discountItem);
+        } else {
+          basketItems.push(discountItem);
+        }
       }
     });
-    return filteredBasketItems;
+    return basketItems;
   };
 
   const updateProductTextSearch = async () => {
