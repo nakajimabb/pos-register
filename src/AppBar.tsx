@@ -7,7 +7,7 @@ import { getFirestore, getDocs, collection, collectionGroup, writeBatch, query, 
 import { Button, Flex, Dropdown, Icon, Navbar, Tooltip } from './components';
 import app from './firebase';
 import { useAppContext } from './AppContext';
-import { nameWithCode } from './tools';
+import { nameWithCode, toDateString } from './tools';
 import { Role } from './types';
 import firebaseError from './firebaseError';
 import './App.css';
@@ -51,7 +51,9 @@ const AppBar: React.FC = () => {
   const updateProductName = async () => {
     if (currentShop) {
       try {
-        const dateStr = window.prompt('input date', '2022-04-07');
+        const d = new Date();
+        d.setDate(d.getDate() - 3);
+        const dateStr = window.prompt('input date', toDateString(d, 'YYYY-MM-DD'));
         if (dateStr) {
           const date = new Date(dateStr);
           const qq = query(collection(db, 'products'), where('updatedAt', '>', date));
@@ -60,7 +62,14 @@ const AppBar: React.FC = () => {
             const pdct = dsnap.data();
             const productCode = pdct.code;
             const productName = pdct.name;
-            for await (const docname of ['productCostPrices', 'productSellingPrices', 'stocks']) {
+            for await (const docname of [
+              'productCostPrices',
+              'productSellingPrices',
+              'stocks',
+              'deliveryDetails',
+              'purchaseDetails',
+              'inventoryDetails',
+            ]) {
               {
                 const batch = writeBatch(db);
                 const q = query(

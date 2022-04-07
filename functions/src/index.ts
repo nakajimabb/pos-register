@@ -276,29 +276,23 @@ export const updateProducts = functions
         const after = change.after.data();
         const productCode = context.params.productCode;
         if (before && after && before.name != after.name) {
-          // 店舗原価
-          {
-            const q = db.collectionGroup('productCostPrices').where('productCode', '==', productCode);
+          // 店舗原価・売価・在庫
+          for await (const docname of ['productCostPrices', 'productSellingPrices', 'stocks']) {
+            const q = db.collectionGroup(docname).where('productCode', '==', productCode);
             const qsnap = await q.get();
             const batch = db.batch();
             qsnap.docs.forEach((dsnap) => batch.update(dsnap.ref, { productName: after.name }));
             await batch.commit();
           }
-          // 店舗売価
-          {
-            const q = db.collectionGroup('productSellingPrices').where('productCode', '==', productCode);
-            const qsnap = await q.get();
-            const batch = db.batch();
-            qsnap.docs.forEach((dsnap) => batch.update(dsnap.ref, { productName: after.name }));
-            await batch.commit();
-          }
-          // 店舗在庫
-          {
-            const q = db.collectionGroup('stocks').where('productCode', '==', productCode);
-            const qsnap = await q.get();
-            const batch = db.batch();
-            qsnap.docs.forEach((dsnap) => batch.update(dsnap.ref, { productName: after.name }));
-            await batch.commit();
+          // 店舗出庫・仕入・棚卸 (未登録商品のみ)
+          if (before.unregistered) {
+            for await (const docname of ['deliveryDetails', 'purchaseDetails', 'inventoryDetails']) {
+              const q = db.collectionGroup(docname).where('productCode', '==', productCode);
+              const qsnap = await q.get();
+              const batch = db.batch();
+              qsnap.docs.forEach((dsnap) => batch.update(dsnap.ref, { productName: after.name }));
+              await batch.commit();
+            }
           }
         }
       } catch (error) {
