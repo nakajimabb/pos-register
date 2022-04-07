@@ -42,20 +42,25 @@ const RegisterClose: React.FC = () => {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    if (currentShop) {
-      setInterval(() => setProgress((prev) => (prev + 1) % 100), 10);
-      const statusRef = doc(db, 'shops', currentShop.code, 'status', format(closeDate, 'yyyyMMdd'));
-      await updateDoc(statusRef, { closedAt: Timestamp.fromDate(new Date()) });
-      const functions = getFunctions(app, 'asia-northeast1');
-      const result = await httpsCallable(
-        functions,
-        'sendDailyClosingData'
-      )({ code: currentShop.code, date: format(closeDate, 'yyyy/MM/dd') });
-      console.log({ result });
+    try {
+      setLoading(true);
+      if (currentShop) {
+        setInterval(() => setProgress((prev) => (prev + 1) % 100), 10);
+        const statusRef = doc(db, 'shops', currentShop.code, 'status', format(closeDate, 'yyyyMMdd'));
+        await updateDoc(statusRef, { closedAt: Timestamp.fromDate(new Date()) });
+        const functions = getFunctions(app, 'asia-northeast1');
+        const result = await httpsCallable(
+          functions,
+          'sendDailyClosingData'
+        )({ code: currentShop.code, date: format(closeDate, 'yyyy/MM/dd') });
+        console.log({ result });
+      }
+      setLoading(false);
+      window.location.href = '/daily_cash_report';
+    } catch (error) {
+      console.log({ error });
+      setLoading(false);
     }
-    setLoading(false);
-    window.location.href = '/daily_cash_report';
   };
 
   useEffect(() => {

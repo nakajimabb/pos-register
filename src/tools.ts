@@ -218,6 +218,7 @@ export const Divisions: { [code: string]: string } = {
   '8': '患者負担送料',
   '9': 'レジ袋',
   '10': '補聴器本体',
+  '11': '補聴器備品',
 };
 
 export const isToday = (date: Date) => {
