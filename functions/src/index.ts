@@ -266,6 +266,48 @@ export const updateSupplierCounts = functions
     }
   });
 
+export const updateProducts = functions
+  .region('asia-northeast1')
+  .firestore.document('products/{productCode}')
+  .onUpdate(async (change, context) => {
+    const f = async () => {
+      try {
+        const before = change.before.data();
+        const after = change.after.data();
+        const productCode = context.params.productCode;
+        if (before && after && before.name != after.name) {
+          // 店舗原価
+          {
+            const q = db.collectionGroup('productCostPrices').where('productCode', '==', productCode);
+            const qsnap = await q.get();
+            const batch = db.batch();
+            qsnap.docs.forEach((dsnap) => batch.update(dsnap.ref, { productName: after.name }));
+            await batch.commit();
+          }
+          // 店舗売価
+          {
+            const q = db.collectionGroup('productSellingPrices').where('productCode', '==', productCode);
+            const qsnap = await q.get();
+            const batch = db.batch();
+            qsnap.docs.forEach((dsnap) => batch.update(dsnap.ref, { productName: after.name }));
+            await batch.commit();
+          }
+          // 店舗在庫
+          {
+            const q = db.collectionGroup('stocks').where('productCode', '==', productCode);
+            const qsnap = await q.get();
+            const batch = db.batch();
+            qsnap.docs.forEach((dsnap) => batch.update(dsnap.ref, { productName: after.name }));
+            await batch.commit();
+          }
+        }
+      } catch (error) {
+        throw new functions.https.HttpsError('unknown', 'error in createAccount', error);
+      }
+    };
+    return await f();
+  });
+
 export const createAccount = functions
   .runWith({ timeoutSeconds: 300 })
   .region('asia-northeast1')
