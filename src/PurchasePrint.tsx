@@ -73,7 +73,7 @@ const PurchasePrint: React.FC<Props> = ({ mode, shopCode, purchaseNumber, onClos
       <Modal.Body>
         <div ref={componentRef}>
           <h1 className="text-2xl font-bold mb-3">
-            出庫リスト {purchase?.date ? toDateString(purchase?.date?.toDate(), 'MM/DD') : ''} {purchase?.shopName} →
+            仕入リスト {purchase?.date ? toDateString(purchase?.date?.toDate(), 'MM/DD') : ''} {purchase?.shopName} →
             {purchase?.srcName}
           </h1>
           <Flex>
