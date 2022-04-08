@@ -20,7 +20,7 @@ import firebaseError from './firebaseError';
 import { useAppContext } from './AppContext';
 import ShopProductEdit from './ShopProductEdit';
 import { ProductCostPrice, ProductSellingPrice, Stock } from './types';
-import { toDateString, nameWithCode } from './tools';
+import { nameWithCode } from './tools';
 
 const db = getFirestore();
 type ShopProduct = {
@@ -32,7 +32,6 @@ type ShopProduct = {
 
 const ProductCostPriceList: React.FC = () => {
   const [search, setSearch] = useState({ text: '', shopCode: '' });
-  const [snapshot, setSnapshot] = useState<QuerySnapshot<ProductCostPrice> | null>(null);
   const [shopProducts, setShopProducts] = useState<Map<string, ShopProduct>>(new Map());
   const [open, setOpen] = useState(false);
   const [targetProductCode, setTargetProductCode] = useState<string | null>(null);
@@ -124,7 +123,17 @@ const ProductCostPriceList: React.FC = () => {
     return value ? options.find((option) => option.value === value) : { label: '', value: '' };
   };
 
-  const sortedProductCodes = () => Array.from(shopProducts.keys()).sort();
+  const sortedProductCodes = () =>
+    Array.from(shopProducts.entries())
+      .sort((a, b) => {
+        const stock1 = a[1].stock?.quantity ?? 0;
+        const stock2 = b[1].stock?.quantity ?? 0;
+        if (stock1 !== stock2) return stock2 - stock1;
+        if (a[0] < b[0]) return -1;
+        else if (a[0] > b[0]) return 1;
+        else return 0;
+      })
+      .map((entry) => entry[0]);
 
   return (
     <div className="pt-12">
@@ -174,8 +183,12 @@ const ProductCostPriceList: React.FC = () => {
                 <Table.Cell type="th">PLUコード</Table.Cell>
                 <Table.Cell type="th">商品名称</Table.Cell>
                 <Table.Cell type="th">在庫</Table.Cell>
-                <Table.Cell type="th">店舗売価</Table.Cell>
-                <Table.Cell type="th">店舗原価</Table.Cell>
+                <Table.Cell type="th">
+                  <small>店舗売価(税抜)</small>
+                </Table.Cell>
+                <Table.Cell type="th">
+                  <small>店舗原価(税抜)</small>
+                </Table.Cell>
                 <Table.Cell type="th">仕入先</Table.Cell>
                 <Table.Cell type="th"></Table.Cell>
               </Table.Row>
@@ -202,11 +215,11 @@ const ProductCostPriceList: React.FC = () => {
                           {stock?.quantity ?? 0}
                         </Table.Cell>
                         <Table.Cell rowSpan={rowSpan} className="text-right">
-                          {sellingPrice?.sellingPrice ?? ''}
+                          {sellingPrice?.sellingPrice?.toLocaleString() ?? ''}
                         </Table.Cell>
                       </>
                     )}
-                    <Table.Cell>{item.costPrice}</Table.Cell>
+                    <Table.Cell className="text-right">{item.costPrice?.toLocaleString() ?? ''}</Table.Cell>
                     <Table.Cell>{item.supplierName}</Table.Cell>
                     {j === 0 && (
                       <Table.Cell rowSpan={rowSpan}>

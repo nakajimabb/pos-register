@@ -102,9 +102,6 @@ const PurchaseList: React.FC = () => {
                 <Table.Cell>仕入番号</Table.Cell>
                 <Table.Cell>仕入日</Table.Cell>
                 <Table.Cell>仕入先</Table.Cell>
-                <Table.Cell>種類</Table.Cell>
-                <Table.Cell>商品数</Table.Cell>
-                <Table.Cell>金額</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Head>

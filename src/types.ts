@@ -55,7 +55,6 @@ export type ProductCostPrice = {
   supplierName: string;
   costPrice: number | null; // 原価(税抜)
   updatedAt?: Timestamp; // 更新日
-  purchasedAt?: Timestamp; // 仕入日
 };
 
 export type ProductSellingPrice = {

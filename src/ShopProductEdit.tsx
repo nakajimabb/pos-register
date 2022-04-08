@@ -165,6 +165,9 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
     setError('');
     if (shopCode && product && product.code) {
       try {
+        if (inputSellingPrice !== null && inputSellingPrice <= 0) {
+          throw Error('売価は0より大きな値に設定してください。');
+        }
         InputCostPrices.forEach((costPrice) => {
           if (!costPrice.supplierCode) {
             throw Error('仕入先が指定されていません。');
@@ -263,9 +266,9 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
                 <Form.Text
                   placeholder="店舗売価(税抜)"
                   required
-                  value={String(inputSellingPrice)}
+                  value={String(inputSellingPrice ?? '')}
                   onChange={(e) => {
-                    if (isNum(e.target.value) && Number(e.target.value) > 0) {
+                    if (e.target.value === '' || (isNum(e.target.value) && Number(e.target.value) > 0)) {
                       setInputSellingPrice(Number(e.target.value));
                     }
                   }}
@@ -288,7 +291,7 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
                     required
                     value={String(costPrice.costPrice ?? '')}
                     onChange={(e) => {
-                      if (isNum(e.target.value) && Number(e.target.value) > 0) {
+                      if (e.target.value === '' || (isNum(e.target.value) && Number(e.target.value) > 0)) {
                         setInputCostPrices((prev) => {
                           const values = [...prev];
                           values[index].costPrice = Number(e.target.value);
