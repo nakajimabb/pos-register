@@ -189,7 +189,6 @@ const AppBar: React.FC = () => {
         >
           <Dropdown.Item title="棚卸処理" to="/invetory_new" />
           <Dropdown.Item title="棚卸一覧" to="/invetory_list" />
-          <Dropdown.Item title="在庫確認" to="/stock_list" />
           {role === 'manager' && <Dropdown.Item title="棚卸モニタ" to="/invetory_all" />}
           {role === 'manager' && <Dropdown.Item title="在庫数取込" to="/import_stocks" />}
         </Dropdown>
@@ -204,8 +203,7 @@ const AppBar: React.FC = () => {
           className="mx-2"
         >
           <Dropdown.Item title="商品マスタ(共通)" to="/products" />
-          <Dropdown.Item title="店舗原価マスタ" to="/product_cost_prices" />
-          <Dropdown.Item title="店舗売価マスタ" to="/product_selling_prices" />
+          <Dropdown.Item title="店舗商品マスタ" to="/shop_products" />
           {role === 'manager' && <Dropdown.Item title="商品マスタ取込" to="/import_products" />}
           <Dropdown.Item title="商品カテゴリ" to="/product_categories" />
           <Dropdown.Item title="バンドル" to="/product_bundle_list" />

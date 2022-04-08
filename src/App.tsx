@@ -6,8 +6,6 @@ import AppBar from './AppBar';
 import SignIn from './SignIn';
 import Tailwind from './Tailwind';
 import ProductList from './ProductList';
-import ProductCostPriceList from './ProductCostPriceList';
-import ProductSellingPriceList from './ProductSellingPriceList';
 import ImportProducts from './ImportProducts';
 import ImportSuppliers from './ImportSuppliers';
 import ProductCategoryList from './ProductCategoryList';
@@ -31,12 +29,12 @@ import DeliveryList from './DeliveryList';
 import InventoryMain from './InventoryMain';
 import InventoryList from './InventoryList';
 import InventoryAll from './InventoryAll';
+import ShopProductList from './ShopProductList';
 import DailyCashReport from './DailyCashReport';
 import DailyJournal from './DailyJournal';
 import RegisterOpen from './RegisterOpen';
 import RegisterClose from './RegisterClose';
 import ImportStock from './ImportStock';
-import StockList from './StockList';
 import SalesSummaryList from './SalesSummaryList';
 
 const App: React.FC = () => {
@@ -58,8 +56,6 @@ const App: React.FC = () => {
           <Route path="/" component={AppBar} />
           <Route exact path="/" component={RegisterMain} />
           <Route exact path="/products" component={ProductList} />
-          <Route exact path="/product_cost_prices" component={ProductCostPriceList} />
-          <Route exact path="/product_selling_prices" component={ProductSellingPriceList} />
           <Route exact path="/unregistered_products" component={() => <ProductList unregistered />} />
           <Route exact path="/import_products" component={ImportProducts} />
           <Route exact path="/import_suppliers" component={ImportSuppliers} />
@@ -85,10 +81,10 @@ const App: React.FC = () => {
           <Route exact path="/invetory_new" component={InventoryMain} />
           <Route exact path="/invetory_list" component={InventoryList} />
           <Route exact path="/invetory_all" component={InventoryAll} />
+          <Route exact path="/shop_products" component={ShopProductList} />
           <Route exact path="/register_open" component={RegisterOpen} />
           <Route exact path="/register_close" component={RegisterClose} />
           <Route exact path="/import_stocks" component={ImportStock} />
-          <Route exact path="/stock_list" component={StockList} />
           <Route exact path="/sales_summary_list" component={SalesSummaryList} />
           <Route exact path="/tailwind" component={Tailwind} />
         </Router>

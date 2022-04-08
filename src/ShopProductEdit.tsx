@@ -41,12 +41,11 @@ type Props = {
   open: boolean;
   shopCode: string;
   productCode: string | null;
-  mode: 'sellingPrice' | 'costPrice';
   onClose: () => void;
   onUpdate: () => void;
 };
 
-const ShopProductEdit: React.FC<Props> = ({ open, mode, shopCode, productCode, onClose, onUpdate }) => {
+const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose, onUpdate }) => {
   const [product, setProduct] = useState<Product | null>(null);
   const [productSellingPrice, setProductSellingPrice] = useState<ProductSellingPrice | null>(null);
   const [productCostPrices, setProductCostPrices] = useState<Map<string, ProductCostPrice>>(new Map());
@@ -112,8 +111,6 @@ const ShopProductEdit: React.FC<Props> = ({ open, mode, shopCode, productCode, o
         if (pdctSellingPrice) {
           setProductSellingPrice(pdctSellingPrice);
           setInputSellingPrice(pdctSellingPrice.sellingPrice);
-        } else {
-          if (mode === 'sellingPrice') setInputSellingPrice(pdct.sellingPrice);
         }
         const cond: QueryConstraint = where('productCode', '==', productCode);
         const q = query(collection(db, productCostPricesPath(shopCode)), cond) as Query<ProductCostPrice>;
@@ -168,49 +165,46 @@ const ShopProductEdit: React.FC<Props> = ({ open, mode, shopCode, productCode, o
     setError('');
     if (shopCode && product && product.code) {
       try {
-        if (mode === 'costPrice') {
-          InputCostPrices.forEach((costPrice) => {
-            if (!costPrice.supplierCode) {
-              throw Error('仕入先が指定されていません。');
-            }
-          });
-          for await (const costPrice of InputCostPrices) {
-            const productCostPrice = productCostPrices.get(costPrice.supplierCode);
-            if (!productCostPrice || productCostPrice.costPrice !== costPrice.costPrice) {
-              const supplierCode = costPrice.supplierCode;
-              const supplierName = suppliers.get(supplierCode)?.name ?? '';
-              const path = productCostPricePath(shopCode, product.code, supplierCode);
-              await setDoc(
-                doc(db, path),
-                {
-                  shopCode,
-                  productCode: product.code,
-                  productName: product.name,
-                  supplierCode,
-                  supplierName,
-                  costPrice: costPrice.costPrice,
-                  updatedAt: serverTimestamp(),
-                  // purchasedAt 仕入日
-                },
-                { merge: true }
-              );
-            }
+        InputCostPrices.forEach((costPrice) => {
+          if (!costPrice.supplierCode) {
+            throw Error('仕入先が指定されていません。');
           }
-        } else {
-          if (!productSellingPrice || productSellingPrice.sellingPrice !== inputSellingPrice) {
-            const path = productSellingPricePath(shopCode, product.code);
+        });
+        for await (const costPrice of InputCostPrices) {
+          const productCostPrice = productCostPrices.get(costPrice.supplierCode);
+          if (!productCostPrice || productCostPrice.costPrice !== costPrice.costPrice) {
+            const supplierCode = costPrice.supplierCode;
+            const supplierName = suppliers.get(supplierCode)?.name ?? '';
+            const path = productCostPricePath(shopCode, product.code, supplierCode);
             await setDoc(
               doc(db, path),
               {
                 shopCode,
                 productCode: product.code,
                 productName: product.name,
-                sellingPrice: inputSellingPrice,
+                supplierCode,
+                supplierName,
+                costPrice: costPrice.costPrice,
                 updatedAt: serverTimestamp(),
+                // purchasedAt 仕入日
               },
               { merge: true }
             );
           }
+        }
+        if (!productSellingPrice || productSellingPrice.sellingPrice !== inputSellingPrice) {
+          const path = productSellingPricePath(shopCode, product.code);
+          await setDoc(
+            doc(db, path),
+            {
+              shopCode,
+              productCode: product.code,
+              productName: product.name,
+              sellingPrice: inputSellingPrice,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
         }
         onUpdate();
         onClose();
@@ -224,6 +218,12 @@ const ShopProductEdit: React.FC<Props> = ({ open, mode, shopCode, productCode, o
   const addCostPrice = () => {
     if (product) {
       setInputCostPrices((prev) => [...prev, { supplierCode: '', costPrice: product.costPrice }]);
+    }
+  };
+
+  const addSellingPrice = () => {
+    if (product) {
+      setInputSellingPrice(product.sellingPrice);
     }
   };
 
@@ -262,7 +262,6 @@ const ShopProductEdit: React.FC<Props> = ({ open, mode, shopCode, productCode, o
                 <Form.Label>店舗売価(税抜)</Form.Label>
                 <Form.Text
                   placeholder="店舗売価(税抜)"
-                  disabled={mode === 'costPrice'}
                   required
                   value={String(inputSellingPrice)}
                   onChange={(e) => {
@@ -305,7 +304,12 @@ const ShopProductEdit: React.FC<Props> = ({ open, mode, shopCode, productCode, o
         </Modal.Body>
         <Modal.Footer className="flex justify-between">
           <Flex className="space-x-2">
-            {product && mode === 'costPrice' && (
+            {product && inputSellingPrice === null && (
+              <Button type="button" color="primary" onClick={addSellingPrice}>
+                売価追加
+              </Button>
+            )}
+            {product && (
               <Button type="button" color="primary" onClick={addCostPrice}>
                 原価追加
               </Button>

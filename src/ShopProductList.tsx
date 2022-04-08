@@ -19,14 +19,21 @@ import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import { useAppContext } from './AppContext';
 import ShopProductEdit from './ShopProductEdit';
-import { ProductCostPrice } from './types';
+import { ProductCostPrice, ProductSellingPrice, Stock } from './types';
 import { toDateString, nameWithCode } from './tools';
 
 const db = getFirestore();
+type ShopProduct = {
+  productName: string;
+  productCostPrices?: ProductCostPrice[];
+  productSellingPrice?: ProductSellingPrice;
+  stock?: Stock;
+};
 
 const ProductCostPriceList: React.FC = () => {
   const [search, setSearch] = useState({ text: '', shopCode: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<ProductCostPrice> | null>(null);
+  const [shopProducts, setShopProducts] = useState<Map<string, ShopProduct>>(new Map());
   const [open, setOpen] = useState(false);
   const [targetProductCode, setTargetProductCode] = useState<string | null>(null);
   const [shopOptions, setShopOptions] = useState<{ label: string; value: string }[]>([]);
@@ -54,22 +61,47 @@ const ProductCostPriceList: React.FC = () => {
   const queryResults = async () => {
     try {
       setError('');
-      const searchText = search.text.trim();
-      const conds: QueryConstraint[] = [];
-      if (searchText) {
-        if (searchText) {
-          if (searchText.match(/^\d+$/)) {
-            conds.push(orderBy('productCode'));
-          } else {
-            conds.push(orderBy('productName'));
-          }
-          conds.push(startAt(searchText));
-          conds.push(endAt(searchText + '\uf8ff'));
-        }
+      // const searchText = search.text.trim();
+      // const conds: QueryConstraint[] = [];
+      // if (searchText) {
+      //   if (searchText) {
+      //     if (searchText.match(/^\d+$/)) {
+      //       conds.push(orderBy('productCode'));
+      //     } else {
+      //       conds.push(orderBy('productName'));
+      //     }
+      //     conds.push(startAt(searchText));
+      //     conds.push(endAt(searchText + '\uf8ff'));
+      //   }
+      // }
+      // const q = query(collection(db, 'shops', search.shopCode, 'productCostPrices'), ...conds);
+      // const querySnapshot = await getDocs(q);
+      // setSnapshot(querySnapshot as QuerySnapshot<ProductCostPrice>);
+      const items: Map<string, ShopProduct> = new Map();
+      // 店舗原価
+      {
+        const ref = collection(db, 'shops', search.shopCode, 'productCostPrices');
+        const qsnap = (await getDocs(ref)) as QuerySnapshot<ProductCostPrice>;
+        qsnap.forEach((dsnap) => {
+          const data = dsnap.data();
+          const item = items.get(data.productCode);
+          const value = item ?? { productName: data.productName };
+          const costPrices = value?.productCostPrices || [];
+          items.set(data.productCode, { ...value, productCostPrices: [...costPrices, data] });
+        });
       }
-      const q = query(collection(db, 'shops', search.shopCode, 'productCostPrices'), ...conds);
-      const querySnapshot = await getDocs(q);
-      setSnapshot(querySnapshot as QuerySnapshot<ProductCostPrice>);
+      // 店舗売価・在庫
+      for (const name of ['productSellingPrice', 'stock']) {
+        const ref = collection(db, 'shops', search.shopCode, name + 's');
+        const qsnap = await getDocs(ref);
+        qsnap.forEach((dsnap) => {
+          const data = dsnap.data();
+          const item = items.get(data.productCode);
+          const value = item ?? { productName: data.productName };
+          items.set(data.productCode, { ...value, [name]: data });
+        });
+      }
+      setShopProducts(items);
     } catch (error) {
       console.log({ error });
       setError(firebaseError(error));
@@ -88,30 +120,17 @@ const ProductCostPriceList: React.FC = () => {
     setTargetProductCode(productCode);
   };
 
-  const deleteProductCostPrice = (path: string) => async () => {
-    if (window.confirm('削除してもよろしいですか？')) {
-      try {
-        if (path) {
-          await deleteDoc(doc(db, path));
-          queryResults();
-        }
-      } catch (error) {
-        console.log({ error });
-        alert(firebaseError(error));
-      }
-    }
-  };
-
   const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
     return value ? options.find((option) => option.value === value) : { label: '', value: '' };
   };
+
+  const sortedProductCodes = () => Array.from(shopProducts.keys()).sort();
 
   return (
     <div className="pt-12">
       {open && (
         <ShopProductEdit
           open={open}
-          mode="costPrice"
           shopCode={search.shopCode}
           productCode={targetProductCode}
           onClose={() => setOpen(false)}
@@ -154,54 +173,57 @@ const ProductCostPriceList: React.FC = () => {
               <Table.Row>
                 <Table.Cell type="th">PLUコード</Table.Cell>
                 <Table.Cell type="th">商品名称</Table.Cell>
-                <Table.Cell type="th">原価</Table.Cell>
+                <Table.Cell type="th">在庫</Table.Cell>
+                <Table.Cell type="th">店舗売価</Table.Cell>
+                <Table.Cell type="th">店舗原価</Table.Cell>
                 <Table.Cell type="th">仕入先</Table.Cell>
-                <Table.Cell type="th">更新日</Table.Cell>
-                <Table.Cell type="th">仕入日</Table.Cell>
                 <Table.Cell type="th"></Table.Cell>
               </Table.Row>
             </Table.Head>
             <Table.Body>
-              {snapshot &&
-                snapshot.docs.map((doc, i) => {
-                  const item = doc.data();
-                  const path = doc.ref.path;
+              {sortedProductCodes().map((productCode, i) => {
+                const item = shopProducts.get(productCode);
+                const productName = item?.productName;
+                const stock = item?.stock;
+                const sellingPrice = item?.productSellingPrice;
+                const costPrices = (item?.productCostPrices ?? [{ costPrice: undefined, supplierName: undefined }]) as {
+                  costPrice?: number;
+                  supplierName?: string;
+                }[];
+                const rowSpan = costPrices.length;
 
-                  return (
-                    <Table.Row key={i}>
-                      <Table.Cell>{item.productCode}</Table.Cell>
-                      <Table.Cell>{item.productName}</Table.Cell>
-                      <Table.Cell className="text-right">{item.costPrice?.toLocaleString()}</Table.Cell>
-                      <Table.Cell>{truncate(item.supplierName, { length: 10 })}</Table.Cell>
-                      <Table.Cell>
-                        {item.updatedAt ? toDateString(item.updatedAt.toDate(), 'YYYY-MM-DD') : ''}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {item.purchasedAt ? toDateString(item.purchasedAt.toDate(), 'YYYY-MM-DD') : ''}
-                      </Table.Cell>
-                      <Table.Cell>
+                return costPrices.map((item, j) => (
+                  <Table.Row key={i}>
+                    {j === 0 && (
+                      <>
+                        <Table.Cell rowSpan={rowSpan}>{productCode}</Table.Cell>
+                        <Table.Cell rowSpan={rowSpan}>{productName}</Table.Cell>
+                        <Table.Cell rowSpan={rowSpan} className="text-right">
+                          {stock?.quantity ?? 0}
+                        </Table.Cell>
+                        <Table.Cell rowSpan={rowSpan} className="text-right">
+                          {sellingPrice?.sellingPrice ?? ''}
+                        </Table.Cell>
+                      </>
+                    )}
+                    <Table.Cell>{item.costPrice}</Table.Cell>
+                    <Table.Cell>{item.supplierName}</Table.Cell>
+                    {j === 0 && (
+                      <Table.Cell rowSpan={rowSpan}>
                         <Button
                           variant="icon"
                           size="xs"
                           color="none"
                           className="hover:bg-gray-300 "
-                          onClick={editProductCostPrice(item.productCode)}
+                          onClick={editProductCostPrice(productCode)}
                         >
                           <Icon name="pencil-alt" />
                         </Button>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300"
-                          onClick={deleteProductCostPrice(path)}
-                        >
-                          <Icon name="trash" />
-                        </Button>
                       </Table.Cell>
-                    </Table.Row>
-                  );
-                })}
+                    )}
+                  </Table.Row>
+                ));
+              })}
             </Table.Body>
           </Table>
         </Card.Body>
