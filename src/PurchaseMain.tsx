@@ -368,7 +368,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
             const purchPath = purchasePath(shopCode, deliveryNumber);
             const snapPurch = (await getDoc(doc(db, purchPath))) as DocumentSnapshot<Purchase>;
             if (snapPurch.exists()) {
-              if (!window.confirm('データがすでに存在します。再読み込みしますか？')) return;
+              throw Error('データがすでに存在します。');
             }
 
             const q = query(
