@@ -76,7 +76,10 @@ const PurchasePrint: React.FC<Props> = ({ mode, shopCode, purchaseNumber, onClos
             仕入リスト {purchase?.date ? toDateString(purchase?.date?.toDate(), 'MM/DD') : ''}
             &emsp;
             <small>
-              {nameWithCode({ code: purchase?.shopCode ?? '', name: purchase?.shopName ?? '' })} → {purchase?.srcName}
+              {nameWithCode({ code: purchase?.shopCode ?? '', name: purchase?.shopName ?? '' })} →{' '}
+              {purchase?.srcType === 'shop'
+                ? nameWithCode({ code: purchase?.srcCode ?? '', name: purchase?.srcName ?? '' })
+                : purchase?.srcName}
             </small>
           </h1>
           <Flex>
@@ -106,7 +109,7 @@ const PurchasePrint: React.FC<Props> = ({ mode, shopCode, purchaseNumber, onClos
                   <Table.Cell>{item.productCode}</Table.Cell>
                   <Table.Cell>{item.productName}</Table.Cell>
                   <Table.Cell>{item.quantity}</Table.Cell>
-                  <Table.Cell>{item.costPrice}</Table.Cell>
+                  <Table.Cell>{item.costPrice?.toLocaleString()}</Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>

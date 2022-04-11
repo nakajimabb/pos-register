@@ -79,7 +79,7 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClos
                 &emsp;
                 <small>
                   {nameWithCode({ code: delivery?.shopCode ?? '', name: delivery?.shopName ?? '' })} →{' '}
-                  {delivery?.dstShopName}
+                  {nameWithCode({ code: delivery?.dstShopCode ?? '', name: delivery?.dstShopName ?? '' })}
                 </small>
               </h1>
               <Flex>
@@ -124,7 +124,7 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClos
                   <Table.Cell>{item.productCode}</Table.Cell>
                   <Table.Cell>{item.productName}</Table.Cell>
                   <Table.Cell>{item.quantity}</Table.Cell>
-                  <Table.Cell>{item.costPrice}</Table.Cell>
+                  <Table.Cell>{item.costPrice?.toLocaleString()}</Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>

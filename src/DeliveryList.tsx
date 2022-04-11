@@ -144,7 +144,7 @@ const DeliveryList: React.FC = () => {
                   <Table.Row key={i}>
                     <Table.Cell>{item.deliveryNumber}</Table.Cell>
                     <Table.Cell>{dateStr}</Table.Cell>
-                    <Table.Cell>{item.dstShopName}</Table.Cell>
+                    <Table.Cell>{nameWithCode({ code: item.dstShopCode, name: item.dstShopName })}</Table.Cell>
                     <Table.Cell>{item.totalVariety}</Table.Cell>
                     <Table.Cell>{item.totalQuantity}</Table.Cell>
                     <Table.Cell>{item.totalAmount?.toLocaleString()}</Table.Cell>
