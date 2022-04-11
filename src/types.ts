@@ -191,6 +191,9 @@ export type Purchase = {
   srcName: string; // 仕入元店舗名、または仕入先名称
   date: Timestamp; // 仕入日
   fixed: boolean;
+  totalVariety?: number;
+  totalQuantity?: number;
+  totalAmount?: number;
   updatedAt?: Timestamp;
 };
 
@@ -214,6 +217,9 @@ export type Delivery = {
   dstShopName: string;
   date: Timestamp; // 出庫日
   fixed: boolean;
+  totalVariety?: number;
+  totalQuantity?: number;
+  totalAmount?: number;
   updatedAt?: Timestamp;
 };
 

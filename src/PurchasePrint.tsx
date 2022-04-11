@@ -3,7 +3,7 @@ import { getFirestore, doc, DocumentSnapshot, getDoc, collection, getDocs, Query
 import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
 import { Flex, Modal, Table } from './components';
-import { toDateString } from './tools';
+import { toDateString, nameWithCode } from './tools';
 import { Purchase, PurchaseDetail, purchasePath } from './types';
 var JsBarcode = require('jsbarcode');
 
@@ -73,16 +73,19 @@ const PurchasePrint: React.FC<Props> = ({ mode, shopCode, purchaseNumber, onClos
       <Modal.Body>
         <div ref={componentRef}>
           <h1 className="text-2xl font-bold mb-3">
-            仕入リスト {purchase?.date ? toDateString(purchase?.date?.toDate(), 'MM/DD') : ''} {purchase?.shopName} →
-            {purchase?.srcName}
+            仕入リスト {purchase?.date ? toDateString(purchase?.date?.toDate(), 'MM/DD') : ''}
+            &emsp;
+            <small>
+              {nameWithCode({ code: purchase?.shopCode ?? '', name: purchase?.shopName ?? '' })} → {purchase?.srcName}
+            </small>
           </h1>
           <Flex>
             <div className="bold border border-gray-300 text-center w-16 py-1">種類</div>
             <div className="bold border border-gray-300 text-center w-16 py-1">{items.length}</div>
             <div className="bold border border-gray-300 text-center w-16 py-1">商品数</div>
             <div className="bold border border-gray-300 text-center w-16 py-1">{sumItemQuantity()}</div>
-            <div className="bold border border-gray-300 text-center w-16 py-1">金額</div>
-            <div className="bold border border-gray-300 text-center w-16 py-1">
+            <div className="bold border border-gray-300 text-center w-24 py-1">金額(税抜)</div>
+            <div className="bold border border-gray-300 text-center w-24 py-1">
               <small>{sumItemCostPrice().toLocaleString()}円</small>
             </div>
           </Flex>
@@ -93,7 +96,7 @@ const PurchasePrint: React.FC<Props> = ({ mode, shopCode, purchaseNumber, onClos
                 <Table.Cell>商品コード</Table.Cell>
                 <Table.Cell>商品名</Table.Cell>
                 <Table.Cell>数量</Table.Cell>
-                <Table.Cell>仕入価格</Table.Cell>
+                <Table.Cell>仕入価格(税抜)</Table.Cell>
               </Table.Row>
             </Table.Head>
             <Table.Body>

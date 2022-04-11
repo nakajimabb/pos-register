@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getFirestore, doc, DocumentSnapshot, getDoc, collection, getDocs, QuerySnapshot } from 'firebase/firestore';
 import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
-import { Flex, Modal, Table } from './components';
-import { toDateString, genBarcode } from './tools';
+import { Button, Flex, Modal, Table } from './components';
+import { toDateString, genBarcode, nameWithCode } from './tools';
 import { Delivery, DeliveryDetail, deliveryPath, deliveryDetailPath, CLASS_DELIV } from './types';
 var JsBarcode = require('jsbarcode');
 
@@ -75,16 +75,20 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClos
           <Flex justify_content="between">
             <div>
               <h1 className="text-2xl font-bold mb-3">
-                出庫リスト {delivery?.date ? toDateString(delivery?.date?.toDate(), 'MM/DD') : ''} {delivery?.shopName}→
-                {delivery?.dstShopName}
+                出庫リスト {delivery?.date ? toDateString(delivery?.date?.toDate(), 'MM/DD') : ''}
+                &emsp;
+                <small>
+                  {nameWithCode({ code: delivery?.shopCode ?? '', name: delivery?.shopName ?? '' })} →{' '}
+                  {delivery?.dstShopName}
+                </small>
               </h1>
               <Flex>
                 <div className="bold border border-gray-300 text-center w-16 py-1">種類</div>
                 <div className="bold border border-gray-300 text-center w-16 py-1">{items.length}</div>
                 <div className="bold border border-gray-300 text-center w-16 py-1">商品数</div>
                 <div className="bold border border-gray-300 text-center w-16 py-1">{sumItemQuantity()}</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">金額</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">
+                <div className="bold border border-gray-300 text-center w-24 py-1">金額(税抜)</div>
+                <div className="bold border border-gray-300 text-center w-24 py-1">
                   <small>{sumItemCostPrice().toLocaleString()}円</small>
                 </div>
               </Flex>
@@ -110,7 +114,7 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClos
                 <Table.Cell>商品コード</Table.Cell>
                 <Table.Cell>商品名</Table.Cell>
                 <Table.Cell>数量</Table.Cell>
-                <Table.Cell>仕入価格</Table.Cell>
+                <Table.Cell>仕入価格(税抜)</Table.Cell>
               </Table.Row>
             </Table.Head>
             <Table.Body>

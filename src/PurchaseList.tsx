@@ -102,6 +102,9 @@ const PurchaseList: React.FC = () => {
                 <Table.Cell>仕入番号</Table.Cell>
                 <Table.Cell>仕入日</Table.Cell>
                 <Table.Cell>仕入先</Table.Cell>
+                <Table.Cell>商品種</Table.Cell>
+                <Table.Cell>商品数</Table.Cell>
+                <Table.Cell>金額(税抜)</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -113,6 +116,9 @@ const PurchaseList: React.FC = () => {
                     <Table.Cell>{item.purchaseNumber}</Table.Cell>
                     <Table.Cell>{date}</Table.Cell>
                     <Table.Cell>{item.srcName}</Table.Cell>
+                    <Table.Cell>{item.totalVariety}</Table.Cell>
+                    <Table.Cell>{item.totalQuantity}</Table.Cell>
+                    <Table.Cell>{item.totalAmount?.toLocaleString()}</Table.Cell>
                     <Table.Cell>
                       <Link
                         to={`/purchase_edit?shopCode=${item.shopCode}&purchaseNumber=${item.purchaseNumber}`}

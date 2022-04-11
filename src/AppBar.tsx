@@ -2,13 +2,21 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { getAuth, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getFirestore, getDocs, collection, collectionGroup, writeBatch, query, where } from 'firebase/firestore';
+import { getFirestore, getDocs, collection, collectionGroup, QuerySnapshot, setDoc } from 'firebase/firestore';
 
 import { Button, Flex, Dropdown, Icon, Navbar, Tooltip } from './components';
 import app from './firebase';
 import { useAppContext } from './AppContext';
-import { nameWithCode, toDateString } from './tools';
-import { Role } from './types';
+import { nameWithCode, isNum } from './tools';
+import {
+  Delivery,
+  DeliveryDetail,
+  Purchase,
+  PurchaseDetail,
+  deliveryDetailPath,
+  purchaseDetailPath,
+  Role,
+} from './types';
 import firebaseError from './firebaseError';
 import './App.css';
 
@@ -47,53 +55,44 @@ const AppBar: React.FC = () => {
       }
     }
   };
-
-  const updateProductName = async () => {
-    if (currentShop) {
-      try {
-        const d = new Date();
-        d.setDate(d.getDate() - 3);
-        const dateStr = window.prompt('input date', toDateString(d, 'YYYY-MM-DD'));
-        if (dateStr) {
-          const date = new Date(dateStr);
-          const qq = query(collection(db, 'products'), where('updatedAt', '>', date));
-          const qqsnap = await getDocs(qq);
-          for await (const dsnap of qqsnap.docs) {
-            const pdct = dsnap.data();
-            const productCode = pdct.code;
-            const productName = pdct.name;
-            for await (const docname of [
-              'productCostPrices',
-              'productSellingPrices',
-              'stocks',
-              'deliveryDetails',
-              'purchaseDetails',
-              'inventoryDetails',
-            ]) {
-              {
-                const batch = writeBatch(db);
-                const q = query(
-                  collectionGroup(db, docname),
-                  where('productCode', '==', productCode),
-                  where('productName', '!=', productName)
-                );
-                const qsnap = await getDocs(q);
-                qsnap.forEach((dsnap) => {
-                  batch.update(dsnap.ref, { productName: pdct.name });
-                });
-                if (qsnap.size > 0) {
-                  console.log({ code: pdct.code, name: pdct.name, [docname]: qsnap.size });
-                }
-                await batch.commit();
-              }
-            }
-          }
+  const updateDeliverySum = async () => {
+    const qsnap = (await getDocs(collectionGroup(db, 'deliveries'))) as QuerySnapshot<Delivery>;
+    for await (const dsnap of qsnap.docs) {
+      const delv = dsnap.data();
+      const path = deliveryDetailPath(delv.shopCode, delv.deliveryNumber);
+      const qsnap2 = (await getDocs(collection(db, path))) as QuerySnapshot<DeliveryDetail>;
+      let totalQuantity = 0;
+      let totalAmount = 0;
+      for await (const dsnap2 of qsnap2.docs) {
+        const detail = dsnap2.data();
+        totalQuantity += detail.quantity;
+        if (detail.costPrice !== null && isNum(detail.costPrice)) {
+          totalAmount += detail.quantity * detail.costPrice;
         }
-      } catch (error) {
-        console.log({ error });
-        alert(firebaseError(error));
       }
+      setDoc(dsnap.ref, { totalVariety: qsnap2.size, totalQuantity, totalAmount }, { merge: true });
     }
+    alert('completed!');
+  };
+
+  const updatePurchaseSum = async () => {
+    const qsnap = (await getDocs(collectionGroup(db, 'purchases'))) as QuerySnapshot<Purchase>;
+    for await (const dsnap of qsnap.docs) {
+      const purch = dsnap.data();
+      const path = purchaseDetailPath(purch.shopCode, purch.purchaseNumber);
+      const qsnap2 = (await getDocs(collection(db, path))) as QuerySnapshot<PurchaseDetail>;
+      let totalQuantity = 0;
+      let totalAmount = 0;
+      for await (const dsnap2 of qsnap2.docs) {
+        const detail = dsnap2.data();
+        totalQuantity += detail.quantity;
+        if (detail.costPrice !== null && isNum(detail.costPrice)) {
+          totalAmount += detail.quantity * detail.costPrice;
+        }
+      }
+      setDoc(dsnap.ref, { totalVariety: qsnap2.size, totalQuantity, totalAmount }, { merge: true });
+    }
+    alert('completed!');
   };
 
   const saveRole = (role: Role) => async () => {
@@ -107,37 +106,6 @@ const AppBar: React.FC = () => {
       } catch (error) {
         console.log({ error });
         alert('エラーが発生しました。');
-      }
-    }
-  };
-
-  const clearProductCostPrices = async () => {
-    if (window.confirm('削除してもよろしいですか？')) {
-      try {
-        const querySnapshot = await getDocs(collectionGroup(db, 'productCostPrices'));
-        console.log({ len: querySnapshot.docs.length });
-        const refs = querySnapshot.docs.map((ds) => ds.ref);
-        const taskSize = Math.ceil(refs.length / MAX_BATCH);
-        const sequential = [...Array(taskSize)].map((_, i) => i);
-        const tasks = sequential.map(async (_, i) => {
-          try {
-            const batch = writeBatch(db);
-            const sliced = refs.slice(i * MAX_BATCH, (i + 1) * MAX_BATCH);
-            sliced.forEach((ref) => batch.delete(ref));
-            await batch.commit();
-            return { count: sliced.length, error: '' };
-          } catch (error) {
-            return { count: 0, error: firebaseError(error) };
-          }
-        });
-        const results = await Promise.all(tasks);
-        const count = results.reduce((cnt, res) => cnt + res.count, 0);
-        const errors = results.filter((res) => !!res.error).map((res) => res.error);
-        alert(`${count}件のデータを削除しました。`);
-        console.log({ errors });
-      } catch (error) {
-        console.log({ error });
-        alert(firebaseError(error));
       }
     }
   };
@@ -256,7 +224,8 @@ const AppBar: React.FC = () => {
             align="right"
           >
             <Dropdown.Item title="ユーザ情報取得" onClick={getAuthUserByCode} />
-            <Dropdown.Item title="商品名更新" onClick={updateProductName} />
+            <Dropdown.Item title="出庫合計更新" onClick={updateDeliverySum} />
+            <Dropdown.Item title="仕入合計更新" onClick={updatePurchaseSum} />
             <Dropdown.Item title="tailwind" to="/tailwind" />{' '}
             {role === 'admin' && (
               <>

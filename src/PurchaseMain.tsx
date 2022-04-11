@@ -306,8 +306,10 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
             throw Error('不正な仕入番号。');
           }
         }
+
+        const total = getTotal();
         const ref = doc(db, purchasePath(purch.shopCode, purch.purchaseNumber));
-        transaction.set(ref, { ...purch, updatedAt: serverTimestamp() });
+        transaction.set(ref, { ...purch, ...total, updatedAt: serverTimestamp() });
 
         // 詳細データ保存 => fixしていないデータのみ保存
         const unfixedItems = getUnfixedItems();
@@ -341,17 +343,6 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
       setProcessing(false);
       console.log({ error });
       alert(firebaseError(error));
-    }
-  };
-
-  const parseBarcode = async (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const deliveryNumber = Number(barcode.slice(0, 9));
-      const q = query(collectionGroup(db, 'deliveries'), where('deliveryNumber', '==', deliveryNumber));
-      const snap = await getDocs(q);
-      const items = snap.docs.map((item) => item.data());
-      console.log({ items });
     }
   };
 
@@ -442,11 +433,22 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
     return getTargetItems().reduce((acc, item) => acc + item.quantity * Number(item.costPrice), 0);
   };
 
+  const getTotal = () => {
+    const details = getTargetItems();
+    return {
+      totalVariety: details.length,
+      totalQuantity: details.reduce((acc, item) => acc + item.quantity, 0),
+      totalAmount: details.reduce((acc, item) => acc + item.quantity * Number(item.costPrice), 0),
+    };
+  };
+
   const updateNewProduct = (product: Product) => {
     setCurrentItem((prev) => ({ ...prev, costPrice: product.costPrice }));
     addItem(product.code, currentItem.quantity, product.costPrice);
     quantityRef.current?.focus();
   };
+
+  const total = getTotal();
 
   return (
     <div className="pt-12">
@@ -566,7 +568,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
                   />
                   <Form.Number
                     value={String(currentItem.costPrice)}
-                    placeholder="金額"
+                    placeholder="金額(税抜)"
                     onChange={(e) => setCurrentItem((prev) => ({ ...prev, costPrice: +e.target.value }))}
                     onKeyPress={(e) => {
                       if (e.key === 'Enter') {
@@ -605,15 +607,15 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
             <Flex>
               <div className="bold px-2">
                 商品種&nbsp;
-                <span className="text-2xl">{items.size}</span>
+                <span className="text-2xl">{total.totalVariety}</span>
               </div>
               <div className="bold px-2">
                 商品数&nbsp;
-                <span className="text-2xl">{sumItemQuantity()}</span>
+                <span className="text-2xl">{total.totalQuantity}</span>
               </div>
               <div className="bold px-2">
-                金額&nbsp;
-                <span className="text-2xl">{sumItemCostPrice().toLocaleString()}</span>円
+                金額(税抜)&nbsp;
+                <span className="text-2xl">{total.totalAmount.toLocaleString()}</span>円
               </div>
             </Flex>
             <div>
@@ -630,7 +632,9 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
                 <Table.Cell>商品コード</Table.Cell>
                 <Table.Cell>商品名</Table.Cell>
                 <Table.Cell>数量</Table.Cell>
-                <Table.Cell>仕入価格</Table.Cell>
+                <Table.Cell>
+                  <small>仕入価格(税抜)</small>
+                </Table.Cell>
                 <Table.Cell>履歴</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
@@ -644,7 +648,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
                       <Table.Cell>{item.productCode}</Table.Cell>
                       <Table.Cell>{item.productName}</Table.Cell>
                       <Table.Cell>{item.quantity}</Table.Cell>
-                      <Table.Cell>{item.costPrice}</Table.Cell>
+                      <Table.Cell>{item.costPrice?.toLocaleString()}</Table.Cell>
                       <Table.Cell>
                         {item.history && item.history.length > 0 && [...item.history, item.quantity].join('⇒')}
                       </Table.Cell>
