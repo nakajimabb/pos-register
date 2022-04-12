@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { truncate } from 'lodash';
+import InfiniteScroll from 'react-infinite-scroller';
 import {
   collection,
-  doc,
   query,
   getDocs,
-  deleteDoc,
   getFirestore,
   orderBy,
-  startAt,
+  startAfter,
   endAt,
+  limit,
+  where,
   QueryConstraint,
   QuerySnapshot,
 } from 'firebase/firestore';
@@ -23,6 +23,9 @@ import { ProductCostPrice, ProductSellingPrice, Stock } from './types';
 import { nameWithCode } from './tools';
 
 const db = getFirestore();
+
+const PER_PAGE = 20;
+
 type ShopProduct = {
   productName: string;
   productCostPrices?: ProductCostPrice[];
@@ -37,11 +40,15 @@ const ProductCostPriceList: React.FC = () => {
   const [targetProductCode, setTargetProductCode] = useState<string | null>(null);
   const [shopOptions, setShopOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
+  const [position, setPosition] = useState<{ productCode: string; completed: boolean }>({
+    productCode: '',
+    completed: false,
+  });
   const { shops, currentShop, role, registListner } = useAppContext();
 
   useEffect(() => {
     if (currentShop) {
-      const options = [{ label: currentShop.name, value: currentShop.code }];
+      const options = [{ label: nameWithCode(currentShop), value: currentShop.code }];
       setShopOptions(options);
       setSearch((prev) => ({ ...prev, shopCode: currentShop.code }));
     }
@@ -57,29 +64,70 @@ const ProductCostPriceList: React.FC = () => {
     }
   }, [shops, currentShop]);
 
-  const queryResults = async () => {
+  const loadMore = () => {
+    if (!position.completed) queryResults(position.productCode);
+  };
+
+  const resetItems = () => {
+    setShopProducts(new Map());
+    setPosition({ productCode: '', completed: false });
+  };
+
+  const queryResults = async (startProductCode: string, mode: 'query' | 'get' = 'query') => {
     try {
       setError('');
-      // const searchText = search.text.trim();
-      // const conds: QueryConstraint[] = [];
-      // if (searchText) {
-      //   if (searchText) {
-      //     if (searchText.match(/^\d+$/)) {
-      //       conds.push(orderBy('productCode'));
-      //     } else {
-      //       conds.push(orderBy('productName'));
-      //     }
-      //     conds.push(startAt(searchText));
-      //     conds.push(endAt(searchText + '\uf8ff'));
-      //   }
-      // }
-      // const q = query(collection(db, 'shops', search.shopCode, 'productCostPrices'), ...conds);
-      // const querySnapshot = await getDocs(q);
-      // setSnapshot(querySnapshot as QuerySnapshot<ProductCostPrice>);
       const items: Map<string, ShopProduct> = new Map();
+      let lastProductCode = startProductCode;
+      let completed = true;
+
+      // 店舗在庫
+      {
+        const conds: QueryConstraint[] = [];
+        if (mode === 'query') {
+          conds.push(orderBy('productCode'));
+          conds.push(startAfter(startProductCode));
+          conds.push(limit(PER_PAGE));
+        } else {
+          conds.push(where('productCode', '==', startProductCode));
+        }
+        const ref = query(collection(db, 'shops', search.shopCode, 'stocks'), ...conds);
+        const qsnap = (await getDocs(ref)) as QuerySnapshot<Stock>;
+        qsnap.forEach((dsnap) => {
+          const data = dsnap.data();
+          const item = items.get(data.productCode);
+          const value = item ?? { productName: data.productName };
+          items.set(data.productCode, { ...value, stock: data });
+        });
+        if (qsnap.size > 0) {
+          lastProductCode = qsnap.docs.slice(-1)[0].data().productCode;
+          completed = false;
+        }
+      }
+      const conds: QueryConstraint[] = [];
+      if (mode === 'query') {
+        conds.push(orderBy('productCode'));
+        conds.push(startAfter(startProductCode));
+        if (startProductCode !== lastProductCode) conds.push(endAt(lastProductCode));
+      } else {
+        conds.push(where('productCode', '==', startProductCode));
+      }
+      // 店舗売価
+      {
+        const ref = query(collection(db, 'shops', search.shopCode, 'productSellingPrices'), ...conds);
+        const qsnap = (await getDocs(ref)) as QuerySnapshot<ProductSellingPrice>;
+        qsnap.forEach((dsnap) => {
+          const data = dsnap.data();
+          const item = items.get(data.productCode);
+          const value = item ?? { productName: data.productName };
+          items.set(data.productCode, { ...value, productSellingPrice: data });
+        });
+        if (qsnap.size > 0) {
+          completed = false;
+        }
+      }
       // 店舗原価
       {
-        const ref = collection(db, 'shops', search.shopCode, 'productCostPrices');
+        const ref = query(collection(db, 'shops', search.shopCode, 'productCostPrices'), ...conds);
         const qsnap = (await getDocs(ref)) as QuerySnapshot<ProductCostPrice>;
         qsnap.forEach((dsnap) => {
           const data = dsnap.data();
@@ -88,19 +136,14 @@ const ProductCostPriceList: React.FC = () => {
           const costPrices = value?.productCostPrices || [];
           items.set(data.productCode, { ...value, productCostPrices: [...costPrices, data] });
         });
+        if (qsnap.size > 0) {
+          completed = false;
+        }
       }
-      // 店舗売価・在庫
-      for (const name of ['productSellingPrice', 'stock']) {
-        const ref = collection(db, 'shops', search.shopCode, name + 's');
-        const qsnap = await getDocs(ref);
-        qsnap.forEach((dsnap) => {
-          const data = dsnap.data();
-          const item = items.get(data.productCode);
-          const value = item ?? { productName: data.productName };
-          items.set(data.productCode, { ...value, [name]: data });
-        });
+      if (mode === 'query') {
+        setPosition({ productCode: lastProductCode, completed });
       }
-      setShopProducts(items);
+      setShopProducts((prev) => new Map([...Array.from(prev.entries()), ...Array.from(items.entries())]));
     } catch (error) {
       console.log({ error });
       setError(firebaseError(error));
@@ -126,9 +169,6 @@ const ProductCostPriceList: React.FC = () => {
   const sortedProductCodes = () =>
     Array.from(shopProducts.entries())
       .sort((a, b) => {
-        const stock1 = a[1].stock?.quantity ?? 0;
-        const stock2 = b[1].stock?.quantity ?? 0;
-        if (stock1 !== stock2) return stock2 - stock1;
         if (a[0] < b[0]) return -1;
         else if (a[0] > b[0]) return 1;
         else return 0;
@@ -136,17 +176,17 @@ const ProductCostPriceList: React.FC = () => {
       .map((entry) => entry[0]);
 
   return (
-    <div className="pt-12">
+    <InfiniteScroll className="pt-12" id="top" hasMore={true} loadMore={loadMore}>
       {open && (
         <ShopProductEdit
           open={open}
           shopCode={search.shopCode}
           productCode={targetProductCode}
           onClose={() => setOpen(false)}
-          onUpdate={queryResults}
+          onUpdate={(productCode) => queryResults(productCode, 'get')}
         />
       )}
-      <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">店舗原価マスタ</h1>
+      <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">店舗商品マスタ</h1>
       <Card className="mx-8 mb-4 overflow-visible">
         <Flex justify_content="between" align_items="center" className="p-4">
           <Flex>
@@ -167,7 +207,14 @@ const ProductCostPriceList: React.FC = () => {
                 }
               }}
             />
-            <Button variant="outlined" onClick={queryResults} className="mr-2">
+            <Button
+              variant="outlined"
+              onClick={() => {
+                resetItems();
+                queryResults('');
+              }}
+              className="mr-2"
+            >
               検索
             </Button>
             <Button variant="outlined" className="mr-2" onClick={newProductCostPrice(search.shopCode)}>
@@ -206,7 +253,7 @@ const ProductCostPriceList: React.FC = () => {
                 const rowSpan = costPrices.length;
 
                 return costPrices.map((item, j) => (
-                  <Table.Row key={i}>
+                  <Table.Row key={100 * i + j}>
                     {j === 0 && (
                       <>
                         <Table.Cell rowSpan={rowSpan}>{productCode}</Table.Cell>
@@ -241,7 +288,7 @@ const ProductCostPriceList: React.FC = () => {
           </Table>
         </Card.Body>
       </Card>
-    </div>
+    </InfiniteScroll>
   );
 };
 

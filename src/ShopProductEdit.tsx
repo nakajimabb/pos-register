@@ -42,7 +42,7 @@ type Props = {
   shopCode: string;
   productCode: string | null;
   onClose: () => void;
-  onUpdate: () => void;
+  onUpdate: (productCode: string) => void;
 };
 
 const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose, onUpdate }) => {
@@ -209,7 +209,7 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
             { merge: true }
           );
         }
-        onUpdate();
+        onUpdate(product.code);
         onClose();
       } catch (error) {
         console.log({ error });
