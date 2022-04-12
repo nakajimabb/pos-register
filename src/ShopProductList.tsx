@@ -20,7 +20,7 @@ import firebaseError from './firebaseError';
 import { useAppContext } from './AppContext';
 import ShopProductEdit from './ShopProductEdit';
 import { ProductCostPrice, ProductSellingPrice, Stock } from './types';
-import { nameWithCode } from './tools';
+import { nameWithCode, arrToPieces } from './tools';
 
 const db = getFirestore();
 
@@ -44,7 +44,7 @@ const ProductCostPriceList: React.FC = () => {
     productCode: '',
     completed: false,
   });
-  const { shops, currentShop, role, registListner } = useAppContext();
+  const { shops, currentShop, role, registListner, searchProducts } = useAppContext();
 
   useEffect(() => {
     if (currentShop) {
@@ -65,7 +65,7 @@ const ProductCostPriceList: React.FC = () => {
   }, [shops, currentShop]);
 
   const loadMore = () => {
-    if (!position.completed) queryResults(position.productCode);
+    if (!position.completed && !search.text) queryShopProducts([position.productCode]);
   };
 
   const resetItems = () => {
@@ -73,12 +73,31 @@ const ProductCostPriceList: React.FC = () => {
     setPosition({ productCode: '', completed: false });
   };
 
-  const queryResults = async (startProductCode: string, mode: 'query' | 'get' = 'query') => {
+  const searchShopProducts = async () => {
+    resetItems();
+    if (search.text) {
+      const pds = await searchProducts(search.text);
+      const productCodes = pds.map((pd) => pd.code);
+      const pieces: string[][] = arrToPieces(productCodes, 10);
+      for await (const codes of pieces) {
+        console.log({ codes, productCodes, pieces });
+        await queryShopProducts(codes, 'get');
+      }
+      setPosition({ productCode: '', completed: true });
+    } else {
+      queryShopProducts([]);
+    }
+  };
+
+  const queryShopProducts = async (productCodes: string[], mode: 'query' | 'get' = 'query') => {
     try {
       setError('');
       const items: Map<string, ShopProduct> = new Map();
+      let startProductCode = productCodes.length > 0 ? productCodes[0] : '';
       let lastProductCode = startProductCode;
       let completed = true;
+
+      console.log({ setShopProducts, position });
 
       // 店舗在庫
       {
@@ -88,7 +107,11 @@ const ProductCostPriceList: React.FC = () => {
           conds.push(startAfter(startProductCode));
           conds.push(limit(PER_PAGE));
         } else {
-          conds.push(where('productCode', '==', startProductCode));
+          if (productCodes.length > 1) {
+            conds.push(where('productCode', 'in', productCodes));
+          } else {
+            conds.push(where('productCode', '==', startProductCode));
+          }
         }
         const ref = query(collection(db, 'shops', search.shopCode, 'stocks'), ...conds);
         const qsnap = (await getDocs(ref)) as QuerySnapshot<Stock>;
@@ -109,7 +132,11 @@ const ProductCostPriceList: React.FC = () => {
         conds.push(startAfter(startProductCode));
         if (startProductCode !== lastProductCode) conds.push(endAt(lastProductCode));
       } else {
-        conds.push(where('productCode', '==', startProductCode));
+        if (productCodes.length > 1) {
+          conds.push(where('productCode', 'in', productCodes));
+        } else {
+          conds.push(where('productCode', '==', startProductCode));
+        }
       }
       // 店舗売価
       {
@@ -183,7 +210,7 @@ const ProductCostPriceList: React.FC = () => {
           shopCode={search.shopCode}
           productCode={targetProductCode}
           onClose={() => setOpen(false)}
-          onUpdate={(productCode) => queryResults(productCode, 'get')}
+          onUpdate={(productCode) => queryShopProducts([productCode], 'get')}
         />
       )}
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">店舗商品マスタ</h1>
@@ -207,14 +234,7 @@ const ProductCostPriceList: React.FC = () => {
                 }
               }}
             />
-            <Button
-              variant="outlined"
-              onClick={() => {
-                resetItems();
-                queryResults('');
-              }}
-              className="mr-2"
-            >
+            <Button variant="outlined" onClick={searchShopProducts} className="mr-2">
               検索
             </Button>
             <Button variant="outlined" className="mr-2" onClick={newProductCostPrice(search.shopCode)}>
