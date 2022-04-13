@@ -29,7 +29,7 @@ const PurchaseDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate })
   };
 
   return (
-    <Modal open={open} size="md" onClose={onClose}>
+    <Modal open={open} size="none" onClose={onClose} className="w-2/3 overflow-visible">
       <Form onSubmit={submit} className="space-y-2">
         <Modal.Header centered={false} onClose={onClose}>
           仕入編集
@@ -40,7 +40,7 @@ const PurchaseDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate })
               {error}
             </Alert>
           )}
-          <Grid cols="1 sm:2" gap="0 sm:3" auto_cols="fr" className="max-w-xl row-end-2">
+          <Grid cols="1 sm:2" gap="0 sm:3" auto_cols="fr" template_cols="1fr 3fr" className="row-end-2">
             <Form.Label>商品コード</Form.Label>
             <Form.Text placeholder="商品コード" disabled value={purchaseDetail.productCode} />
             <Form.Label>商品名</Form.Label>
