@@ -43,6 +43,7 @@ export type Product = {
   selfMedication: boolean;
   supplierRef: DocumentReference<Supplier> | null;
   categoryRef: DocumentReference<ProductCategory> | null;
+  noReturn?: boolean; // 返品不可
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 };
@@ -54,6 +55,7 @@ export type ProductCostPrice = {
   supplierCode: string; // 仕入先コード
   supplierName: string;
   costPrice: number | null; // 原価(税抜)
+  noReturn?: boolean; // 返品不可
   updatedAt?: Timestamp; // 更新日
 };
 
@@ -204,9 +206,26 @@ export type PurchaseDetail = {
   quantity: number;
   history?: number[];
   costPrice: number | null; // 原価(税抜)
-  noReturn?: boolean; // 返品不可
   fixed: boolean;
 };
+
+// 廃棄・返品情報
+export type Rejection = {
+  rejectionNumber: number;
+  shopCode: string; // 店舗コード
+  shopName: string; // 店舗名
+  supplierCode: string; // 仕入元店舗コード
+  supplierName: string; // または仕入先名称
+  date: Timestamp; // 仕入日
+  fixed: boolean;
+  totalVariety?: number;
+  totalQuantity?: number;
+  totalAmount?: number;
+  updatedAt?: Timestamp;
+};
+
+// 廃棄・返品情報
+export type RejectionDetail = PurchaseDetail & { rejectType: 'return' | 'waste' };
 
 // 出庫情報
 export type Delivery = {
@@ -291,3 +310,12 @@ export const inventoryPath = (shopCode: string, date: Date | undefined = undefin
 
 export const inventoryDetailPath = (shopCode: string, date: Date, productCode: string | undefined = undefined) =>
   inventoryPath(shopCode, date) + `/inventoryDetails/${productCode ?? ''}`;
+
+export const rejectionPath = (shopCode: string, rejectionNumber: number | undefined = undefined) =>
+  `shops/${shopCode}/rejections/${rejectionNumber ?? ''}`;
+
+export const rejectionDetailPath = (
+  shopCode: string,
+  rejectionNumber: number,
+  productCode: string | undefined = undefined
+) => rejectionPath(shopCode, rejectionNumber) + `/rejectionDetails/${productCode ?? ''}`;

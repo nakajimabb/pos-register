@@ -257,6 +257,11 @@ const ProductEdit: React.FC<Props> = ({ open, docId, onClose, onUpdate }) => {
                 checked={product.hidden}
                 onChange={(e) => setProduct({ ...product, hidden: e.target.checked })}
               />
+              <Form.Checkbox
+                label="返品不可"
+                checked={product.noReturn}
+                onChange={(e) => setProduct({ ...product, noReturn: e.target.checked })}
+              />
               <div className={clsx(product.unregistered && 'text-red-500 font-bold')}>
                 <Form.Checkbox
                   label="未登録"

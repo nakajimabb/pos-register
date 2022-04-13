@@ -15,7 +15,6 @@ import {
   Query,
   where,
   DocumentSnapshot,
-  QuerySnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
 import Select, { SingleValue } from 'react-select';
@@ -28,7 +27,6 @@ import {
   Product,
   ProductSellingPrice,
   ProductCostPrice,
-  Supplier,
   productSellingPricePath,
   productCostPricePath,
   productCostPricesPath,
@@ -257,6 +255,12 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
             <Form.Number placeholder="売価共通(税抜)" disabled value={String(product?.sellingPrice ?? '')} />
             <Form.Label>原価共通(税抜)</Form.Label>
             <Form.Number placeholder="原価共通(税抜)" disabled value={String(product?.costPrice ?? '')} />
+            <Form.Label></Form.Label>
+            <Flex className="space-x-2">
+              <Form.Checkbox label="非稼働" checked={product?.hidden} disabled />
+              <Form.Checkbox label="返品不可" checked={product?.noReturn} disabled />
+              <Form.Checkbox label="未登録" checked={product?.unregistered} disabled />
+            </Flex>
           </Grid>
           <hr className="my-4" />
           <Grid cols="1 sm:2" gap="0 sm:3" auto_cols="fr" template_cols="1fr 2fr" className="row-end-2">

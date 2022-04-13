@@ -80,7 +80,6 @@ const ProductCostPriceList: React.FC = () => {
       const productCodes = pds.map((pd) => pd.code);
       const pieces: string[][] = arrToPieces(productCodes, 10);
       for await (const codes of pieces) {
-        console.log({ codes, productCodes, pieces });
         await queryShopProducts(codes, 'get');
       }
       setPosition({ productCode: '', completed: true });
@@ -96,8 +95,6 @@ const ProductCostPriceList: React.FC = () => {
       let startProductCode = productCodes.length > 0 ? productCodes[0] : '';
       let lastProductCode = startProductCode;
       let completed = true;
-
-      console.log({ setShopProducts, position });
 
       // 店舗在庫
       {
