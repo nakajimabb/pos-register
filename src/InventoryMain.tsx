@@ -144,9 +144,9 @@ const InventoryMain: React.FC = () => {
       const stock = docSnap.data();
       const item = items.get(docSnap.id);
       const productCode = stock.productCode;
-      const prices = await getProductPrice(shopCode, productCode, ['CostPrice', 'StockTax']);
-      const costPrice = prices.costPrice;
-      const stockTax = prices.stockTax;
+      const prices = await getProductPrice(shopCode, productCode, ['finalCostPrice', 'product']);
+      const costPrice = prices.finalCostPrice;
+      const stockTax = prices.product?.stockTax ?? undefined;
       if (item) {
         items.set(docSnap.id, { ...item, costPrice, stockTax, stock: stock.quantity });
       } else {
@@ -205,9 +205,9 @@ const InventoryMain: React.FC = () => {
       if (product) {
         const item = inventoryDetails.get(productCode);
         const qty = op === 'set' ? quantity : (item?.quantity ?? 0) + quantity;
-        const prices = await getProductPrice(shopCode, productCode, ['CostPrice', 'StockTax']);
-        const costPrice = prices.costPrice;
-        const stockTax = prices.stockTax;
+        const prices = await getProductPrice(shopCode, productCode, ['finalCostPrice', 'product']);
+        const costPrice = prices.finalCostPrice;
+        const stockTax = prices.product?.stockTax ?? undefined;
         const newItem = {
           productCode,
           productName: product.name,

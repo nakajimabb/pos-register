@@ -75,10 +75,7 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
           <h1 className="text-2xl font-bold mb-3">
             廃棄・返品処理 {rejection?.date ? toDateString(rejection?.date?.toDate(), 'MM/DD') : ''}
             &emsp;
-            <small>
-              {nameWithCode({ code: rejection?.shopCode ?? '', name: rejection?.shopName ?? '' })} →{' '}
-              {nameWithCode({ code: rejection?.supplierCode ?? '', name: rejection?.supplierName ?? '' })}
-            </small>
+            <small>{nameWithCode({ code: rejection?.shopCode ?? '', name: rejection?.shopName ?? '' })} </small>
           </h1>
           <Flex>
             <div className="bold border border-gray-300 text-center w-16 py-1">種類</div>
@@ -99,6 +96,7 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
                 <Table.Cell>種別</Table.Cell>
                 <Table.Cell>数量</Table.Cell>
                 <Table.Cell>仕入価格(税抜)</Table.Cell>
+                <Table.Cell>理由</Table.Cell>
               </Table.Row>
             </Table.Head>
             <Table.Body>
@@ -113,6 +111,7 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
                   </Table.Cell>
                   <Table.Cell>{item.quantity}</Table.Cell>
                   <Table.Cell>{item.costPrice?.toLocaleString()}</Table.Cell>
+                  <Table.Cell>{item.reason}</Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>

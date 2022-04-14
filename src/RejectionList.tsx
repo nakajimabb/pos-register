@@ -100,7 +100,6 @@ const RejectionList: React.FC = () => {
               <Table.Row>
                 <Table.Cell>仕入番号</Table.Cell>
                 <Table.Cell>仕入日</Table.Cell>
-                <Table.Cell>仕入先</Table.Cell>
                 <Table.Cell>商品種</Table.Cell>
                 <Table.Cell>商品数</Table.Cell>
                 <Table.Cell>金額(税抜)</Table.Cell>
@@ -114,7 +113,6 @@ const RejectionList: React.FC = () => {
                   <Table.Row key={i}>
                     <Table.Cell>{item.rejectionNumber}</Table.Cell>
                     <Table.Cell>{date}</Table.Cell>
-                    <Table.Cell>{item.supplierName}</Table.Cell>
                     <Table.Cell>{item.totalVariety}</Table.Cell>
                     <Table.Cell>{item.totalQuantity}</Table.Cell>
                     <Table.Cell>{item.totalAmount?.toLocaleString()}</Table.Cell>

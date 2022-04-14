@@ -12,7 +12,7 @@ import {
 import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
 import { Button, Flex, Modal, Table } from './components';
-import { nameWithCode, toDateString } from './tools';
+import { nameWithCode, toDateString, isNum } from './tools';
 import { Inventory, InventoryDetail, inventoryPath, inventoryDetailPath } from './types';
 import InventorySum from './InventorySum';
 import { useAppContext } from './AppContext';
@@ -94,15 +94,15 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
     if (inventory) {
       const details = [...items];
       for await (const item of details) {
-        const prices = await getProductPrice(inventory.shopCode, item.productCode, ['CostPrice', 'StockTax']);
+        const prices = await getProductPrice(inventory.shopCode, item.productCode, ['finalCostPrice', 'product']);
         const value: { costPrice?: number; stockTax?: number } = {};
-        if (prices.costPrice !== undefined) {
-          item.costPrice = prices.costPrice;
-          value.costPrice = prices.costPrice;
+        if (prices.finalCostPrice !== undefined) {
+          item.costPrice = prices.finalCostPrice;
+          value.costPrice = prices.finalCostPrice;
         }
-        if (prices.stockTax !== undefined) {
-          item.stockTax = prices.stockTax;
-          value.stockTax = prices.stockTax;
+        if (prices.product?.stockTax) {
+          item.stockTax = prices.product.stockTax;
+          value.stockTax = prices.product.stockTax;
         }
         await setDoc(
           doc(db, inventoryDetailPath(inventory.shopCode, inventory.date.toDate(), item.productCode)),

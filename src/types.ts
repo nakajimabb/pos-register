@@ -214,8 +214,6 @@ export type Rejection = {
   rejectionNumber: number;
   shopCode: string; // 店舗コード
   shopName: string; // 店舗名
-  supplierCode: string; // 仕入元店舗コード
-  supplierName: string; // または仕入先名称
   date: Timestamp; // 仕入日
   fixed: boolean;
   totalVariety?: number;
@@ -225,7 +223,7 @@ export type Rejection = {
 };
 
 // 廃棄・返品情報
-export type RejectionDetail = PurchaseDetail & { rejectType: 'return' | 'waste' };
+export type RejectionDetail = PurchaseDetail & { rejectType: 'return' | 'waste'; reason: string };
 
 // 出庫情報
 export type Delivery = {

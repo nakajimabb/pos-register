@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useHistory } from 'react-router-dom';
-import Select from 'react-select';
 import {
   doc,
   getDoc,
@@ -17,20 +16,10 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import { useAppContext } from './AppContext';
 import app from './firebase';
-import RejectionDetailEdit from './PurchaseDetailEdit';
-import { nameWithCode, toDateString, checkDigit } from './tools';
+import RejectionDetailEdit from './RejectionDetailEdit';
+import { toDateString, checkDigit } from './tools';
 import firebaseError from './firebaseError';
-import {
-  Product,
-  RejectionDetail,
-  rejectionPath,
-  rejectionDetailPath,
-  productCostPricePath,
-  ProductCostPrice,
-  PurchaseDetail,
-  Rejection,
-  Stock,
-} from './types';
+import { RejectionDetail, rejectionPath, rejectionDetailPath, Rejection, Stock } from './types';
 
 const db = getFirestore();
 type Item = RejectionDetail & { removed?: boolean };
@@ -42,37 +31,21 @@ type Props = {
 };
 
 const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = -1 }) => {
-  const [currentItem, setCurrentItem] = useState<{
-    productCode: string;
-    quantity: number | null;
-    costPrice: number | null;
-  }>({
-    productCode: '',
-    quantity: null,
-    costPrice: null,
-  });
+  const [inputProductCode, setInputProductCode] = useState<string>('');
+  const [inputRejectionDetail, setInputRejectionDetail] = useState<RejectionDetail | undefined>(undefined);
   const [rejection, setRejection] = useState<Rejection>({
     shopCode,
     rejectionNumber,
     shopName: shopName ?? '',
-    supplierCode: '',
-    supplierName: '',
     date: Timestamp.fromDate(new Date()),
     fixed: false,
   });
   const [items, setItems] = useState<Map<string, Item>>(new Map());
-  const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
-  const [targetProductCode, setTargetProductCode] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
-  const { getProductCostPrice, registListner, incrementStock, suppliers } = useAppContext();
+  const { getProductPrice, incrementStock } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
-  const quantityRef = useRef<HTMLInputElement>(null);
   const hisotry = useHistory();
-
-  useEffect(() => {
-    registListner('suppliers');
-  }, []);
 
   useEffect(() => {
     if (shopCode && rejectionNumber > 0) {
@@ -80,42 +53,12 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
     }
   }, [shopCode, rejectionNumber]);
 
-  useEffect(() => {
-    if (rejectionNumber === -1) {
-      setErrors([]);
-      if (!rejection.supplierCode) setErrors((prev) => [...prev, '仕入先を指定してください。']);
-    }
-  }, [rejection.supplierCode, rejectionNumber]);
-
-  useEffect(() => {
-    const options = Array.from(suppliers.entries()).map(([code, supplier]) => ({
-      value: code,
-      label: nameWithCode(supplier),
-    }));
-    options.unshift({ label: '', value: '' });
-    setSuppliersOptions(options);
-  }, [suppliers]);
-
-  const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
-    return value ? options.find((option) => option.value === value) : { label: '', value: '' };
-  };
-
-  const resetCurrentItem = () => {
-    setCurrentItem({
-      productCode: '',
-      quantity: null,
-      costPrice: null,
-    });
-  };
-
   const resetRejection = () => {
-    resetCurrentItem();
+    setInputProductCode('');
     setRejection({
       shopCode,
       rejectionNumber: -1,
       shopName: shopName ?? '',
-      supplierCode: '',
-      supplierName: '',
       date: Timestamp.fromDate(new Date()),
       fixed: false,
     });
@@ -145,35 +88,28 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
     }
   };
 
-  const addItem = async (productCode: string, quantity: number | null, costPrice: number | null) => {
-    if (productCode && quantity && costPrice) {
-      const costPrice = await getProductCostPrice(shopCode, productCode, rejection.supplierCode);
-      if (costPrice) {
-        const newItems = new Map(items);
-        const item = newItems.get(productCode);
+  const changeTargetItem = async (productCode: string) => {
+    if (productCode) {
+      const price = await getProductPrice(shopCode, productCode, ['finalCostPrice', 'product']);
+      if (price) {
+        const item = items.get(productCode);
+        const rejectType = price.noReturn ? 'waste' : 'return';
         if (item) {
-          const qnty = item.removed ? quantity : item.quantity + quantity;
-          newItems.set(productCode, {
-            ...item,
-            removed: false,
-            fixed: false,
-            quantity: qnty,
-          });
+          setInputRejectionDetail({ ...item, rejectType, fixed: false });
         } else {
-          newItems.set(productCode, {
-            rejectType: costPrice.noReturn ? 'waste' : 'return',
+          setInputRejectionDetail({
+            rejectType,
             productCode: productCode,
-            productName: costPrice.productName,
-            quantity,
-            costPrice: costPrice.costPrice,
+            productName: price.product?.name ?? '',
+            quantity: 0,
+            costPrice: price.finalCostPrice ?? null,
+            reason: '',
             fixed: false,
           });
         }
-        setItems(newItems);
-        resetCurrentItem();
         codeRef.current?.focus();
       } else {
-        if (checkDigit(currentItem.productCode)) {
+        if (checkDigit(productCode)) {
           setErrors((prev) => [...prev, '商品マスタが存在しません。']);
         } else {
           setErrors((prev) => [...prev, '不正なPLUコードです。']);
@@ -188,42 +124,6 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
     if (item) {
       newItems.set(productCode, { ...item, removed: true, quantity: 0, fixed: false });
       setItems(newItems);
-    }
-  };
-
-  const loadProduct = async (e: React.KeyboardEvent) => {
-    if (currentItem.productCode && e.key === 'Enter') {
-      e.preventDefault();
-      setErrors([]);
-      if (shopCode) {
-        if (!rejection.date) setErrors((prev) => [...prev, '日付を指定してください。']);
-        if (!rejection.supplierCode) setErrors((prev) => [...prev, '仕入先を指定してください。']);
-
-        let costPrice: number | null = null;
-        const snap = (await getDoc(
-          doc(db, productCostPricePath(rejection.shopCode, currentItem.productCode, rejection.supplierCode))
-        )) as DocumentSnapshot<ProductCostPrice>;
-        if (snap.exists()) {
-          costPrice = snap.data().costPrice;
-        }
-        if (costPrice) {
-          setCurrentItem((prev) => ({ ...prev, costPrice }));
-          quantityRef.current?.focus();
-        } else {
-          const snapProduct = (await getDoc(doc(db, 'products', currentItem.productCode))) as DocumentSnapshot<Product>;
-          const product = snapProduct.data();
-          if (product) {
-            setCurrentItem((prev) => ({ ...prev, costPrice: product.costPrice }));
-            quantityRef.current?.focus();
-          } else {
-            if (checkDigit(currentItem.productCode)) {
-              setErrors((prev) => [...prev, '商品マスタが存在しません。']);
-            } else {
-              setErrors((prev) => [...prev, '不正なPLUコードです。']);
-            }
-          }
-        }
-      }
     }
   };
 
@@ -290,6 +190,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
             quantity: item.quantity,
             costPrice: item.costPrice,
             rejectType: item.rejectType,
+            reason: item.reason,
             fixed: true,
             history,
           });
@@ -343,20 +244,24 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
     <div className="pt-12">
       <div className="p-4">
         <h1 className="text-xl font-bold mb-2">廃棄・返品処理</h1>
-        {targetProductCode && (
+        {inputRejectionDetail && (
           <RejectionDetailEdit
             open
-            value={items.get(targetProductCode)}
-            onClose={() => setTargetProductCode('')}
-            onUpdate={(detail: PurchaseDetail) => {
-              const detail2 = detail as RejectionDetail;
-              const item = items.get(targetProductCode);
-              const diff = !item || item.quantity !== detail.quantity || item.costPrice !== detail.costPrice;
+            value={inputRejectionDetail}
+            onClose={() => setInputRejectionDetail(undefined)}
+            onUpdate={(detail: RejectionDetail) => {
+              const item = items.get(detail.productCode);
+              const diff =
+                !item ||
+                item.quantity !== detail.quantity ||
+                item.costPrice !== detail.costPrice ||
+                item.reason !== detail.reason;
               if (diff) {
                 const newItems = new Map(items);
-                newItems.set(targetProductCode, { ...detail2, fixed: false });
+                newItems.set(detail.productCode, { ...detail, fixed: false });
                 setItems(newItems);
               }
+              setInputProductCode('');
             }}
           />
         )}
@@ -369,21 +274,6 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                 const date = new Date(e.target.value);
                 setRejection((prev) => ({ ...prev, date: Timestamp.fromDate(date) }));
               }}
-            />
-            <Select
-              value={selectValue(rejection.supplierCode, supplierOptions)}
-              options={supplierOptions}
-              isDisabled={rejection.rejectionNumber > 0}
-              onChange={(e) => {
-                const supplierCode = String(e?.value);
-                setRejection((prev) => ({
-                  ...prev,
-                  supplierCode,
-                  supplierName: suppliers.get(supplierCode)?.name ?? '',
-                }));
-                codeRef.current?.focus();
-              }}
-              className="mb-3 sm:mb-0 w-72"
             />
           </Flex>
           {errors.length > 0 && (
@@ -399,55 +289,32 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
               {!rejection.fixed && (
                 <>
                   <Form.Text
-                    value={currentItem.productCode}
-                    onChange={(e) => setCurrentItem((prev) => ({ ...prev, productCode: String(e.target.value) }))}
-                    onKeyPress={loadProduct}
+                    value={inputProductCode}
+                    onChange={(e) => setInputProductCode(String(e.target.value))}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        changeTargetItem(inputProductCode);
+                      }
+                    }}
                     placeholder="商品コード"
                     innerRef={codeRef}
                   />
-                  <Form.Number
-                    value={String(currentItem.quantity)}
-                    placeholder="数量"
-                    innerRef={quantityRef}
-                    min={1}
-                    onChange={(e) => setCurrentItem((prev) => ({ ...prev, quantity: +e.target.value }))}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice);
-                      }
-                    }}
-                    className="w-36"
-                  />
-                  <Form.Number
-                    value={String(currentItem.costPrice)}
-                    placeholder="金額(税抜)"
-                    onChange={(e) => setCurrentItem((prev) => ({ ...prev, costPrice: +e.target.value }))}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice);
-                      }
-                    }}
-                    className="w-36"
-                  />
-                  <Button onClick={() => addItem(currentItem.productCode, currentItem.quantity, currentItem.costPrice)}>
-                    追加
-                  </Button>
+                  <Button onClick={() => changeTargetItem(inputProductCode)}>追加</Button>
                 </>
               )}
             </Form>
             {!rejection.fixed && (
               <Button
                 className="w-32"
-                disabled={!rejection.supplierCode || !existUnfixedItems() || sumItemQuantity() === 0 || processing}
+                disabled={!existUnfixedItems() || sumItemQuantity() === 0 || processing}
                 onClick={() => {
                   if (window.confirm('確定しますか？')) {
                     save();
                   }
                 }}
               >
-                登録
+                確定
               </Button>
             )}
             {rejection.fixed && (
@@ -471,15 +338,6 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                 <span className="text-2xl">{total.totalAmount.toLocaleString()}</span>円
               </div>
             </Flex>
-            <div>
-              <span className="text-xl">
-                {nameWithCode({
-                  code: rejection.supplierCode,
-                  name: rejection.supplierName,
-                })}
-              </span>
-              行き
-            </div>
           </Flex>
           <Table className="w-full">
             <Table.Head>
@@ -492,6 +350,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                 <Table.Cell>
                   <small>仕入価格(税抜)</small>
                 </Table.Cell>
+                <Table.Cell>理由</Table.Cell>
                 <Table.Cell>履歴</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
@@ -507,6 +366,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                       <Table.Cell>{item.rejectType === 'return' ? '返品' : '廃棄'}</Table.Cell>
                       <Table.Cell>{item.quantity}</Table.Cell>
                       <Table.Cell>{item.costPrice?.toLocaleString()}</Table.Cell>
+                      <Table.Cell>{item.reason}</Table.Cell>
                       <Table.Cell>
                         {item.history && item.history.length > 0 && [...item.history, item.quantity].join('⇒')}
                       </Table.Cell>
@@ -518,7 +378,9 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                               size="xs"
                               color="none"
                               className="hover:bg-gray-300 "
-                              onClick={() => setTargetProductCode(item.productCode)}
+                              onClick={() => {
+                                setInputRejectionDetail(items.get(item.productCode));
+                              }}
                             >
                               <Icon name="pencil-alt" />
                             </Button>

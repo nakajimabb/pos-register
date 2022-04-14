@@ -74,13 +74,15 @@ export type ContextType = {
   getProductPrice: (
     shopCode: string,
     productCode: string,
-    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice' | 'StockTax')[]
-  ) => Promise<{ costPrice?: number; sellingPrice?: number; avgCostPrice?: number; stockTax?: number }>;
-  getProductCostPrice: (
-    shopCode: string,
-    productCode: string,
-    supplierCode: string
-  ) => Promise<{ productName: string; costPrice: number | null; noReturn?: boolean } | undefined>;
+    types: ('finalCostPrice' | 'sellingPrice' | 'noReturn' | 'product')[]
+  ) => Promise<{
+    finalCostPrice?: number | undefined;
+    sellingPrice?: number | undefined;
+    noReturn?: boolean | undefined;
+    product?: Product | undefined;
+    supplierCode?: string | undefined;
+    supplierName?: string | undefined;
+  }>;
 };
 
 const AppContext = createContext({
@@ -107,9 +109,8 @@ const AppContext = createContext({
   getProductPrice: async (
     shopCode: string,
     productCode: string,
-    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice' | 'StockTax')[]
+    types: ('finalCostPrice' | 'sellingPrice' | 'noReturn' | 'product')[]
   ) => ({}),
-  getProductCostPrice: async (shopCode: string, productCode: string, supplierCode: string) => undefined,
 } as ContextType);
 
 type FullTextSearch = {
@@ -280,41 +281,23 @@ export const AppContextProvider: React.FC = ({ children }) => {
     if (snap.exists()) return snap.data();
   };
 
-  // 店舗原価、返品不可属性を取得
-  const getProductCostPrice = async (shopCode: string, productCode: string, supplierCode: string) => {
-    const dsnap = (await getDoc(
-      doc(db, productCostPricePath(shopCode, productCode, supplierCode))
-    )) as DocumentSnapshot<ProductCostPrice>;
-
-    if (dsnap.exists()) {
-      const price = dsnap.data();
-      if (price.costPrice !== null && isNum(price.costPrice)) {
-        return { costPrice: price.costPrice, noReturn: price.noReturn, productName: price.productName };
-      }
-    }
-
-    const product = await pdct(productCode);
-    if (product) {
-      return { costPrice: product.costPrice, noReturn: product.noReturn, productName: product.name };
-    }
-  };
-
   // 店舗最終原価、店舗売価、移動平均原価を取得
   const getProductPrice = async (
     shopCode: string,
     productCode: string,
-    types: ('CostPrice' | 'SellingPrice' | 'AvgCostPrice' | 'StockTax' | 'noReturn')[]
+    types: ('finalCostPrice' | 'sellingPrice' | 'noReturn' | 'product')[]
   ) => {
     let product: Product | undefined = undefined;
     const prices: {
-      costPrice?: number;
+      finalCostPrice?: number;
       sellingPrice?: number;
-      avgCostPrice?: number;
-      stockTax?: number;
       noReturn?: boolean;
+      product?: Product;
+      supplierCode?: string;
+      supplierName?: string;
     } = {};
     // 店舗最終原価
-    if (types.find((type) => type === 'CostPrice')) {
+    if (types.includes('finalCostPrice')) {
       const conds = [where('productCode', '==', productCode)];
       const q = query(collection(db, productCostPricesPath(shopCode)), ...conds) as Query<ProductCostPrice>;
       const qsnap = await getDocs(q);
@@ -332,18 +315,28 @@ export const AppContextProvider: React.FC = ({ children }) => {
           });
         const costPrice = costPrices[0];
         if (costPrice.costPrice) {
-          prices.costPrice = costPrice.costPrice;
+          prices.finalCostPrice = costPrice.costPrice;
+          prices.supplierCode = costPrice.supplierCode;
+          prices.supplierName = costPrice.supplierName;
         } else {
           if (!product) product = await pdct(productCode);
-          if (product && product.costPrice) prices.costPrice = product.costPrice;
+          if (product && product.costPrice) {
+            prices.finalCostPrice = product.costPrice;
+            // prices.supplierCode = product.supplierCode;
+            // prices.supplierName = product.supplierName;
+          }
         }
       } else {
         if (!product) product = await pdct(productCode);
-        if (product && product.costPrice) prices.costPrice = product.costPrice;
+        if (product && product.costPrice) {
+          prices.finalCostPrice = product.costPrice;
+          // prices.supplierCode = product.supplierCode;
+          // prices.supplierName = product.supplierName;
+        }
       }
     }
     // 店舗売価
-    if (types.find((type) => type === 'SellingPrice')) {
+    if (types.includes('sellingPrice')) {
       const dsnap = (await getDoc(
         doc(db, productSellingPricePath(shopCode, productCode))
       )) as DocumentSnapshot<ProductSellingPrice>;
@@ -361,14 +354,9 @@ export const AppContextProvider: React.FC = ({ children }) => {
       }
     }
     // 店舗売価
-    if (types.find((type) => type === 'AvgCostPrice')) {
+    if (types.includes('product')) {
       if (!product) product = await pdct(productCode);
-      if (product && product.avgCostPrice) prices.avgCostPrice = product.avgCostPrice;
-    }
-    // 仕入消費税
-    if (types.find((type) => type === 'StockTax')) {
-      if (!product) product = await pdct(productCode);
-      if (product && product.stockTax) prices.stockTax = product.stockTax;
+      if (product) prices.product = product;
     }
     return prices;
   };
@@ -513,7 +501,6 @@ export const AppContextProvider: React.FC = ({ children }) => {
         registListner,
         incrementStock,
         getProductPrice,
-        getProductCostPrice,
       }}
     >
       {children}

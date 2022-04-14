@@ -109,6 +109,7 @@ type SelectProps = {
   name?: string;
   value?: string;
   label?: string;
+  disabled?: boolean;
   required?: boolean;
   options: { label: string; value: string }[] | string[];
   size?: 'sm' | 'md' | 'lg';
@@ -122,6 +123,7 @@ const Select: React.FC<SelectProps> = ({
   name,
   value,
   label,
+  disabled,
   required,
   options,
   size = 'md',
@@ -138,6 +140,7 @@ const Select: React.FC<SelectProps> = ({
       id={id}
       name={name}
       value={value}
+      disabled={disabled}
       required={required}
       onChange={onChange}
       className={clsx(baseClass, padding[size], textSize[size], className)}
