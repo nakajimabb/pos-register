@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 import { Alert, Button, Form, Grid, Modal } from './components';
+import { isNum } from './tools';
 import { RejectionDetail } from './types';
 
 type Props = {
@@ -22,14 +23,21 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }
       fixed: false,
     }
   );
-  const [error, setError] = useState('');
+  const [alert, setAlert] = useState({ error: '', info: '' });
 
   useEffect(() => {
-    setError(`${rejectionDetail.rejectType === 'waste' ? '廃棄' : '返却'}として処理されます。`);
+    setAlert((prev) => ({
+      ...prev,
+      info: `${rejectionDetail.rejectType === 'waste' ? '廃棄' : '返却'}として処理されます。`,
+    }));
   }, [rejectionDetail]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isNum(rejectionDetail.quantity) || rejectionDetail.quantity <= 0) {
+      setAlert({ error: '数量は0より大きい値を入力してください。', info: '' });
+      return;
+    }
     onUpdate(rejectionDetail);
     onClose();
   };
@@ -41,9 +49,14 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }
           仕入編集
         </Modal.Header>
         <Modal.Body>
-          {error && (
-            <Alert severity="info" className="my-4" onClose={() => setError('')}>
-              {error}
+          {alert.error && (
+            <Alert severity="error" className="my-4" onClose={() => setAlert((prev) => ({ ...prev, error: '' }))}>
+              {alert.error}
+            </Alert>
+          )}
+          {alert.info && (
+            <Alert severity="info" className="my-4" onClose={() => setAlert((prev) => ({ ...prev, info: '' }))}>
+              {alert.info}
             </Alert>
           )}
           <Grid cols="1 sm:2" gap="0 sm:3" auto_cols="fr" template_cols="1fr 3fr" className="row-end-2">
