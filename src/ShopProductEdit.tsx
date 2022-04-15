@@ -14,13 +14,15 @@ import {
   query,
   Query,
   where,
+  deleteDoc,
   DocumentSnapshot,
   serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore';
 import Select, { SingleValue } from 'react-select';
 import AsyncSelect from 'react-select/async';
 
-import { Alert, Button, Flex, Form, Grid, Modal } from './components';
+import { Alert, Button, Flex, Form, Grid, Modal, Tooltip } from './components';
 import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
 import {
@@ -31,7 +33,7 @@ import {
   productCostPricePath,
   productCostPricesPath,
 } from './types';
-import { isNum, nameWithCode } from './tools';
+import { isNum, toDateString, nameWithCode } from './tools';
 
 const db = getFirestore();
 
@@ -48,7 +50,9 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
   const [productSellingPrice, setProductSellingPrice] = useState<ProductSellingPrice | null>(null);
   const [productCostPrices, setProductCostPrices] = useState<Map<string, ProductCostPrice>>(new Map());
   const [inputSellingPrice, setInputSellingPrice] = useState<number | null>(null); // 入力値
-  const [InputCostPrices, setInputCostPrices] = useState<{ supplierCode: string; costPrice: number | null }[]>([]); // 入力値
+  const [InputCostPrices, setInputCostPrices] = useState<
+    { supplierCode: string; costPrice: number | null; updatedAt?: Timestamp }[]
+  >([]); // 入力値
   const [error, setError] = useState('');
   const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
   const { registListner, suppliers } = useAppContext();
@@ -110,13 +114,13 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
           setProductSellingPrice(pdctSellingPrice);
           setInputSellingPrice(pdctSellingPrice.sellingPrice);
         }
-        const cond: QueryConstraint = where('productCode', '==', productCode);
-        const q = query(collection(db, productCostPricesPath(shopCode)), cond) as Query<ProductCostPrice>;
+        const conds = [where('productCode', '==', productCode), orderBy('updatedAt', 'desc')];
+        const q = query(collection(db, productCostPricesPath(shopCode)), ...conds) as Query<ProductCostPrice>;
         const qsnap = await getDocs(q);
         setInputCostPrices(
           qsnap.docs.map((qdsnap) => {
             const item = qdsnap.data();
-            return { supplierCode: item.supplierCode, costPrice: item.costPrice };
+            return { supplierCode: item.supplierCode, costPrice: item.costPrice, updatedAt: item.updatedAt };
           })
         );
         const prices = new Map<string, ProductCostPrice>();
@@ -228,6 +232,36 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
     }
   };
 
+  const deleteSellingPrice = () => {
+    if (product && window.confirm('削除しますか？')) {
+      try {
+        const path = productSellingPricePath(shopCode, product.code);
+        deleteDoc(doc(db, path));
+        setProductSellingPrice(null);
+        setInputSellingPrice(null);
+      } catch (error) {
+        console.log({ error });
+        setError(firebaseError(error));
+      }
+    }
+  };
+
+  const deleteCostPrice = (supplierCode: string) => () => {
+    if (product && window.confirm('削除しますか？')) {
+      try {
+        const path = productCostPricePath(shopCode, product.code, supplierCode);
+        deleteDoc(doc(db, path));
+        const costPrices = new Map(productCostPrices);
+        costPrices.delete(product.code);
+        setProductCostPrices(costPrices);
+        setInputCostPrices(InputCostPrices.filter((price) => price.supplierCode !== supplierCode));
+      } catch (error) {
+        console.log({ error });
+        setError(firebaseError(error));
+      }
+    }
+  };
+
   return (
     <Modal open={open} size="none" onClose={onClose} className="w-2/3 overflow-visible">
       <Form onSubmit={save} className="space-y-2">
@@ -240,7 +274,7 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
               {error}
             </Alert>
           )}
-          <Grid cols="1 sm:2" gap="0 sm:3" auto_cols="fr" template_cols="1fr 2fr" className="row-end-2">
+          <Grid cols="1 sm:2" gap="0 sm:3" auto_cols="fr" template_cols="1fr 4fr" className="row-end-2">
             <Form.Label>商品名称</Form.Label>
             <AsyncSelect
               className="mb-3 sm:mb-0"
@@ -263,20 +297,41 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
             </Flex>
           </Grid>
           <hr className="my-4" />
-          <Grid cols="1 sm:2" gap="0 sm:3" auto_cols="fr" template_cols="1fr 2fr" className="row-end-2">
+          <Grid cols="1 sm:2" gap="0 sm:3" auto_cols="fr" template_cols="1fr 4fr" className="row-end-2">
             {inputSellingPrice !== null && (
               <>
                 <Form.Label>店舗売価(税抜)</Form.Label>
-                <Form.Text
-                  placeholder="店舗売価(税抜)"
-                  required
-                  value={String(inputSellingPrice ?? '')}
-                  onChange={(e) => {
-                    if (e.target.value === '' || (isNum(e.target.value) && Number(e.target.value) > 0)) {
-                      setInputSellingPrice(Number(e.target.value));
+                <Flex>
+                  <Tooltip
+                    disabled={!productSellingPrice?.updatedAt}
+                    title={
+                      productSellingPrice?.updatedAt
+                        ? '最終更新 ' + toDateString(productSellingPrice?.updatedAt.toDate(), 'YY/MM/DD hh:mm')
+                        : ''
                     }
-                  }}
-                />
+                  >
+                    <Form.Text
+                      placeholder="店舗売価(税抜)"
+                      required
+                      value={String(inputSellingPrice ?? '')}
+                      onChange={(e) => {
+                        if (e.target.value === '' || (isNum(e.target.value) && Number(e.target.value) > 0)) {
+                          setInputSellingPrice(Number(e.target.value));
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                  </Tooltip>
+                  <Button
+                    type="button"
+                    size="xs"
+                    color="danger"
+                    className="hover:bg-gray-300"
+                    onClick={deleteSellingPrice}
+                  >
+                    削除
+                  </Button>
+                </Flex>
               </>
             )}
             {InputCostPrices.length > 0 && <Form.Label>店舗原価(税抜)</Form.Label>}
@@ -288,22 +343,41 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
                     isDisabled={productCostPrices.has(costPrice.supplierCode)}
                     options={supplierOptions}
                     onChange={setSupplier(index)}
-                    className="w-2/3 mb-3 sm:mb-0"
+                    className="w-1/2 mb-3 sm:mb-0"
                   />
-                  <Form.Text
-                    placeholder="店舗原価(税抜)"
-                    required
-                    value={String(costPrice.costPrice ?? '')}
-                    onChange={(e) => {
-                      if (e.target.value === '' || (isNum(e.target.value) && Number(e.target.value) > 0)) {
-                        setInputCostPrices((prev) => {
-                          const values = [...prev];
-                          values[index].costPrice = Number(e.target.value);
-                          return values;
-                        });
-                      }
-                    }}
-                  />
+                  <Tooltip
+                    disabled={!costPrice?.updatedAt}
+                    title={
+                      costPrice?.updatedAt
+                        ? '最終更新' + toDateString(costPrice?.updatedAt.toDate(), 'YY/MM/DD hh:mm')
+                        : ''
+                    }
+                  >
+                    <Form.Text
+                      placeholder="店舗原価(税抜)"
+                      required
+                      value={String(costPrice.costPrice ?? '')}
+                      onChange={(e) => {
+                        if (e.target.value === '' || (isNum(e.target.value) && Number(e.target.value) > 0)) {
+                          setInputCostPrices((prev) => {
+                            const values = [...prev];
+                            values[index].costPrice = Number(e.target.value);
+                            return values;
+                          });
+                        }
+                      }}
+                      className="h-10"
+                    />
+                  </Tooltip>
+                  <Button
+                    type="button"
+                    size="xs"
+                    color="danger"
+                    className="hover:bg-gray-300"
+                    onClick={deleteCostPrice(costPrice.supplierCode)}
+                  >
+                    削除
+                  </Button>
                 </Flex>
               ))}
             </div>
