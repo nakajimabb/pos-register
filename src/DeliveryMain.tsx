@@ -173,7 +173,7 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
         const snap = (await getDoc(doc(db, 'products', currentItem.productCode))) as DocumentSnapshot<Product>;
         const product = snap.data();
         if (product) {
-          setCurrentItem((prev) => ({ ...prev, costPrice: product.costPrice })); // TODO: 後で移動平均に変更
+          setCurrentItem((prev) => ({ ...prev, costPrice: product.avgCostPrice ?? product.costPrice }));
           quantityRef.current?.focus();
         } else {
           setErrors((prev) => [...prev, '商品が見つかりません。']);
