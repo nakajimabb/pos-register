@@ -16,6 +16,7 @@ import {
   Timestamp,
   where,
   serverTimestamp,
+  Transaction,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
@@ -23,7 +24,7 @@ import { useAppContext } from './AppContext';
 import app from './firebase';
 import PurchaseDetailEdit from './PurchaseDetailEdit';
 import UnregisteredProductEdit from './UnregisteredProductEdit';
-import { nameWithCode, toDateString, getBarcodeValue, checkDigit } from './tools';
+import { nameWithCode, toDateString, getBarcodeValue, checkDigit, isNum } from './tools';
 import firebaseError from './firebaseError';
 import {
   Product,
@@ -178,7 +179,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   };
 
   const addItem = async (productCode: string, quantity: number | null, costPrice: number | null) => {
-    if (productCode && quantity && costPrice) {
+    if (productCode && quantity !== null && costPrice !== null) {
       const ref = doc(db, 'products', productCode);
       const snap = (await getDoc(ref)) as DocumentSnapshot<Product>;
       const product = snap.data();
@@ -241,7 +242,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
             costPrice = snap.data().costPrice;
           }
         }
-        if (costPrice) {
+        if (costPrice !== null) {
           setCurrentItem((prev) => ({ ...prev, costPrice }));
           quantityRef.current?.focus();
         } else {
@@ -264,6 +265,38 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+  };
+
+  const getCostPrices = async (
+    shopCode: string,
+    productCodes: string[],
+    srcType: 'supplier' | 'shop',
+    supplierCode: string,
+    transaction: Transaction
+  ) => {
+    const costPrices = new Map<string, number>();
+    if (srcType === 'supplier') {
+      for await (const productCode of productCodes) {
+        const ref = doc(db, productCostPricePath(shopCode, productCode, supplierCode));
+        const snap = (await transaction.get(ref)) as DocumentSnapshot<ProductCostPrice>;
+        if (snap.exists()) {
+          const costPrice = snap.data();
+          if (isNum(costPrice.costPrice)) {
+            costPrices.set(productCode, Number(costPrice.costPrice));
+            continue;
+          }
+        }
+        const refPdct = doc(db, 'products', productCode);
+        const snapPdct = (await transaction.get(refPdct)) as DocumentSnapshot<Product>;
+        if (snapPdct.exists()) {
+          const product = snapPdct.data();
+          if (isNum(product.costPrice)) {
+            costPrices.set(productCode, Number(product.costPrice));
+          }
+        }
+      }
+    }
+    return costPrices;
   };
 
   const save = async () => {
@@ -293,6 +326,8 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
             notFoundStockCodes.add(productCode);
           }
         }
+        // 既存の原価情報の読込
+        const costPrices = await getCostPrices(purch.shopCode, productCodes, purch.srcType, purch.srcCode, transaction);
 
         // purchase
         if (purch.purchaseNumber <= 0) {
@@ -333,6 +368,26 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
           // 非稼働 ⇒ 稼働
           const refPdct = doc(db, 'products', item.productCode);
           transaction.set(refPdct, { hidden: false }, { merge: true });
+          // 仕入価格が異なればデータを作成する
+          if (purch.srcType === 'supplier') {
+            const costPrice = costPrices.get(item.productCode);
+            if (costPrice !== item.costPrice) {
+              const path = productCostPricePath(purch.shopCode, item.productCode, purch.srcCode);
+              transaction.set(
+                doc(db, path),
+                {
+                  shopCode: purch.shopCode,
+                  productCode: item.productCode,
+                  productName: item.productName,
+                  supplierCode: purch.srcCode,
+                  supplierName: purch.srcName,
+                  costPrice: item.costPrice,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+              );
+            }
+          }
         }
       });
       setProcessing(false);
