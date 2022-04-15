@@ -178,7 +178,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
 
         // 詳細データ保存 => fixしていないデータのみ保存
         const unfixedItems = getUnfixedItems();
-        for await (const item of unfixedItems) {
+        for (const item of unfixedItems) {
           const detail = details.get(item.productCode);
           const ref2 = doc(db, rejectionDetailPath(reject.shopCode, reject.rejectionNumber, item.productCode));
           // 詳細データ更新

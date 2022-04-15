@@ -313,7 +313,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
 
         // 詳細データ保存 => fixしていないデータのみ保存
         const unfixedItems = getUnfixedItems();
-        for await (const item of unfixedItems) {
+        for (const item of unfixedItems) {
           const detail = details.get(item.productCode);
           const ref2 = doc(db, purchaseDetailPath(purch.shopCode, purch.purchaseNumber, item.productCode));
           // 詳細データ更新
@@ -330,6 +330,9 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
           // 在庫更新
           const diff = detail ? item.quantity - detail.quantity : item.quantity;
           incrementStock(purch.shopCode, item.productCode, item.productName, diff, transaction);
+          // 非稼働 ⇒ 稼働
+          const refPdct = doc(db, 'products', item.productCode);
+          transaction.set(refPdct, { hidden: false }, { merge: true });
         }
       });
       setProcessing(false);

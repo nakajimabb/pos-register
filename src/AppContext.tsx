@@ -69,7 +69,7 @@ export type ContextType = {
     productCode: string,
     productName: string,
     incr: number,
-    transaction?: Transaction
+    transaction: Transaction
   ) => void;
   getProductPrice: (
     shopCode: string,
@@ -104,7 +104,7 @@ const AppContext = createContext({
     productCode: string,
     productName: string,
     incr: number,
-    transaction?: Transaction
+    transaction: Transaction
   ) => {},
   getProductPrice: async (
     shopCode: string,
@@ -253,7 +253,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
     productCode: string,
     productName: string,
     incr: number,
-    transaction?: Transaction
+    transaction: Transaction
   ) => {
     const productBulk = productBulks.find((bulk) => bulk.parentProductCode === productCode);
     const code = productBulk ? productBulk.childProductCode : productCode;
@@ -268,11 +268,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
       quantity: increment(incmnt),
       updatedAt: serverTimestamp(),
     };
-    if (transaction) {
-      transaction.set(ref, data, { merge: true });
-    } else {
-      setDoc(ref, data, { merge: true });
-    }
+    transaction.set(ref, data, { merge: true });
   };
 
   // 商品マスタ（共通）取得メソッド
