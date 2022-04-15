@@ -126,9 +126,11 @@ const ProductCostPriceList: React.FC = () => {
       const conds: QueryConstraint[] = [];
       if (mode === 'query') {
         conds.push(orderBy('productCode'));
+        conds.push(orderBy('updatedAt', 'desc'));
         conds.push(startAfter(startProductCode));
         if (startProductCode !== lastProductCode) conds.push(endAt(lastProductCode));
       } else {
+        conds.push(orderBy('updatedAt', 'desc'));
         if (productCodes.length > 1) {
           conds.push(where('productCode', 'in', productCodes));
         } else {
@@ -169,6 +171,7 @@ const ProductCostPriceList: React.FC = () => {
       }
       setShopProducts((prev) => new Map([...Array.from(prev.entries()), ...Array.from(items.entries())]));
     } catch (error) {
+      setPosition((prev) => ({ ...prev, completed: true }));
       console.log({ error });
       setError(firebaseError(error));
     }
