@@ -54,7 +54,7 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
   const [targetProductCode, setTargetProductCode] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
   const [reEdit, setReEdit] = useState<boolean>(false);
-  const { registListner, incrementStock, shops } = useAppContext();
+  const { registListner, incrementStock, shops, currentShop } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
   const dstShop = shops?.get(delivery.dstShopCode);
@@ -75,17 +75,19 @@ const DeliveryMain: React.FC<Props> = ({ shopCode, shopName, deliveryNumber = -1
   }, [delivery.dstShopCode]);
 
   useEffect(() => {
-    const options = Array.from(shops.entries()).map(([code, shop]) => ({
-      value: code,
-      label: nameWithCode(shop),
-    }));
+    const options = Array.from(shops.entries())
+      .filter(([code, _]) => code !== currentShop?.code)
+      .map(([code, shop]) => ({
+        value: code,
+        label: nameWithCode(shop),
+      }));
     options.unshift({ label: '', value: '' });
     setShopsOptions(options);
     setDelivery((prev) => {
       const shopName = shops.get(prev.shopCode)?.name ?? '';
       return { ...prev, shopName };
     });
-  }, [shops]);
+  }, [shops, currentShop]);
 
   const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
     return value ? options.find((option) => option.value === value) : { label: '', value: '' };

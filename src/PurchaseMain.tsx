@@ -77,7 +77,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   const [targetProductCode, setTargetProductCode] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
   const [openProductEdit, setOpenProductEdit] = useState<boolean>(false);
-  const { registListner, incrementStock, shops, suppliers } = useAppContext();
+  const { registListner, incrementStock, shops, suppliers, currentShop } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const quantityRef = useRef<HTMLInputElement>(null);
   const hisotry = useHistory();
@@ -110,17 +110,19 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   }, [suppliers]);
 
   useEffect(() => {
-    const options = Array.from(shops.entries()).map(([code, shop]) => ({
-      value: code,
-      label: nameWithCode(shop),
-    }));
+    const options = Array.from(shops.entries())
+      .filter(([code, _]) => code !== currentShop?.code)
+      .map(([code, shop]) => ({
+        value: code,
+        label: nameWithCode(shop),
+      }));
     options.unshift({ label: '', value: '' });
     setShopOptions(options);
     setPurchase((prev) => {
       const shopName = shops.get(prev.shopCode)?.name ?? '';
       return { ...prev, shopName };
     });
-  }, [shops]);
+  }, [shops, currentShop]);
 
   const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
     return value ? options.find((option) => option.value === value) : { label: '', value: '' };
