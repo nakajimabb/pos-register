@@ -84,7 +84,9 @@ const DeliveryPrint: React.FC<Props> = ({ mode, shopCode, deliveryNumber, onClos
               </h1>
               <Flex>
                 <div className="bold border border-gray-300 text-center w-16 py-1">種類</div>
-                <div className="bold border border-gray-300 text-center w-16 py-1">{items.length}</div>
+                <div className="bold border border-gray-300 text-center w-16 py-1">
+                  {items.filter((detail) => detail.quantity !== 0).length}
+                </div>
                 <div className="bold border border-gray-300 text-center w-16 py-1">商品数</div>
                 <div className="bold border border-gray-300 text-center w-16 py-1">{sumItemQuantity()}</div>
                 <div className="bold border border-gray-300 text-center w-24 py-1">金額(税抜)</div>

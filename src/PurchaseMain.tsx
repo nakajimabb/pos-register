@@ -494,7 +494,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
   const getTotal = () => {
     const details = getTargetItems();
     return {
-      totalVariety: details.length,
+      totalVariety: details.filter((detail) => detail.quantity !== 0).length,
       totalQuantity: details.reduce((acc, item) => acc + item.quantity, 0),
       totalAmount: details.reduce((acc, item) => acc + item.quantity * Number(item.costPrice), 0),
     };
