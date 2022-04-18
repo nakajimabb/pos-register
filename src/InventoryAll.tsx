@@ -10,6 +10,7 @@ import {
   Timestamp,
   where,
 } from 'firebase/firestore';
+import * as xlsx from 'xlsx';
 import { Alert, Button, Card, Form, Table } from './components';
 import { useAppContext } from './AppContext';
 import InventoryPrint from './InventoryPrint';
@@ -109,6 +110,73 @@ const InventoryList: React.FC = () => {
     }
   };
 
+  const s2ab = (s: any) => {
+    const buf = new ArrayBuffer(s.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i !== s.length; ++i) view[i] = s.charCodeAt(i) & 0xff;
+    return buf;
+  };
+
+  const downloadExcel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const dataArray: string[][] = [];
+    dataArray.push([
+      'ｺｰﾄﾞ',
+      '店舗名',
+      '棚卸開始',
+      '棚卸終了',
+      'ｽﾃｰﾀｽ',
+      '8%商品数',
+      '8%金額',
+      '10%商品数',
+      '10%金額',
+      '合計商品数',
+      '合計金額',
+    ]);
+
+    sortedShops().forEach((shop, i) => {
+      const invts = targetInventory(shop.code, search.status);
+      if (invts) {
+        invts.forEach((invt) => {
+          const row: string[] = [];
+          row.push(shop.code);
+          row.push(shop.name);
+          row.push(toDateString(invt?.date?.toDate(), 'MM/DD hh:mm'));
+          row.push(invt.fixedAt ? toDateString(invt.fixedAt.toDate(), 'MM/DD hh:mm') : '');
+          row.push(invt && invt.fixedAt ? '確定済' : '作業中');
+          row.push(String(invt.sum[8]?.quantity ?? ''));
+          row.push(String(invt.sum[8]?.amount ?? ''));
+          row.push(String(invt.sum[10]?.quantity ?? ''));
+          row.push(String(invt.sum[10]?.amount ?? ''));
+          row.push(String(invt.sum[0]?.quantity ?? ''));
+          row.push(String(invt.sum[0]?.amount ?? ''));
+          dataArray.push(row);
+        });
+      } else {
+        const row: string[] = [];
+        row.push(shop.code);
+        row.push(shop.name);
+        row.push('', '', '未着手');
+        dataArray.push(row);
+      }
+    });
+
+    const sheet = xlsx.utils.aoa_to_sheet(dataArray);
+    const wb = {
+      SheetNames: ['Sheet1'],
+      Sheets: { Sheet1: sheet },
+    };
+    const wb_out = xlsx.write(wb, { type: 'binary' });
+    var blob = new Blob([s2ab(wb_out)], {
+      type: 'application/octet-stream',
+    });
+
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = `棚卸モニタ.xlsx`;
+    link.click();
+  };
+
   return (
     <div className="pt-12">
       <div className="p-4">
@@ -150,6 +218,9 @@ const InventoryList: React.FC = () => {
               onChange={(e) => setSearch((prev) => ({ ...prev, status: String(e.target.value) as Status }))}
             />
             <Button className="w-48">検索</Button>
+            <Button className="w-48" onClick={downloadExcel}>
+              Excel
+            </Button>
           </Form>
           {messages.length > 0 && (
             <Alert severity="error" onClose={() => setMessages([])}>
@@ -166,6 +237,12 @@ const InventoryList: React.FC = () => {
                 <Table.Cell>棚卸開始</Table.Cell>
                 <Table.Cell>棚卸終了</Table.Cell>
                 <Table.Cell>ｽﾃｰﾀｽ</Table.Cell>
+                <Table.Cell>8%商品数</Table.Cell>
+                <Table.Cell>8%金額</Table.Cell>
+                <Table.Cell>10%商品数</Table.Cell>
+                <Table.Cell>10%金額</Table.Cell>
+                <Table.Cell>合計商品数</Table.Cell>
+                <Table.Cell>合計金額</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -183,6 +260,13 @@ const InventoryList: React.FC = () => {
                         <Table.Cell>{toDateString(invt?.date?.toDate(), 'MM/DD hh:mm')}</Table.Cell>
                         <Table.Cell>{invt.fixedAt && toDateString(invt.fixedAt.toDate(), 'MM/DD hh:mm')}</Table.Cell>
                         <Table.Cell>{invt && invt.fixedAt ? '確定済' : '作業中'}</Table.Cell>
+                        <Table.Cell>{invt.sum[8]?.quantity}</Table.Cell>
+                        <Table.Cell>{invt.sum[8]?.amount?.toLocaleString()}</Table.Cell>
+                        <Table.Cell>{invt.sum[10]?.quantity}</Table.Cell>
+                        <Table.Cell>{invt.sum[10]?.amount?.toLocaleString()}</Table.Cell>
+                        <Table.Cell>{invt.sum[0]?.quantity}</Table.Cell>
+                        <Table.Cell>{invt.sum[0]?.amount?.toLocaleString()}</Table.Cell>
+                        <Table.Cell></Table.Cell>
                         <Table.Cell>
                           <Button
                             color="light"
@@ -211,8 +295,14 @@ const InventoryList: React.FC = () => {
                       <Table.Cell>{shop.name}</Table.Cell>
                       <Table.Cell></Table.Cell>
                       <Table.Cell></Table.Cell>
-                      <Table.Cell></Table.Cell>
                       <Table.Cell>未着手</Table.Cell>
+                      <Table.Cell></Table.Cell>
+                      <Table.Cell></Table.Cell>
+                      <Table.Cell></Table.Cell>
+                      <Table.Cell></Table.Cell>
+                      <Table.Cell></Table.Cell>
+                      <Table.Cell></Table.Cell>
+                      <Table.Cell></Table.Cell>
                     </Table.Row>
                   );
                 }

@@ -103,6 +103,12 @@ const InventoryList: React.FC = () => {
                 <Table.Cell>棚卸日</Table.Cell>
                 <Table.Cell>作業期間</Table.Cell>
                 <Table.Cell>ｽﾃｰﾀｽ</Table.Cell>
+                <Table.Cell>8%商品数</Table.Cell>
+                <Table.Cell>8%金額</Table.Cell>
+                <Table.Cell>10%商品数</Table.Cell>
+                <Table.Cell>10%金額</Table.Cell>
+                <Table.Cell>合計商品数</Table.Cell>
+                <Table.Cell>合計金額</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -118,6 +124,12 @@ const InventoryList: React.FC = () => {
                       {item.fixedAt && toDateString(item.fixedAt.toDate(), 'MM/DD hh:mm')}
                     </Table.Cell>
                     <Table.Cell>{!!item.fixedAt ? '確定済' : '作業中'}</Table.Cell>
+                    <Table.Cell>{item.sum[8]?.quantity}</Table.Cell>
+                    <Table.Cell>{item.sum[8]?.amount?.toLocaleString()}</Table.Cell>
+                    <Table.Cell>{item.sum[10]?.quantity}</Table.Cell>
+                    <Table.Cell>{item.sum[10]?.amount?.toLocaleString()}</Table.Cell>
+                    <Table.Cell>{item.sum[0]?.quantity}</Table.Cell>
+                    <Table.Cell>{item.sum[0]?.amount?.toLocaleString()}</Table.Cell>
                     <Table.Cell>
                       <Button
                         color="light"
