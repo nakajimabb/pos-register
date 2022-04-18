@@ -66,6 +66,10 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, shopCode,
       // 商品マスタ(共通)
       await setDoc(doc(db, 'products', product.code), {
         ...product,
+        sellingTaxClass: 'exclusive',
+        stockTaxClass: 'exclusive',
+        sellingTax: 10,
+        stockTax: 10,
         unregistered: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
