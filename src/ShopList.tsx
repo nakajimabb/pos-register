@@ -110,7 +110,7 @@ const ShopList: React.FC = () => {
       try {
         setLoading(true);
         const functions = getFunctions(app, 'asia-northeast1');
-        const result = await httpsCallable(functions, 'updateShopsFromKKb')();
+        const result = await httpsCallable(functions, 'updateShops')();
         console.log({ result });
         setLoading(false);
         alert('店舗情報を更新しました。');

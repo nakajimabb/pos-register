@@ -133,61 +133,71 @@ const createUserIfNotExist = async (email: string, password: string) => {
   }
 };
 
-export const updateShopsFromKKb = functions
+const updateShopsFromKKb = async () => {
+  try {
+    // KKBにログイン
+    await loginKkb();
+
+    // KKBから店舗情報を取得
+    const url = KKB_URL + '/departments/valid_list';
+    const day = toDateString(new Date(), 'YYYY-MM-DD');
+    const params = `?day=${day}&only_login_user=true&except_lunar=true`;
+    const resultKkb = await client.fetch(url + params);
+    const shops = JSON.parse(resultKkb.body);
+
+    // KKBからログアウト
+    await logoutKkb();
+
+    const BATCH_UNIT = 100;
+    const taskSize = Math.ceil(shops.length / BATCH_UNIT);
+    const sequential = [...Array(taskSize).keys()];
+
+    // アカウント作成
+    const createCodes: string[] = [];
+    const tasks1 = sequential.map(async (i) => {
+      const sliced = shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+      for await (const shop of sliced) {
+        const email = emailFromUserCode(shop.code);
+        const result = await createUserIfNotExist(email, 'password');
+        if (result.result) createCodes.push(shop.code);
+      }
+    });
+    await Promise.all(tasks1);
+
+    // firestore 更新
+    const tasks2 = sequential.map(async (i) => {
+      const batch = db.batch();
+      const sliced = shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+      sliced.forEach((shop: any) => {
+        const ref = db.collection('shops').doc(shop.code);
+        const p = { ...shop, hidden: false };
+        // アカウントが新たに作成されたら権限をshopに設定
+        if (createCodes.includes(shop.code)) p.role = 'shop';
+        batch.set(ref, p, { merge: true });
+      });
+      return await batch.commit();
+    });
+    const results = await Promise.all(tasks2);
+    return { shops, results };
+  } catch (error) {
+    throw new functions.https.HttpsError('unknown', 'error in updateShopsFromKKb', error);
+  }
+};
+
+export const updateShops = functions
   .runWith({ timeoutSeconds: 540 })
   .region('asia-northeast1')
   .https.onCall(async () => {
-    const f = async () => {
-      try {
-        // KKBにログイン
-        await loginKkb();
+    return await updateShopsFromKKb();
+  });
 
-        // KKBから店舗情報を取得
-        const url = KKB_URL + '/departments/valid_list';
-        const day = toDateString(new Date(), 'YYYY-MM-DD');
-        const params = `?day=${day}&only_login_user=true&except_lunar=true`;
-        const resultKkb = await client.fetch(url + params);
-        const shops = JSON.parse(resultKkb.body);
-
-        // KKBからログアウト
-        await logoutKkb();
-
-        const BATCH_UNIT = 100;
-        const taskSize = Math.ceil(shops.length / BATCH_UNIT);
-        const sequential = [...Array(taskSize).keys()];
-
-        // アカウント作成
-        const createCodes: string[] = [];
-        const tasks1 = sequential.map(async (i) => {
-          const sliced = shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
-          for await (const shop of sliced) {
-            const email = emailFromUserCode(shop.code);
-            const result = await createUserIfNotExist(email, 'password');
-            if (result.result) createCodes.push(shop.code);
-          }
-        });
-        await Promise.all(tasks1);
-
-        // firestore 更新
-        const tasks2 = sequential.map(async (i) => {
-          const batch = db.batch();
-          const sliced = shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
-          sliced.forEach((shop: any) => {
-            const ref = db.collection('shops').doc(shop.code);
-            const p = { ...shop, hidden: false };
-            // アカウントが新たに作成されたら権限をshopに設定
-            if (createCodes.includes(shop.code)) p.role = 'shop';
-            batch.set(ref, p, { merge: true });
-          });
-          return await batch.commit();
-        });
-        const results = await Promise.all(tasks2);
-        return { shops, results };
-      } catch (error) {
-        throw new functions.https.HttpsError('unknown', 'error in updateShopsFromKKb', error);
-      }
-    };
-    return await f();
+exports.scheduledUpdateShops = functions
+  .runWith({ timeoutSeconds: 540 })
+  .region('asia-northeast1')
+  .pubsub.schedule('0 0 * * *')
+  .timeZone('Asia/Tokyo')
+  .onRun(() => {
+    updateShopsFromKKb();
   });
 
 export const getSequence = functions.region('asia-northeast1').https.onCall(async (data) => {
