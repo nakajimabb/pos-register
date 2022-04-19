@@ -647,7 +647,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
             {!purchase.fixed && (
               <Button
                 className="w-32"
-                disabled={!purchase.srcCode || !existUnfixedItems() || sumItemQuantity() === 0 || processing}
+                disabled={!purchase.srcCode || items.size === 0 || processing}
                 onClick={() => {
                   if (window.confirm('確定しますか？')) {
                     save();
