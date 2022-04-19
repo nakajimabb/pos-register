@@ -170,9 +170,12 @@ const updateShopsFromKKb = async () => {
       const sliced = shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
       sliced.forEach((shop: any) => {
         const ref = db.collection('shops').doc(shop.code);
-        const p = { ...shop, hidden: false };
+        const p = { ...shop };
         // アカウントが新たに作成されたら権限をshopに設定
-        if (createCodes.includes(shop.code)) p.role = 'shop';
+        if (createCodes.includes(shop.code)) {
+          p.hidden = false;
+          p.role = 'shop';
+        }
         batch.set(ref, p, { merge: true });
       });
       return await batch.commit();
