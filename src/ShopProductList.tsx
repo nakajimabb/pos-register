@@ -65,7 +65,7 @@ const ProductCostPriceList: React.FC = () => {
   }, [shops, currentShop]);
 
   const loadMore = () => {
-    if (!position.completed && !search.text) queryShopProducts([position.productCode]);
+    if (!position.completed && !search.text) queryShopProducts(search.shopCode, [position.productCode]);
   };
 
   const resetItems = () => {
@@ -80,100 +80,102 @@ const ProductCostPriceList: React.FC = () => {
       const productCodes = pds.map((pd) => pd.code);
       const pieces: string[][] = arrToPieces(productCodes, 10);
       for await (const codes of pieces) {
-        await queryShopProducts(codes, 'get');
+        await queryShopProducts(search.shopCode, codes, 'get');
       }
       setPosition({ productCode: '', completed: true });
     } else {
-      queryShopProducts([]);
+      queryShopProducts(search.shopCode, []);
     }
   };
 
-  const queryShopProducts = async (productCodes: string[], mode: 'query' | 'get' = 'query') => {
-    try {
-      setError('');
-      const items: Map<string, ShopProduct> = new Map();
-      let startProductCode = productCodes.length > 0 ? productCodes[0] : '';
-      let lastProductCode = startProductCode;
-      let completed = true;
+  const queryShopProducts = async (shopCode: string, productCodes: string[], mode: 'query' | 'get' = 'query') => {
+    if (shopCode) {
+      try {
+        setError('');
+        const items: Map<string, ShopProduct> = new Map();
+        let startProductCode = productCodes.length > 0 ? productCodes[0] : '';
+        let lastProductCode = startProductCode;
+        let completed = true;
 
-      // 店舗在庫
-      {
+        // 店舗在庫
+        {
+          const conds: QueryConstraint[] = [];
+          if (mode === 'query') {
+            conds.push(orderBy('productCode'));
+            conds.push(startAfter(startProductCode));
+            conds.push(limit(PER_PAGE));
+          } else {
+            if (productCodes.length > 1) {
+              conds.push(where('productCode', 'in', productCodes));
+            } else {
+              conds.push(where('productCode', '==', startProductCode));
+            }
+          }
+          const ref = query(collection(db, 'shops', shopCode, 'stocks'), ...conds);
+          const qsnap = (await getDocs(ref)) as QuerySnapshot<Stock>;
+          qsnap.forEach((dsnap) => {
+            const data = dsnap.data();
+            const item = items.get(data.productCode);
+            const value = item ?? { productName: data.productName };
+            items.set(data.productCode, { ...value, stock: data });
+          });
+          if (qsnap.size > 0) {
+            lastProductCode = qsnap.docs.slice(-1)[0].data().productCode;
+            completed = false;
+          }
+        }
         const conds: QueryConstraint[] = [];
         if (mode === 'query') {
           conds.push(orderBy('productCode'));
+          conds.push(orderBy('updatedAt', 'desc'));
           conds.push(startAfter(startProductCode));
-          conds.push(limit(PER_PAGE));
+          if (startProductCode !== lastProductCode) conds.push(endAt(lastProductCode));
         } else {
+          conds.push(orderBy('updatedAt', 'desc'));
           if (productCodes.length > 1) {
             conds.push(where('productCode', 'in', productCodes));
           } else {
             conds.push(where('productCode', '==', startProductCode));
           }
         }
-        const ref = query(collection(db, 'shops', search.shopCode, 'stocks'), ...conds);
-        const qsnap = (await getDocs(ref)) as QuerySnapshot<Stock>;
-        qsnap.forEach((dsnap) => {
-          const data = dsnap.data();
-          const item = items.get(data.productCode);
-          const value = item ?? { productName: data.productName };
-          items.set(data.productCode, { ...value, stock: data });
-        });
-        if (qsnap.size > 0) {
-          lastProductCode = qsnap.docs.slice(-1)[0].data().productCode;
-          completed = false;
+        // 店舗売価
+        {
+          const ref = query(collection(db, 'shops', shopCode, 'productSellingPrices'), ...conds);
+          const qsnap = (await getDocs(ref)) as QuerySnapshot<ProductSellingPrice>;
+          qsnap.forEach((dsnap) => {
+            const data = dsnap.data();
+            const item = items.get(data.productCode);
+            const value = item ?? { productName: data.productName };
+            items.set(data.productCode, { ...value, productSellingPrice: data });
+          });
+          if (qsnap.size > 0) {
+            completed = false;
+          }
         }
-      }
-      const conds: QueryConstraint[] = [];
-      if (mode === 'query') {
-        conds.push(orderBy('productCode'));
-        conds.push(orderBy('updatedAt', 'desc'));
-        conds.push(startAfter(startProductCode));
-        if (startProductCode !== lastProductCode) conds.push(endAt(lastProductCode));
-      } else {
-        conds.push(orderBy('updatedAt', 'desc'));
-        if (productCodes.length > 1) {
-          conds.push(where('productCode', 'in', productCodes));
-        } else {
-          conds.push(where('productCode', '==', startProductCode));
+        // 店舗原価
+        {
+          const ref = query(collection(db, 'shops', shopCode, 'productCostPrices'), ...conds);
+          const qsnap = (await getDocs(ref)) as QuerySnapshot<ProductCostPrice>;
+          qsnap.forEach((dsnap) => {
+            const data = dsnap.data();
+            const item = items.get(data.productCode);
+            const value = item ?? { productName: data.productName };
+            const costPrices = value?.productCostPrices || [];
+            items.set(data.productCode, { ...value, productCostPrices: [...costPrices, data] });
+          });
+          if (qsnap.size > 0) {
+            completed = false;
+          }
         }
-      }
-      // 店舗売価
-      {
-        const ref = query(collection(db, 'shops', search.shopCode, 'productSellingPrices'), ...conds);
-        const qsnap = (await getDocs(ref)) as QuerySnapshot<ProductSellingPrice>;
-        qsnap.forEach((dsnap) => {
-          const data = dsnap.data();
-          const item = items.get(data.productCode);
-          const value = item ?? { productName: data.productName };
-          items.set(data.productCode, { ...value, productSellingPrice: data });
-        });
-        if (qsnap.size > 0) {
-          completed = false;
+        if (mode === 'query') {
+          setPosition({ productCode: lastProductCode, completed });
         }
+        setShopProducts((prev) => new Map([...Array.from(prev.entries()), ...Array.from(items.entries())]));
+      } catch (error) {
+        setPosition((prev) => ({ ...prev, completed: true }));
+        console.log({ error });
+        setError(firebaseError(error));
       }
-      // 店舗原価
-      {
-        const ref = query(collection(db, 'shops', search.shopCode, 'productCostPrices'), ...conds);
-        const qsnap = (await getDocs(ref)) as QuerySnapshot<ProductCostPrice>;
-        qsnap.forEach((dsnap) => {
-          const data = dsnap.data();
-          const item = items.get(data.productCode);
-          const value = item ?? { productName: data.productName };
-          const costPrices = value?.productCostPrices || [];
-          items.set(data.productCode, { ...value, productCostPrices: [...costPrices, data] });
-        });
-        if (qsnap.size > 0) {
-          completed = false;
-        }
-      }
-      if (mode === 'query') {
-        setPosition({ productCode: lastProductCode, completed });
-      }
-      setShopProducts((prev) => new Map([...Array.from(prev.entries()), ...Array.from(items.entries())]));
-    } catch (error) {
-      setPosition((prev) => ({ ...prev, completed: true }));
-      console.log({ error });
-      setError(firebaseError(error));
     }
   };
 
@@ -210,7 +212,7 @@ const ProductCostPriceList: React.FC = () => {
           shopCode={search.shopCode}
           productCode={targetProductCode}
           onClose={() => setOpen(false)}
-          onUpdate={(productCode) => queryShopProducts([productCode], 'get')}
+          onUpdate={(productCode) => queryShopProducts(search.shopCode, [productCode], 'get')}
         />
       )}
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">店舗商品マスタ</h1>

@@ -6,7 +6,7 @@ import { Flex } from './';
 import './Dropdown.css';
 
 type ItemProps = {
-  title: React.ReactElement | string;
+  title: string;
   to?: string;
   onClick?(e: React.MouseEvent<HTMLDivElement>): void;
   setShow?: React.Dispatch<React.SetStateAction<boolean>>;
