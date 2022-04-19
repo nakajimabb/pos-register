@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { truncate } from 'lodash';
 import {
   collection,
   doc,
@@ -17,7 +16,6 @@ import {
   where,
   QueryConstraint,
   QuerySnapshot,
-  onSnapshot,
   serverTimestamp,
   writeBatch,
   Bytes,
@@ -29,7 +27,7 @@ import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import ProductEdit from './ProductEdit';
 import { toDateString } from './tools';
-import { Product, ProductCategory, Supplier } from './types';
+import { Product } from './types';
 
 // import * as zlib from 'zlib';
 const zlib = require('zlib');
@@ -52,7 +50,6 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
   const [open, setOpen] = useState(false);
   const [docId, setDocId] = useState<string | null>(null);
   const [productCount, setProductCount] = useState<number | null>(null);
-  const [categoryOptions, setCategoryOptions] = useState<{ label: string; value: string }[]>([]);
   const [error, setError] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
   const { role, counters, searchProducts } = useAppContext();
@@ -272,10 +269,10 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                 </Button>
                 {role === 'manager' && (
                   <>
-                    <Button variant="outlined" className="mr-2" onClick={createFullTextSearch}>
+                    <Button variant="outlined" disabled={processing} className="mr-2" onClick={createFullTextSearch}>
                       <small>全文検索データ作成</small>
                     </Button>
-                    <Button variant="outlined" className="mr-2" onClick={initAvgCostPrices}>
+                    <Button variant="outlined" disabled={processing} className="mr-2" onClick={initAvgCostPrices}>
                       <small>移動平均原価作成</small>
                     </Button>
                   </>

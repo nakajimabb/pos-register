@@ -6,7 +6,8 @@ import app from './firebase';
 import { Button, Flex, Form, Modal, Table } from './components';
 import { useAppContext } from './AppContext';
 import { Sale, SaleDetail, Stock, BasketItem } from './types';
-import { prefectureName, toNumber, OTC_DIVISION } from './tools';
+import { prefectureName } from './prefecture';
+import { toNumber, OTC_DIVISION } from './tools';
 
 type Props = {
   open: boolean;

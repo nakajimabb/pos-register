@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { Alert, Button, Card, Flex, Form, Table } from './components';
 import { useAppContext } from './AppContext';
 import { Sale, SaleDetail } from './types';
-import { prefectureName } from './tools';
+import { prefectureName } from './prefecture';
 import firebaseError from './firebaseError';
 
 const db = getFirestore();

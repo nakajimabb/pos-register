@@ -19,11 +19,13 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from './firebase';
 
+import { Alert, Button, Card, Flex, Form, Table, Icon } from './components';
 import { useAppContext } from './AppContext';
-import { Alert, Button, Card, Flex, Form, Table } from './components';
+import ShopEdit from './ShopEdit';
 import firebaseError from './firebaseError';
 import { Shop } from './types';
-import { prefectureName, hiraToKana } from './tools';
+import { hiraToKana } from './tools';
+import { prefectureName } from './prefecture';
 import clsx from 'clsx';
 
 const db = getFirestore();
@@ -37,9 +39,10 @@ const ShopList: React.FC = () => {
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Shop> | null>(null);
   const [page, setPage] = useState(0);
   const [shopCount, setShopCount] = useState<number | null>(null);
+  const [targetShopCode, setTargetShopCode] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const { counters } = useAppContext();
+  const { role, counters } = useAppContext();
 
   const existSearch = () => search.text.trim();
 
@@ -146,6 +149,14 @@ const ShopList: React.FC = () => {
   return (
     <div className="pt-12">
       <h1 className="text-xl text-center font-bold mx-8 mt-4 mb-2">店舗一覧</h1>
+      {targetShopCode && (
+        <ShopEdit
+          open
+          mode={role === 'manager' ? 'edit' : 'show'}
+          shopCode={targetShopCode}
+          onClose={() => setTargetShopCode('')}
+        />
+      )}
       <Card className="mx-8 mb-4">
         <Flex justify_content="between" align_items="center" className="p-4">
           <Flex>
@@ -221,6 +232,15 @@ const ShopList: React.FC = () => {
                       <Table.Cell>{prefectureName(shop.prefecture)}</Table.Cell>
                       <Table.Cell className="text-center">{shop.role && ROLE_NAMES[shop.role]}</Table.Cell>
                       <Table.Cell>
+                        <Button
+                          variant="icon"
+                          size="xs"
+                          color="none"
+                          className="hover:bg-gray-300 "
+                          onClick={() => setTargetShopCode(shop.code)}
+                        >
+                          <Icon name="pencil-alt" />
+                        </Button>
                         {!shop.role && (
                           <Button
                             color="primary"

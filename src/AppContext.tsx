@@ -189,6 +189,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
       });
       setProductBundles(bundlesData);
     });
+    console.log('...start realtime listener on productBundles.');
     return () => unsubscribe();
   }, []);
 
@@ -200,6 +201,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
       });
       setProductBulks(bulksData);
     });
+    console.log('...start realtime listener on productBulks.');
     return () => unsubscribe();
   }, []);
 
@@ -211,6 +213,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
       });
       setFixedCostRates(ratesData);
     });
+    console.log('...start realtime listener on fixedCostRates.');
     return () => unsubscribe();
   }, []);
 
