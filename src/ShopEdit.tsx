@@ -6,7 +6,6 @@ import firebaseError from './firebaseError';
 import { Shop } from './types';
 import { prefectureOptions } from './prefecture';
 import { isNum } from './tools';
-import clsx from 'clsx';
 
 const db = getFirestore();
 const ROLE_NAMES = { shop: '店舗', manager: '管理者', admin: 'ｼｽﾃﾑ' };
@@ -16,7 +15,7 @@ type Props = {
   open: boolean;
   shopCode: string;
   onClose: () => void;
-  onUpdate?: (shop: Shop) => void;
+  onUpdate: (shop: Shop) => void;
 };
 
 const ShopEdit: React.FC<Props> = ({ mode, open, shopCode, onClose, onUpdate }) => {
@@ -51,7 +50,7 @@ const ShopEdit: React.FC<Props> = ({ mode, open, shopCode, onClose, onUpdate }) 
       try {
         if (shopCode) {
           await setDoc(doc(db, 'shops', shopCode), { ...shop, updatedAt: serverTimestamp() });
-          if (onUpdate && shop) onUpdate(shop);
+          if (shop) onUpdate(shop);
           onClose();
         }
       } catch (error) {

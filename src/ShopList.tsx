@@ -37,6 +37,7 @@ const ROLE_NAMES = { shop: '店舗', manager: '管理者', admin: 'ｼｽﾃﾑ'
 const ShopList: React.FC = () => {
   const [search, setSearch] = useState({ text: '' });
   const [snapshot, setSnapshot] = useState<QuerySnapshot<Shop> | null>(null);
+  const [shops, setShops] = useState<Shop[]>([]);
   const [page, setPage] = useState(0);
   const [shopCount, setShopCount] = useState<number | null>(null);
   const [targetShopCode, setTargetShopCode] = useState<string>('');
@@ -99,9 +100,9 @@ const ShopList: React.FC = () => {
         }
       }
       const q = query(collection(db, 'shops'), ...conds);
-      const querySnapshot = await getDocs(q);
-      setSnapshot(querySnapshot as QuerySnapshot<Shop>);
-      console.log({ size: querySnapshot.size });
+      const querySnapshot = (await getDocs(q)) as QuerySnapshot<Shop>;
+      setSnapshot(querySnapshot);
+      setShops(querySnapshot.docs.map((dsnap) => dsnap.data()));
     } catch (error) {
       console.log({ error });
       setError(firebaseError(error));
@@ -155,6 +156,14 @@ const ShopList: React.FC = () => {
           mode={role === 'manager' ? 'edit' : 'show'}
           shopCode={targetShopCode}
           onClose={() => setTargetShopCode('')}
+          onUpdate={(shop) => {
+            const index = shops.findIndex((s) => s.code === shop.code);
+            if (index >= 0) {
+              const shps = [...shops];
+              shps[index] = shop;
+              setShops(shps);
+            }
+          }}
         />
       )}
       <Card className="mx-8 mb-4">
@@ -218,44 +227,42 @@ const ShopList: React.FC = () => {
               </Table.Row>
             </Table.Head>
             <Table.Body>
-              {snapshot &&
-                snapshot.docs.map((doc, i) => {
-                  const shop = doc.data();
-                  return (
-                    <Table.Row key={i} className={clsx(shop.hidden && 'line-through')}>
-                      <Table.Cell>{shop.code}</Table.Cell>
-                      <Table.Cell>{shop.name}</Table.Cell>
-                      <Table.Cell>{shop.kana}</Table.Cell>
-                      <Table.Cell>{shop.formalName}</Table.Cell>
-                      <Table.Cell>{shop.tel}</Table.Cell>
-                      <Table.Cell>{shop.zip}</Table.Cell>
-                      <Table.Cell>{prefectureName(shop.prefecture)}</Table.Cell>
-                      <Table.Cell className="text-center">{shop.role && ROLE_NAMES[shop.role]}</Table.Cell>
-                      <Table.Cell>
+              {shops.map((shop, i) => {
+                return (
+                  <Table.Row key={i} className={clsx(shop.hidden && 'line-through')}>
+                    <Table.Cell>{shop.code}</Table.Cell>
+                    <Table.Cell>{shop.name}</Table.Cell>
+                    <Table.Cell>{shop.kana}</Table.Cell>
+                    <Table.Cell>{shop.formalName}</Table.Cell>
+                    <Table.Cell>{shop.tel}</Table.Cell>
+                    <Table.Cell>{shop.zip}</Table.Cell>
+                    <Table.Cell>{prefectureName(shop.prefecture)}</Table.Cell>
+                    <Table.Cell className="text-center">{shop.role && ROLE_NAMES[shop.role]}</Table.Cell>
+                    <Table.Cell>
+                      <Button
+                        variant="icon"
+                        size="xs"
+                        color="none"
+                        className="hover:bg-gray-300 "
+                        onClick={() => setTargetShopCode(shop.code)}
+                      >
+                        <Icon name="pencil-alt" />
+                      </Button>
+                      {!shop.role && (
                         <Button
-                          variant="icon"
+                          color="primary"
                           size="xs"
-                          color="none"
-                          className="hover:bg-gray-300 "
-                          onClick={() => setTargetShopCode(shop.code)}
+                          className="mr-2"
+                          disabled={loading}
+                          onClick={createAccount(shop.code)}
                         >
-                          <Icon name="pencil-alt" />
+                          ｱｶｳﾝﾄ
                         </Button>
-                        {!shop.role && (
-                          <Button
-                            color="primary"
-                            size="xs"
-                            className="mr-2"
-                            disabled={loading}
-                            onClick={createAccount(shop.code)}
-                          >
-                            ｱｶｳﾝﾄ
-                          </Button>
-                        )}
-                      </Table.Cell>
-                    </Table.Row>
-                  );
-                })}
+                      )}
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })}
             </Table.Body>
           </Table>
         </Card.Body>
