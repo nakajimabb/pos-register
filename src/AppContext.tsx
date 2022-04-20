@@ -21,7 +21,6 @@ import {
   QueryConstraint,
   QuerySnapshot,
   serverTimestamp,
-  setDoc,
   DocumentSnapshot,
 } from 'firebase/firestore';
 import { getAuth, User, onAuthStateChanged } from 'firebase/auth';
@@ -38,7 +37,6 @@ import {
   BasketItem,
   FixedCostRate,
   stockPath,
-  productCostPricePath,
   ProductCostPrice,
   ProductSellingPrice,
   productCostPricesPath,
@@ -58,7 +56,7 @@ export type ContextType = {
   productBulks: ProductBulk[];
   fixedCostRates: FixedCostRate[];
   suppliers: Map<string, Supplier>;
-  shops: Map<string, Supplier>;
+  shops: Map<string, Shop>;
   role: Role | null;
   addBundleDiscount: (basketItems: BasketItem[]) => BasketItem[];
   loadProductOptions: (inputText: string) => Promise<{ label: string; value: string }[]>;

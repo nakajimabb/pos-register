@@ -56,10 +56,12 @@ const ProductCostPriceList: React.FC = () => {
 
   useEffect(() => {
     if (role === 'manager' && shops.size > 0) {
-      const options = Array.from(shops.entries()).map(([code, shop]) => ({
-        value: code,
-        label: nameWithCode(shop),
-      }));
+      const options = Array.from(shops.entries())
+        .filter(([_, shop]) => !shop.hidden)
+        .map(([code, shop]) => ({
+          value: code,
+          label: nameWithCode(shop),
+        }));
       setShopOptions(options);
     }
   }, [shops, currentShop]);

@@ -35,10 +35,12 @@ const DeliveryList: React.FC = () => {
   const { registListner, shops, currentShop } = useAppContext();
 
   useEffect(() => {
-    const options = Array.from(shops.entries()).map(([code, shop]) => ({
-      value: code,
-      label: nameWithCode(shop),
-    }));
+    const options = Array.from(shops.entries())
+      .filter(([_, shop]) => !shop.hidden)
+      .map(([code, shop]) => ({
+        value: code,
+        label: nameWithCode(shop),
+      }));
     options.unshift({ label: '', value: '' });
     setShopOptions(options);
   }, [shops]);

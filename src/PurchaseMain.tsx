@@ -111,7 +111,7 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
 
   useEffect(() => {
     const options = Array.from(shops.entries())
-      .filter(([code, _]) => code !== currentShop?.code)
+      .filter(([code, shop]) => code !== currentShop?.code && !shop.hidden)
       .map(([code, shop]) => ({
         value: code,
         label: nameWithCode(shop),
