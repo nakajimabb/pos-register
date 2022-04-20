@@ -2,20 +2,39 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { getAuth, signOut } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getFirestore, getDocs, collection, collectionGroup, QuerySnapshot, setDoc } from 'firebase/firestore';
+import {
+  doc,
+  getFirestore,
+  getDocs,
+  collection,
+  collectionGroup,
+  query,
+  Query,
+  DocumentSnapshot,
+  QuerySnapshot,
+  QueryDocumentSnapshot,
+  getDoc,
+  setDoc,
+  Timestamp,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
 
 import { Button, Flex, Dropdown, Icon, Navbar, Tooltip } from './components';
 import app from './firebase';
 import { useAppContext } from './AppContext';
-import { nameWithCode, isNum } from './tools';
+import { nameWithCode, isNum, arrToPieces } from './tools';
 import {
   Delivery,
   DeliveryDetail,
   Purchase,
   PurchaseDetail,
   deliveryDetailPath,
+  Product,
   purchaseDetailPath,
   Role,
+  Stock,
+  stockPath,
 } from './types';
 import firebaseError from './firebaseError';
 import './App.css';
@@ -106,6 +125,135 @@ const AppBar: React.FC = () => {
       } catch (error) {
         console.log({ error });
         alert('エラーが発生しました。');
+      }
+    }
+  };
+
+  const initAvgCostPrices = async () => {
+    if (window.confirm('移動平均原価をリセットしますか？')) {
+      try {
+        const q = collection(db, 'products');
+        const snap = (await getDocs(q)) as QuerySnapshot<Product>;
+        const pieces: QueryDocumentSnapshot<Product>[][] = arrToPieces(snap.docs, MAX_BATCH);
+        const tasks = pieces.map(async (dsnaps) => {
+          try {
+            const batch = writeBatch(db);
+            dsnaps.forEach((dsnap) => {
+              const pdct = dsnap.data();
+              if (!isNum(pdct.avgCostPrice) && isNum(pdct.costPrice)) {
+                batch.set(doc(db, 'products', pdct.code), { ...pdct, avgCostPrice: pdct.costPrice }, { merge: true });
+              }
+            });
+            await batch.commit();
+            return { result: true };
+          } catch (error) {
+            return { result: false, error };
+          }
+        });
+        const results = await Promise.all(tasks);
+        console.log({ results });
+        alert('移動平均原価をリセットしました。');
+      } catch (error) {
+        console.log({ error });
+        alert(firebaseError(error));
+      }
+    }
+  };
+
+  const updateAvgCostPrices = async () => {
+    const input = window.prompt('対象日');
+    if (input) {
+      try {
+        const date1 = new Date(input);
+        const date2 = new Date(input);
+        date2.setDate(date2.getDate() + 1);
+
+        // 仕入れ情報の取得
+        const conds = [where('date', '>=', Timestamp.fromDate(date1)), where('date', '<', Timestamp.fromDate(date2))];
+        const q = query(collectionGroup(db, 'purchases'), ...conds) as Query<Purchase>;
+        const qsnap = await getDocs(q);
+        const tasks = qsnap.docs.map(async (dsnap) => {
+          const result: { shopCode: string; productCode: string; quantity: number; costPrice: number }[] = [];
+          try {
+            const purchase = dsnap.data();
+            console.log({ purchase });
+            const path = purchaseDetailPath(purchase.shopCode, purchase.purchaseNumber);
+            const qsnap2 = (await getDocs(collection(db, path))) as QuerySnapshot<PurchaseDetail>;
+            qsnap2.docs.forEach((dsnap2) => {
+              const detail = dsnap2.data();
+              if (isNum(detail.costPrice)) {
+                result.push({
+                  shopCode: purchase.shopCode,
+                  productCode: detail.productCode,
+                  quantity: detail.quantity,
+                  costPrice: Number(detail.costPrice),
+                });
+              }
+            });
+          } catch (error) {
+            console.log({ error });
+          }
+          return result;
+        });
+        const results = await Promise.all(tasks);
+        console.log({ results });
+
+        const items = new Map<string, { quantity: number; costPrice: number }[]>();
+        results.flat().forEach((r) => {
+          if (r.quantity > 0) {
+            const item = items.get(r.productCode) ?? [];
+            item.push({ quantity: r.quantity, costPrice: r.costPrice });
+            items.set(r.productCode, item);
+          }
+        });
+        console.log({ items });
+
+        // 現在値、在庫数、仕入れ情報から移動平均原価の再計算を行う
+        const tasks2 = Array.from(items.entries()).map(async ([productCode, item]) => {
+          const result = { productCode, avgCostPrice: NaN, totalStock: 0, totalQuantity: 0 };
+          try {
+            const dPdct = (await getDoc(doc(db, 'products', productCode))) as DocumentSnapshot<Product>;
+            const product = dPdct.data();
+            if (product) {
+              const validAvgCostPrice = isNum(product.avgCostPrice);
+              let totalStock = 0;
+              if (validAvgCostPrice) {
+                const qstock = query(
+                  collectionGroup(db, 'stocks'),
+                  where('productCode', '==', productCode)
+                ) as Query<Stock>;
+                const snapStock = await getDocs(qstock);
+                totalStock = snapStock.docs
+                  .map((dsnap) => dsnap.data().quantity)
+                  .reduce((sum, quantity) => sum + quantity, 0);
+                result.totalStock = totalStock;
+              }
+              const totalQuantity = item.reduce((sum, i) => sum + i.quantity, 0);
+              result.totalQuantity = totalQuantity;
+              if (totalStock + totalQuantity > 0) {
+                const avgCostPrice0 = validAvgCostPrice ? Number(product.avgCostPrice) : 0;
+                const avgCostPrice =
+                  item.reduce((sum, i) => sum + i.quantity * i.costPrice, avgCostPrice0 * totalStock) /
+                  (totalStock + totalQuantity);
+                result.avgCostPrice = avgCostPrice;
+                await setDoc(
+                  doc(db, 'products', productCode),
+                  { avgCostPrice: Math.round(avgCostPrice) },
+                  { merge: true }
+                );
+              }
+            }
+          } catch (error) {
+            console.log({ error });
+          }
+          return result;
+        });
+        const results2 = await Promise.all(tasks2);
+        console.log({ results2 });
+        alert('移動平均原価を更新しました。');
+      } catch (error) {
+        console.log({ error });
+        alert(firebaseError(error));
       }
     }
   };
@@ -239,6 +387,8 @@ const AppBar: React.FC = () => {
             <Dropdown.Item title="ユーザ情報取得" onClick={getAuthUserByCode} />
             <Dropdown.Item title="出庫合計更新" onClick={updateDeliverySum} />
             <Dropdown.Item title="仕入合計更新" onClick={updatePurchaseSum} />
+            <Dropdown.Item title="移動平均原価リセット" onClick={initAvgCostPrices} />
+            <Dropdown.Item title="移動平均原価更新" onClick={updateAvgCostPrices} />
             <Dropdown.Item title="tailwind" to="/tailwind" />{' '}
             {role === 'admin' && (
               <>

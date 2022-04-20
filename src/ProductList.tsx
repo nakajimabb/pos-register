@@ -17,7 +17,6 @@ import {
   QueryConstraint,
   QuerySnapshot,
   serverTimestamp,
-  writeBatch,
   Bytes,
 } from 'firebase/firestore';
 import clsx from 'clsx';
@@ -188,36 +187,6 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
     }
   };
 
-  const initAvgCostPrices = async () => {
-    if (window.confirm('移動平均原価をセットしますか？')) {
-      setProcessing(true);
-      const q = collection(db, 'products');
-      const snap = (await getDocs(q)) as QuerySnapshot<Product>;
-      const taskSize = Math.ceil(snap.docs.length / MAX_BATCH);
-      const sequential = [...Array(taskSize)].map((_, i) => i);
-      const tasks = sequential.map(async (_, i) => {
-        try {
-          const batch = writeBatch(db);
-          const sliced = snap.docs.slice(i * MAX_BATCH, (i + 1) * MAX_BATCH);
-          sliced.forEach((item) => {
-            const pdct = item.data();
-            if (!pdct.avgCostPrice && pdct.costPrice) {
-              batch.set(doc(db, 'products', pdct.code), { ...pdct, avgCostPrice: pdct.costPrice }, { merge: true });
-            }
-          });
-          await batch.commit();
-          return { result: true };
-        } catch (error) {
-          return { result: false, error };
-        }
-      });
-      const results = await Promise.all(tasks);
-      console.log({ results });
-      alert('移動平均原価をセットしました。');
-      setProcessing(false);
-    }
-  };
-
   return (
     <div className="pt-12">
       {open && (
@@ -271,9 +240,6 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                   <>
                     <Button variant="outlined" disabled={processing} className="mr-2" onClick={createFullTextSearch}>
                       <small>全文検索データ作成</small>
-                    </Button>
-                    <Button variant="outlined" disabled={processing} className="mr-2" onClick={initAvgCostPrices}>
-                      <small>移動平均原価作成</small>
                     </Button>
                   </>
                 )}
