@@ -26,6 +26,7 @@ import PurchaseList from './PurchaseList';
 import DeliveryNew from './DeliveryNew';
 import DeliveryEdit from './DeliveryEdit';
 import DeliveryList from './DeliveryList';
+import DeliveryFromSale from './DeliveryFromSale';
 import RejectionNew from './RejectionNew';
 import RejectionEdit from './RejectionEdit';
 import RejectionList from './RejectionList';
@@ -84,6 +85,7 @@ const App: React.FC = () => {
           <Route exact path="/delivery_new" component={DeliveryNew} />
           <Route exact path="/delivery_edit" component={DeliveryEdit} />
           <Route exact path="/delivery_list" component={DeliveryList} />
+          <Route exact path="/delivery_from_sale" component={DeliveryFromSale} />
           <Route exact path="/invetory_new" component={InventoryMain} />
           <Route exact path="/invetory_list" component={InventoryList} />
           <Route exact path="/invetory_all" component={InventoryAll} />

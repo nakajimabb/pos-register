@@ -292,6 +292,7 @@ const AppBar: React.FC = () => {
         >
           <Dropdown.Item title="出庫処理" to="/delivery_new" />
           <Dropdown.Item title="出庫一覧" to="/delivery_list" />
+          <Dropdown.Item title="配荷データ作成" to="/delivery_from_sale" />
         </Dropdown>
         <Dropdown
           icon={
