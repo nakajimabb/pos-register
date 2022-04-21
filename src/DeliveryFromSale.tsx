@@ -66,7 +66,6 @@ const DeliveryFromSale: React.FC = () => {
           date.setDate(date.getDate() + 1);
           conds.push(where('createdAt', '<', date));
         }
-        // conds.push(orderBy('createdAt', 'desc'));
         if (search.shopCode) conds.push(where('shopCode', '==', search.shopCode));
 
         const q = query(collection(db, 'sales'), ...conds) as Query<Sale>;
@@ -81,16 +80,18 @@ const DeliveryFromSale: React.FC = () => {
             qsnapDetail.forEach((dsnapDetail) => {
               const saleSetail = dsnapDetail.data();
               const product = saleSetail.product;
-              const detail = shopDetails.get(product.code) ?? {
-                productCode: product.code,
-                productName: product.name,
-                quantity: 0,
-                costPrice: product.costPrice,
-                fixed: false,
-              };
-              if (saleSetail.status === 'Sales') detail.quantity += saleSetail.quantity;
-              if (saleSetail.status === 'Return') detail.quantity -= saleSetail.quantity;
-              shopDetails.set(product.code, detail);
+              if (product.code) {
+                const detail = shopDetails.get(product.code) ?? {
+                  productCode: product.code,
+                  productName: product.name,
+                  quantity: 0,
+                  costPrice: product.costPrice,
+                  fixed: false,
+                };
+                if (saleSetail.status === 'Sales') detail.quantity += saleSetail.quantity;
+                if (saleSetail.status === 'Return') detail.quantity -= saleSetail.quantity;
+                shopDetails.set(product.code, detail);
+              }
             });
             details.set(sale.shopCode, shopDetails);
           } catch (error) {
