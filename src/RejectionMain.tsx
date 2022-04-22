@@ -103,6 +103,8 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
             productName: price.product?.name ?? '',
             quantity: 0,
             costPrice: price.finalCostPrice ?? null,
+            supplierCode: price.supplierCode,
+            supplierName: price.supplierName,
             reason: '',
             fixed: false,
           });
@@ -184,7 +186,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
           // 詳細データ更新
           const history = detail?.history ?? [];
           if (detail && item.quantity !== detail.quantity) history.push(detail.quantity);
-          transaction.set(ref2, {
+          const value: RejectionDetail = {
             productCode: item.productCode,
             productName: item.productName,
             quantity: item.quantity,
@@ -193,7 +195,12 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
             reason: item.reason,
             fixed: true,
             history,
-          });
+          };
+          if (item.rejectType === 'return') {
+            value.supplierCode = item.supplierCode;
+            value.supplierName = item.supplierName;
+          }
+          transaction.set(ref2, value);
           // 在庫更新
           const diff = detail ? detail.quantity - item.quantity : -item.quantity;
           incrementStock(reject.shopCode, item.productCode, item.productName, diff, transaction);
@@ -255,10 +262,12 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                 !item ||
                 item.quantity !== detail.quantity ||
                 item.costPrice !== detail.costPrice ||
+                item.supplierCode !== detail.supplierCode ||
+                item.supplierName !== detail.supplierName ||
                 item.reason !== detail.reason;
               if (diff) {
                 const newItems = new Map(items);
-                newItems.set(detail.productCode, { ...detail, fixed: false });
+                newItems.set(detail.productCode, { ...detail, fixed: false, removed: false });
                 setItems(newItems);
               }
               setInputProductCode('');
@@ -307,7 +316,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
             {!rejection.fixed && (
               <Button
                 className="w-32"
-                disabled={!existUnfixedItems() || sumItemQuantity() === 0 || processing}
+                disabled={sumItemQuantity() === 0 || processing}
                 onClick={() => {
                   if (window.confirm('確定しますか？')) {
                     save();
@@ -342,16 +351,17 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
           <Table className="w-full">
             <Table.Head>
               <Table.Row>
-                <Table.Cell>No</Table.Cell>
-                <Table.Cell>商品コード</Table.Cell>
-                <Table.Cell>商品名</Table.Cell>
-                <Table.Cell>種別</Table.Cell>
-                <Table.Cell>数量</Table.Cell>
-                <Table.Cell>
+                <Table.Cell type="th">No</Table.Cell>
+                <Table.Cell type="th">商品コード</Table.Cell>
+                <Table.Cell type="th">商品名</Table.Cell>
+                <Table.Cell type="th">種別</Table.Cell>
+                <Table.Cell type="th">数量</Table.Cell>
+                <Table.Cell type="th">
                   <small>仕入価格(税抜)</small>
                 </Table.Cell>
-                <Table.Cell>理由</Table.Cell>
-                <Table.Cell>履歴</Table.Cell>
+                <Table.Cell type="th">仕入先</Table.Cell>
+                <Table.Cell type="th">理由</Table.Cell>
+                <Table.Cell type="th">履歴</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -366,6 +376,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                       <Table.Cell>{item.rejectType === 'return' ? '返品' : '廃棄'}</Table.Cell>
                       <Table.Cell>{item.quantity}</Table.Cell>
                       <Table.Cell>{item.costPrice?.toLocaleString()}</Table.Cell>
+                      <Table.Cell>{item.rejectType === 'return' && item.supplierName}</Table.Cell>
                       <Table.Cell>{item.reason}</Table.Cell>
                       <Table.Cell>
                         {item.history && item.history.length > 0 && [...item.history, item.quantity].join('⇒')}

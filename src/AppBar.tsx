@@ -43,7 +43,7 @@ const db = getFirestore();
 const MAX_BATCH = 500;
 
 const AppBar: React.FC = () => {
-  const { role, currentShop, getProductPrice } = useAppContext();
+  const { role, currentShop } = useAppContext();
 
   const logout = () => {
     if (window.confirm('ログアウトしますか？')) {

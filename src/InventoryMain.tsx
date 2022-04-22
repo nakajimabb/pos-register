@@ -145,8 +145,8 @@ const InventoryMain: React.FC = () => {
       const item = items.get(docSnap.id);
       const productCode = stock.productCode;
       const prices = await getProductPrice(shopCode, productCode, ['finalCostPrice', 'product']);
-      const costPrice = prices.finalCostPrice;
-      const stockTax = prices.product?.stockTax ?? undefined;
+      const costPrice = prices?.finalCostPrice;
+      const stockTax = prices?.product?.stockTax ?? undefined;
       if (item) {
         items.set(docSnap.id, { ...item, costPrice, stockTax, stock: stock.quantity });
       } else {
@@ -206,8 +206,8 @@ const InventoryMain: React.FC = () => {
         const item = inventoryDetails.get(productCode);
         const qty = op === 'set' ? quantity : (item?.quantity ?? 0) + quantity;
         const prices = await getProductPrice(shopCode, productCode, ['finalCostPrice', 'product']);
-        const costPrice = prices.finalCostPrice;
-        const stockTax = prices.product?.stockTax ?? undefined;
+        const costPrice = prices?.finalCostPrice;
+        const stockTax = prices?.product?.stockTax ?? undefined;
         const newItem = {
           productCode,
           productName: product.name,
@@ -527,14 +527,14 @@ const InventoryMain: React.FC = () => {
             <Table className="w-full">
               <Table.Head>
                 <Table.Row>
-                  <Table.Cell>No</Table.Cell>
-                  <Table.Cell>商品コード</Table.Cell>
-                  <Table.Cell>商品名</Table.Cell>
-                  <Table.Cell>原価</Table.Cell>
-                  <Table.Cell>消費税</Table.Cell>
-                  <Table.Cell>理論値</Table.Cell>
-                  <Table.Cell>実数</Table.Cell>
-                  <Table.Cell>差異</Table.Cell>
+                  <Table.Cell type="th">No</Table.Cell>
+                  <Table.Cell type="th">商品コード</Table.Cell>
+                  <Table.Cell type="th">商品名</Table.Cell>
+                  <Table.Cell type="th">原価</Table.Cell>
+                  <Table.Cell type="th">消費税</Table.Cell>
+                  <Table.Cell type="th">理論値</Table.Cell>
+                  <Table.Cell type="th">実数</Table.Cell>
+                  <Table.Cell type="th">差異</Table.Cell>
                   <Table.Cell></Table.Cell>
                 </Table.Row>
               </Table.Head>

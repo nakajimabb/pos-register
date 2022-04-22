@@ -69,7 +69,7 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
   });
 
   return (
-    <Modal open size="none" onClose={onClose} className={clsx('w-2/3 overflow-visible', mode === 'print' && 'hidden')}>
+    <Modal open size="none" onClose={onClose} className={clsx('w-4/5 overflow-visible', mode === 'print' && 'hidden')}>
       <Modal.Body>
         <div ref={componentRef}>
           <h1 className="text-2xl font-bold mb-3">
@@ -98,6 +98,7 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
                 <Table.Cell>種別</Table.Cell>
                 <Table.Cell>数量</Table.Cell>
                 <Table.Cell>仕入価格(税抜)</Table.Cell>
+                <Table.Cell>仕入先</Table.Cell>
                 <Table.Cell>理由</Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -113,6 +114,7 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
                   </Table.Cell>
                   <Table.Cell>{item.quantity}</Table.Cell>
                   <Table.Cell>{item.costPrice?.toLocaleString()}</Table.Cell>
+                  <Table.Cell>{item.rejectType === 'return' && item.supplierName}</Table.Cell>
                   <Table.Cell>{item.reason}</Table.Cell>
                 </Table.Row>
               ))}

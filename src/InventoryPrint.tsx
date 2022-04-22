@@ -96,11 +96,11 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
       for await (const item of details) {
         const prices = await getProductPrice(inventory.shopCode, item.productCode, ['finalCostPrice', 'product']);
         const value: { costPrice?: number; stockTax?: number } = {};
-        if (prices.finalCostPrice !== undefined) {
+        if (prices?.finalCostPrice !== undefined) {
           item.costPrice = prices.finalCostPrice;
           value.costPrice = prices.finalCostPrice;
         }
-        if (prices.product?.stockTax) {
+        if (prices?.product?.stockTax) {
           item.stockTax = prices.product.stockTax;
           value.stockTax = prices.product.stockTax;
         }

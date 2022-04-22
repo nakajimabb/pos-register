@@ -72,15 +72,18 @@ export type ContextType = {
   getProductPrice: (
     shopCode: string,
     productCode: string,
-    types: ('finalCostPrice' | 'sellingPrice' | 'noReturn' | 'product')[]
-  ) => Promise<{
-    finalCostPrice?: number | undefined;
-    sellingPrice?: number | undefined;
-    noReturn?: boolean | undefined;
-    product?: Product | undefined;
-    supplierCode?: string | undefined;
-    supplierName?: string | undefined;
-  }>;
+    types: ('finalCostPrice' | 'sellingPrice' | 'product')[]
+  ) => Promise<
+    | {
+        finalCostPrice?: number | undefined;
+        sellingPrice?: number | undefined;
+        noReturn?: boolean | undefined;
+        product?: Product | undefined;
+        supplierCode?: string | undefined;
+        supplierName?: string | undefined;
+      }
+    | undefined
+  >;
 };
 
 const AppContext = createContext({
@@ -107,7 +110,7 @@ const AppContext = createContext({
   getProductPrice: async (
     shopCode: string,
     productCode: string,
-    types: ('finalCostPrice' | 'sellingPrice' | 'noReturn' | 'product')[]
+    types: ('finalCostPrice' | 'sellingPrice' | 'product')[]
   ) => ({}),
 } as ContextType);
 
@@ -315,6 +318,11 @@ export const AppContextProvider: React.FC = ({ children }) => {
           prices.finalCostPrice = costPrice.costPrice;
           prices.supplierCode = costPrice.supplierCode;
           prices.supplierName = costPrice.supplierName;
+          if (costPrice.noReturn !== undefined) prices.noReturn = costPrice.noReturn;
+          else {
+            if (!product) product = await pdct(productCode);
+            if (product && product.noReturn !== undefined) prices.noReturn = product.noReturn;
+          }
         } else {
           if (!product) product = await pdct(productCode);
           if (product && product.costPrice) {
@@ -322,6 +330,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
             // prices.supplierCode = product.supplierCode;
             // prices.supplierName = product.supplierName;
           }
+          if (product && product.noReturn !== undefined) prices.noReturn = product.noReturn;
         }
       } else {
         if (!product) product = await pdct(productCode);
@@ -350,12 +359,12 @@ export const AppContextProvider: React.FC = ({ children }) => {
         if (product && product.sellingPrice) prices.sellingPrice = product.sellingPrice;
       }
     }
-    // 店舗売価
+    // 店舗(共通)
     if (types.includes('product')) {
       if (!product) product = await pdct(productCode);
       if (product) prices.product = product;
     }
-    return prices;
+    return Object.keys(prices).length > 0 ? prices : undefined;
   };
 
   const addBundleDiscount = (basketItems: BasketItem[]) => {

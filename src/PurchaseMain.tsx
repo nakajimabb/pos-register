@@ -688,14 +688,14 @@ const PurchaseMain: React.FC<Props> = ({ shopCode, shopName, purchaseNumber = -1
           <Table className="w-full">
             <Table.Head>
               <Table.Row>
-                <Table.Cell>No</Table.Cell>
-                <Table.Cell>商品コード</Table.Cell>
-                <Table.Cell>商品名</Table.Cell>
-                <Table.Cell>数量</Table.Cell>
-                <Table.Cell>
+                <Table.Cell type="th">No</Table.Cell>
+                <Table.Cell type="th">商品コード</Table.Cell>
+                <Table.Cell type="th">商品名</Table.Cell>
+                <Table.Cell type="th">数量</Table.Cell>
+                <Table.Cell type="th">
                   <small>仕入価格(税抜)</small>
                 </Table.Cell>
-                <Table.Cell>履歴</Table.Cell>
+                <Table.Cell type="th">履歴</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Head>

@@ -223,7 +223,18 @@ export type Rejection = {
 };
 
 // 廃棄・返品情報
-export type RejectionDetail = PurchaseDetail & { rejectType: 'return' | 'waste'; reason: string };
+export type RejectionDetail = {
+  rejectType: 'return' | 'waste';
+  productCode: string; // JANコード
+  productName: string;
+  quantity: number;
+  history?: number[];
+  costPrice: number | null; // 原価(税抜)
+  fixed: boolean;
+  supplierCode?: string; // 仕入先コード
+  supplierName?: string;
+  reason: string;
+};
 
 // 出庫情報
 export type Delivery = {

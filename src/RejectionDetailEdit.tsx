@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import Select, { SingleValue } from 'react-select';
 
 import { Alert, Button, Form, Grid, Modal } from './components';
-import { isNum } from './tools';
+import { isNum, nameWithCode } from './tools';
 import { RejectionDetail } from './types';
+import { useAppContext } from './AppContext';
 
 type Props = {
   open: boolean;
@@ -23,14 +25,33 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }
       fixed: false,
     }
   );
+  const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
   const [alert, setAlert] = useState({ error: '', info: '' });
+  const { registListner, suppliers } = useAppContext();
+
+  useEffect(() => {
+    registListner('suppliers');
+  }, []);
+
+  useEffect(() => {
+    const options = Array.from(suppliers.entries()).map(([code, shop]) => ({
+      value: code,
+      label: nameWithCode(shop),
+    }));
+    options.unshift({ label: '', value: '' });
+    setSuppliersOptions(options);
+  }, [suppliers]);
 
   useEffect(() => {
     setAlert((prev) => ({
       ...prev,
-      info: `${rejectionDetail.rejectType === 'waste' ? '廃棄' : '返却'}として処理されます。`,
+      info: `${rejectionDetail.rejectType === 'waste' ? '廃棄' : '返品'}として処理されます。`,
     }));
   }, [rejectionDetail]);
+
+  const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
+    return value ? options.find((option) => option.value === value) : { label: '', value: '' };
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +96,7 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }
               value={String(rejectionDetail.rejectType)}
               required
               options={[
-                { value: 'return', label: '返却' },
+                { value: 'return', label: '返品' },
                 { value: 'waste', label: '廃棄' },
               ]}
               disabled
@@ -85,6 +106,20 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }
               placeholder="仕入価格"
               value={String(rejectionDetail.costPrice)}
               onChange={(e) => setRejectionDetail({ ...rejectionDetail, costPrice: +e.target.value })}
+            />
+            <Form.Label>仕入先</Form.Label>
+            <Select
+              className="mb-3 sm:mb-0"
+              value={selectValue(rejectionDetail.supplierCode ?? '', supplierOptions)}
+              options={supplierOptions}
+              onChange={(e: SingleValue<{ label: string; value: string }>) => {
+                const supplierCode = e?.value || '';
+                setRejectionDetail((prev) => ({
+                  ...prev,
+                  supplierCode,
+                  supplierName: suppliers.get(supplierCode)?.name ?? '',
+                }));
+              }}
             />
             <Form.Label>理由</Form.Label>
             <Form.TextArea
