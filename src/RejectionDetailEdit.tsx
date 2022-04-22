@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import Select, { SingleValue } from 'react-select';
-
+import { doc, getDoc, getFirestore, DocumentSnapshot } from 'firebase/firestore';
 import { Alert, Button, Form, Grid, Modal } from './components';
 import { isNum, nameWithCode } from './tools';
-import { RejectionDetail } from './types';
+import { ProductCostPrice, productCostPricePath, RejectionDetail, Product } from './types';
 import { useAppContext } from './AppContext';
+
+const db = getFirestore();
 
 type Props = {
   open: boolean;
+  shopCode: string;
   value: RejectionDetail | undefined;
   onClose: () => void;
   onUpdate: (deliveryDetail: RejectionDetail) => void;
 };
 
-const RejectionDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }) => {
+const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, onUpdate }) => {
   const [rejectionDetail, setRejectionDetail] = useState<RejectionDetail>(
     value ?? {
       rejectType: 'return',
@@ -63,11 +66,48 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }
     onClose();
   };
 
+  const pdct = async (productCode: string) => {
+    const snap = (await getDoc(doc(db, 'products', productCode))) as DocumentSnapshot<Product>;
+    if (snap.exists()) return snap.data();
+  };
+
+  const changeSupplier = async (e: SingleValue<{ label: string; value: string }>) => {
+    const supplierCode = e?.value || '';
+    let costPrice = rejectionDetail.costPrice;
+    let rejectType = rejectionDetail.rejectType;
+    let product: Product | undefined;
+    if (supplierCode) {
+      const path = productCostPricePath(shopCode, rejectionDetail.productCode, supplierCode);
+      const dsnap = (await getDoc(doc(db, path))) as DocumentSnapshot<ProductCostPrice>;
+      const price = dsnap.data();
+      if (price && isNum(price.costPrice)) {
+        costPrice = price.costPrice;
+      } else {
+        if (!product) product = await pdct(rejectionDetail.productCode);
+        if (product && isNum(product.costPrice)) costPrice = product.costPrice;
+      }
+      if (price && price.noReturn !== undefined) {
+        rejectType = price.noReturn ? 'waste' : 'return';
+      } else {
+        if (!product) product = await pdct(rejectionDetail.productCode);
+        rejectType = product?.noReturn ? 'waste' : 'return';
+      }
+    }
+
+    setRejectionDetail((prev) => ({
+      ...prev,
+      rejectType,
+      costPrice,
+      supplierCode,
+      supplierName: suppliers.get(supplierCode)?.name ?? '',
+    }));
+  };
+
   return (
     <Modal open={open} size="none" onClose={onClose} className="w-2/3 overflow-visible">
       <Form onSubmit={submit} className="space-y-2">
         <Modal.Header centered={false} onClose={onClose}>
-          仕入編集
+          廃棄・返品編集
         </Modal.Header>
         <Modal.Body>
           {alert.error && (
@@ -112,14 +152,7 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, value, onClose, onUpdate }
               className="mb-3 sm:mb-0"
               value={selectValue(rejectionDetail.supplierCode ?? '', supplierOptions)}
               options={supplierOptions}
-              onChange={(e: SingleValue<{ label: string; value: string }>) => {
-                const supplierCode = e?.value || '';
-                setRejectionDetail((prev) => ({
-                  ...prev,
-                  supplierCode,
-                  supplierName: suppliers.get(supplierCode)?.name ?? '',
-                }));
-              }}
+              onChange={changeSupplier}
             />
             <Form.Label>理由</Form.Label>
             <Form.TextArea

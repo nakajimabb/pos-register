@@ -254,6 +254,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
         {inputRejectionDetail && (
           <RejectionDetailEdit
             open
+            shopCode={shopCode}
             value={inputRejectionDetail}
             onClose={() => setInputRejectionDetail(undefined)}
             onUpdate={(detail: RejectionDetail) => {
