@@ -51,7 +51,7 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
   const [productCostPrices, setProductCostPrices] = useState<Map<string, ProductCostPrice>>(new Map());
   const [inputSellingPrice, setInputSellingPrice] = useState<number | null>(null); // 入力値
   const [InputCostPrices, setInputCostPrices] = useState<
-    { supplierCode: string; costPrice: number | null; updatedAt?: Timestamp }[]
+    { supplierCode: string; costPrice: number | null; noReturn?: boolean; updatedAt?: Timestamp }[]
   >([]); // 入力値
   const [error, setError] = useState('');
   const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
@@ -120,7 +120,12 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
         setInputCostPrices(
           qsnap.docs.map((qdsnap) => {
             const item = qdsnap.data();
-            return { supplierCode: item.supplierCode, costPrice: item.costPrice, updatedAt: item.updatedAt };
+            return {
+              supplierCode: item.supplierCode,
+              costPrice: item.costPrice,
+              noReturn: item.noReturn,
+              updatedAt: item.updatedAt,
+            };
           })
         );
         const prices = new Map<string, ProductCostPrice>();
@@ -176,26 +181,19 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
           }
         });
         for await (const costPrice of InputCostPrices) {
-          const productCostPrice = productCostPrices.get(costPrice.supplierCode);
-          if (!productCostPrice || productCostPrice.costPrice !== costPrice.costPrice) {
-            const supplierCode = costPrice.supplierCode;
-            const supplierName = suppliers.get(supplierCode)?.name ?? '';
-            const path = productCostPricePath(shopCode, product.code, supplierCode);
-            await setDoc(
-              doc(db, path),
-              {
-                shopCode,
-                productCode: product.code,
-                productName: product.name,
-                supplierCode,
-                supplierName,
-                costPrice: costPrice.costPrice,
-                updatedAt: serverTimestamp(),
-                // purchasedAt 仕入日
-              },
-              { merge: true }
-            );
-          }
+          const supplierCode = costPrice.supplierCode;
+          const supplierName = suppliers.get(supplierCode)?.name ?? '';
+          const path = productCostPricePath(shopCode, product.code, supplierCode);
+          const value: ProductCostPrice = {
+            shopCode,
+            productCode: product.code,
+            productName: product.name,
+            supplierCode,
+            supplierName,
+            costPrice: costPrice.costPrice,
+          };
+          if (costPrice.noReturn !== undefined) value.noReturn = costPrice.noReturn;
+          await setDoc(doc(db, path), { ...value, updatedAt: serverTimestamp() });
         }
         if (!productSellingPrice || productSellingPrice.sellingPrice !== inputSellingPrice) {
           const path = productSellingPricePath(shopCode, product.code);
@@ -263,7 +261,7 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
   };
 
   return (
-    <Modal open={open} size="none" onClose={onClose} className="w-2/3 overflow-visible">
+    <Modal open={open} size="none" onClose={onClose} className="w-4/5 overflow-visible">
       <Form onSubmit={save} className="space-y-2">
         <Modal.Header centered={false} onClose={onClose}>
           商品編集
@@ -369,6 +367,25 @@ const ShopProductEdit: React.FC<Props> = ({ open, shopCode, productCode, onClose
                       className="h-10"
                     />
                   </Tooltip>
+                  <Form.Select
+                    required
+                    value={String(costPrice.noReturn)}
+                    options={[
+                      { value: 'undefined', label: '共通ﾏｽﾀ参照' },
+                      { value: 'true', label: '返品不可' },
+                      { value: 'false', label: '返品可能' },
+                    ]}
+                    onChange={(e) => {
+                      setInputCostPrices((prev) => {
+                        const values = [...prev];
+                        if (e.target.value === 'true') values[index].noReturn = true;
+                        else if (e.target.value === 'false') values[index].noReturn = false;
+                        else values[index].noReturn = undefined;
+                        return values;
+                      });
+                    }}
+                    className="h-10"
+                  />
                   <Button
                     type="button"
                     size="xs"
