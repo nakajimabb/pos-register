@@ -338,15 +338,15 @@ const ImportProducts: React.FC = () => {
           </Button>
           {messages.length > 0 && (
             <Alert severity="success" className="mt-4">
-              {messages.map((msg) => (
-                <div>{msg}</div>
+              {messages.map((msg, i) => (
+                <div key={i}>{msg}</div>
               ))}
             </Alert>
           )}
           {errors.length > 0 && (
             <Alert severity="error" className="mt-4">
-              {errors.map((err) => (
-                <div>{err}</div>
+              {errors.map((err, i) => (
+                <div key={i}>{err}</div>
               ))}
             </Alert>
           )}
@@ -355,8 +355,8 @@ const ImportProducts: React.FC = () => {
           </h2>
           <Table size="sm">
             <Table.Body>
-              {Array.from(headerDisp.entries()).map(([name, item]) => (
-                <Table.Row>
+              {Array.from(headerDisp.entries()).map(([name, item], i) => (
+                <Table.Row key={i}>
                   <Table.Cell>{name}</Table.Cell>
                   <Table.Cell>{Array.from(item).join(' | ')}</Table.Cell>
                 </Table.Row>
