@@ -1,7 +1,122 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
+
+    function checkEmail(docID, request) {
+      let email = request.auth.token.email;
+      return request.auth != null && (email is string && email == docID + '@ebondregister.com');
+    }
+
+    function checkRole(role, request) {
+      let value = request.auth.token.role;
+      let admin = role == 'admin' && value == 'admin';
+      let manager = role == 'manager' && (value == 'admin' || value == 'manager');
+      let shop = role == 'shop' && (value == 'admin' || value == 'manager' || value == 'shop');
+      return request.auth != null && (admin || manager || shop);
+    }
+
+    match /{path=**}/configs/{docID} {
+     allow read, write: if false;
+    }
+    
+    match /{path=**}/counters/{docID} {
+      allow read: if request.auth != null
+    }
+
+    // TODO: 以下全て許可しているので適切に設定する
+    match /{path=**}/fixedCostRates/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/productBulks/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/productBundles/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/products/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/registerItems/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/sales/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/saleDetails/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/searches/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/sequences/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/suppliers/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/shops/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/deliveries/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/deliveryDetails/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/inventories/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/inventoryDetails/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/productCostPrices/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/productSellingPrices/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/purchases/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/purchaseDetails/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/rejections/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/rejectionDetails/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/shortcutItems/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/status/{docID} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /{path=**}/stocks/{docID} {
       allow read, write: if request.auth != null;
     }
   }
