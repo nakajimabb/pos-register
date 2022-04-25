@@ -126,7 +126,7 @@ const DeliveryFromSale: React.FC = () => {
 
         // 既存データを取得
         const path = deliveryPath(currentShop.code);
-        const qq = query(collection(db, path), where('soldDatedTo', '>', search.minDate)) as Query<Delivery>;
+        const qq = query(collection(db, path), where('date', '>', search.minDate)) as Query<Delivery>;
         const qqsnap = await getDocs(qq);
         const delivs = new Map(deliveries);
         qqsnap.docs.forEach((dsnap) => {
@@ -202,6 +202,18 @@ const DeliveryFromSale: React.FC = () => {
         alert(firebaseError(error));
       }
     }
+  };
+
+  const dateSpan = (fromDate: Timestamp | undefined, toDate: Timestamp | undefined) => {
+    if (!fromDate && !toDate) return '';
+
+    return (
+      '(' +
+      ((fromDate && toDateString(fromDate.toDate(), 'MM-DD')) ?? '') +
+      '〜' +
+      ((toDate && toDateString(toDate.toDate(), 'MM-DD')) ?? '') +
+      ')'
+    );
   };
 
   return (
@@ -304,10 +316,7 @@ const DeliveryFromSale: React.FC = () => {
                       <Table.Row key={j}>
                         <Table.Cell>{nameWithCode(shop)}</Table.Cell>
                         <Table.Cell></Table.Cell>
-                        <Table.Cell>
-                          出庫データ ({deliv.soldDatedFrom && toDateString(deliv.soldDatedFrom.toDate(), 'MM-DD')}〜
-                          {deliv.soldDatedTo && toDateString(deliv.soldDatedTo.toDate(), 'MM-DD')})
-                        </Table.Cell>
+                        <Table.Cell>出庫データ {dateSpan(deliv.soldDatedFrom, deliv.soldDatedTo)}</Table.Cell>
                         <Table.Cell>
                           <Button
                             color="light"
