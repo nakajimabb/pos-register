@@ -249,6 +249,8 @@ export type Delivery = {
   totalQuantity?: number;
   totalAmount?: number;
   updatedAt?: Timestamp;
+  soldDatedFrom?: Timestamp; // 配荷データ用
+  soldDatedTo?: Timestamp; // 配荷データ用
 };
 
 // 出庫詳細情報

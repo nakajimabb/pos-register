@@ -22,6 +22,7 @@ import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
 import { nameWithCode, toDateString, isNum, OTC_DIVISION } from './tools';
 import { Sale, SaleDetail, DeliveryDetail, Delivery, deliveryPath, deliveryDetailPath } from './types';
+import DeliveryPrint from './DeliveryPrint';
 
 const db = getFirestore();
 
@@ -31,9 +32,11 @@ const DeliveryFromSale: React.FC = () => {
     minDate: null,
     maxDate: null,
   });
+  const [targetDeliveryNumber, setTargetDeliveryNumber] = useState<number | null>(null);
   const [shopOptions, setShopOptions] = useState<{ label: string; value: string }[]>([]);
   const [messages, setMessages] = useState<string[]>([]);
   const [deliveryDetails, setDeliveryDetails] = useState<Map<string, DeliveryDetail[]>>(new Map());
+  const [deliveries, setDeliveries] = useState<Map<string, Delivery[]>>(new Map());
   const { registListner, shops, currentShop } = useAppContext();
 
   useEffect(() => {
@@ -120,7 +123,19 @@ const DeliveryFromSale: React.FC = () => {
           items.set(shopCode, Array.from(shopDetails.values()));
         }
         setDeliveryDetails(items);
-        console.log({ results, items, search });
+
+        // 既存データを取得
+        const path = deliveryPath(currentShop.code);
+        const qq = query(collection(db, path), where('soldDatedTo', '>', search.minDate)) as Query<Delivery>;
+        const qqsnap = await getDocs(qq);
+        const delivs = new Map(deliveries);
+        qqsnap.docs.forEach((dsnap) => {
+          const deliv = dsnap.data();
+          const shopDelivs = Array.from(delivs.get(deliv.dstShopCode) ?? []);
+          shopDelivs.push(deliv);
+          delivs.set(deliv.dstShopCode, shopDelivs);
+        });
+        setDeliveries(delivs);
       } catch (error) {
         console.log({ error });
         alert(firebaseError(error));
@@ -137,7 +152,7 @@ const DeliveryFromSale: React.FC = () => {
   };
 
   const createDelivery = (dstShopCode: string) => async () => {
-    if (currentShop && window.confirm('配荷データを作成しますか？')) {
+    if (currentShop && search.minDate && search.maxDate && window.confirm('配荷データを作成しますか？')) {
       try {
         const shopCode = currentShop.code;
         const shop = shops.get(dstShopCode);
@@ -159,6 +174,8 @@ const DeliveryFromSale: React.FC = () => {
             dstShopName: shop.name,
             date: Timestamp.fromDate(new Date()),
             fixed: false,
+            soldDatedFrom: Timestamp.fromDate(search.minDate),
+            soldDatedTo: Timestamp.fromDate(search.maxDate),
           };
           await runTransaction(db, async (transaction) => {
             transaction.set(doc(db, deliveryPath(shopCode, deliveryNumber)), {
@@ -170,6 +187,14 @@ const DeliveryFromSale: React.FC = () => {
               transaction.set(doc(db, path), detail);
             });
           });
+
+          // 既存データに追加
+          const delivs = new Map(deliveries);
+          const shopDelivs = Array.from(delivs.get(dstShopCode) ?? []);
+          shopDelivs.push(delivery);
+          delivs.set(dstShopCode, shopDelivs);
+          setDeliveries(delivs);
+
           alert('出庫データを作成しました。');
         }
       } catch (error) {
@@ -184,6 +209,14 @@ const DeliveryFromSale: React.FC = () => {
       <div className="p-4">
         <h1 className="text-xl font-bold mb-2">配荷データ作成</h1>
         <Card className="p-5 overflow-visible">
+          {targetDeliveryNumber && currentShop && (
+            <DeliveryPrint
+              mode="modal"
+              shopCode={currentShop.code}
+              deliveryNumber={targetDeliveryNumber}
+              onClose={() => setTargetDeliveryNumber(null)}
+            />
+          )}
           <Form className="flex space-x-2 mb-2" onSubmit={queryDeliveries}>
             <Form.Date
               value={search.minDate ? toDateString(search.minDate, 'YYYY-MM-DD') : ''}
@@ -238,10 +271,11 @@ const DeliveryFromSale: React.FC = () => {
           <Table.Body>
             {Array.from(deliveryDetails.entries()).map(([shopCode, details], i) => {
               const shop = shops.get(shopCode) ?? { code: '', name: '' };
+              const delivs = deliveries.get(shopCode) ?? [];
               return (
                 <>
-                  {details.map((detail) => (
-                    <Table.Row key={i}>
+                  {details.map((detail, j) => (
+                    <Table.Row key={j}>
                       <Table.Cell>{nameWithCode(shop)}</Table.Cell>
                       <Table.Cell>{detail.productCode}</Table.Cell>
                       <Table.Cell>{detail.productName}</Table.Cell>
@@ -251,7 +285,7 @@ const DeliveryFromSale: React.FC = () => {
                     </Table.Row>
                   ))}
                   <Table.Row key={i}>
-                    <Table.Cell></Table.Cell>
+                    <Table.Cell>{nameWithCode(shop)}</Table.Cell>
                     <Table.Cell></Table.Cell>
                     <Table.Cell></Table.Cell>
                     <Table.Cell></Table.Cell>
@@ -264,6 +298,31 @@ const DeliveryFromSale: React.FC = () => {
                     <Table.Cell>
                       <Button onClick={createDelivery(shopCode)}>作成</Button>
                     </Table.Cell>
+                  </Table.Row>
+                  {delivs.map((deliv, j) => {
+                    return (
+                      <Table.Row key={j}>
+                        <Table.Cell>{nameWithCode(shop)}</Table.Cell>
+                        <Table.Cell></Table.Cell>
+                        <Table.Cell>
+                          出庫データ ({deliv.soldDatedFrom && toDateString(deliv.soldDatedFrom.toDate(), 'MM-DD')}〜
+                          {deliv.soldDatedTo && toDateString(deliv.soldDatedTo.toDate(), 'MM-DD')})
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Button
+                            color="light"
+                            size="sm"
+                            onClick={() => setTargetDeliveryNumber(deliv.deliveryNumber)}
+                            className="mx-1"
+                          >
+                            詳細
+                          </Button>
+                        </Table.Cell>
+                      </Table.Row>
+                    );
+                  })}
+                  <Table.Row className="bg-gray-200">
+                    <Table.Cell colSpan={7}></Table.Cell>
                   </Table.Row>
                 </>
               );
