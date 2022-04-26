@@ -35,7 +35,7 @@ const SupplierList: React.FC = () => {
   const [docId, setDocId] = useState<string | null>(null);
   const [supplierCount, setSupplierCount] = useState<number | null>(null);
   const [error, setError] = useState<string>('');
-  const { counters } = useAppContext();
+  const { role, counters } = useAppContext();
 
   const querySuppliers = (action: 'head' | 'prev' | 'next' | 'current') => async () => {
     try {
@@ -185,24 +185,28 @@ const SupplierList: React.FC = () => {
                       <Table.Cell>{supplier.code}</Table.Cell>
                       <Table.Cell>{supplier.name}</Table.Cell>
                       <Table.Cell>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300 "
-                          onClick={editSupplier(supplier.code)}
-                        >
-                          <Icon name="pencil-alt" />
-                        </Button>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300"
-                          onClick={deleteSupplier(supplier.code)}
-                        >
-                          <Icon name="trash" />
-                        </Button>
+                        {role === 'manager' && (
+                          <>
+                            <Button
+                              variant="icon"
+                              size="xs"
+                              color="none"
+                              className="hover:bg-gray-300 "
+                              onClick={editSupplier(supplier.code)}
+                            >
+                              <Icon name="pencil-alt" />
+                            </Button>
+                            <Button
+                              variant="icon"
+                              size="xs"
+                              color="none"
+                              className="hover:bg-gray-300"
+                              onClick={deleteSupplier(supplier.code)}
+                            >
+                              <Icon name="trash" />
+                            </Button>
+                          </>
+                        )}
                       </Table.Cell>
                     </Table.Row>
                   );

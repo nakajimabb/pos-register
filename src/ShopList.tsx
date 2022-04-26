@@ -178,9 +178,11 @@ const ShopList: React.FC = () => {
             <Button variant="outlined" className="mr-2" disabled={loading} onClick={queryShops('head')}>
               検索
             </Button>
-            <Button variant="outlined" className="mr-2" disabled={loading} onClick={pullKkb}>
-              店舗情報更新
-            </Button>
+            {role === 'manager' && (
+              <Button variant="outlined" className="mr-2" disabled={loading} onClick={pullKkb}>
+                店舗情報更新
+              </Button>
+            )}
           </Flex>
           {snapshot && shopCount && (
             <Flex>

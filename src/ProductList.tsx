@@ -28,11 +28,9 @@ import ProductEdit from './ProductEdit';
 import { toDateString } from './tools';
 import { Product } from './types';
 
-// import * as zlib from 'zlib';
 const zlib = require('zlib');
 
 const db = getFirestore();
-const MAX_BATCH = 500;
 const PER_PAGE = 25;
 
 type SearchType = { text: string; categoryId: string; minDate: Date | null; maxDate: Date | null };
@@ -160,30 +158,36 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
   const createFullTextSearch = async () => {
     if (window.confirm('全文検索用のデータを作成しますか？')) {
       setProcessing(true);
-      const q = query(collection(db, 'products'), where('hidden', '==', false));
-      const snap = await getDocs(q);
+      try {
+        const q = query(collection(db, 'products'), where('hidden', '==', false));
+        const snap = await getDocs(q);
 
-      // 検索用テキストをセパレータで区切って１つの文字列として格納
-      const texts = snap.docs.map((item) => {
-        const product = item.data() as Product;
-        return [product.code, product.name].join('|');
-      });
+        // 検索用テキストをセパレータで区切って１つの文字列として格納
+        const texts = snap.docs.map((item) => {
+          const product = item.data() as Product;
+          return [product.code, product.name].join('|');
+        });
 
-      // 圧縮してバイナリデータとして保存
-      const json = JSON.stringify(texts);
-      const blob = Bytes.fromUint8Array(zlib.gzipSync(encodeURIComponent(json)));
+        // 圧縮してバイナリデータとして保存
+        const json = JSON.stringify(texts);
+        const blob = Bytes.fromUint8Array(zlib.gzipSync(encodeURIComponent(json)));
 
-      await setDoc(doc(db, 'searches', 'products'), { blob });
-      await setDoc(
-        doc(db, 'counters', 'products'),
-        {
-          searchUpdatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+        await setDoc(doc(db, 'searches', 'products'), { blob });
+        await setDoc(
+          doc(db, 'counters', 'products'),
+          {
+            searchUpdatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
 
-      alert('全文検索用のデータを作成しました。');
-      setProcessing(false);
+        alert('全文検索用のデータを作成しました。');
+        setProcessing(false);
+      } catch (error) {
+        console.log({ error });
+        alert(firebaseError(error));
+        setProcessing(false);
+      }
     }
   };
 
@@ -321,15 +325,17 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                       >
                         <Icon name="pencil-alt" />
                       </Button>
-                      <Button
-                        variant="icon"
-                        size="xs"
-                        color="none"
-                        className="hover:bg-gray-300"
-                        onClick={deleteProduct(product.code)}
-                      >
-                        <Icon name="trash" />
-                      </Button>
+                      {role === 'manager' && (
+                        <Button
+                          variant="icon"
+                          size="xs"
+                          color="none"
+                          className="hover:bg-gray-300"
+                          onClick={deleteProduct(product.code)}
+                        >
+                          <Icon name="trash" />
+                        </Button>
+                      )}
                     </Table.Cell>
                   </Table.Row>
                 );

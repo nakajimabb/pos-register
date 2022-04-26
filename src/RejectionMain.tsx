@@ -393,7 +393,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
           </Flex>
           <div ref={componentRef}>
             {getSortedItems().map((item2, index) => (
-              <div className="w-full page-break-alway">
+              <div key={index} className="w-full page-break-alway">
                 <Grid cols="9" gap="0" auto_cols="fr" template_cols={template_cols}>
                   {index === 0 && (
                     <>
