@@ -96,7 +96,7 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
           if (search.minDate || search.maxDate) {
             conds.push(orderBy('createdAt', 'desc'));
           } else {
-            conds.push(orderBy('code', 'desc'));
+            conds.push(orderBy('code'));
           }
           if (action === 'head') {
             conds.push(limit(PER_PAGE));

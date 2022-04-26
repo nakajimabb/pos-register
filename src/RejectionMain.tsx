@@ -2,24 +2,29 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useHistory } from 'react-router-dom';
 import {
   doc,
+  collection,
+  DocumentSnapshot,
   getDoc,
   getDocs,
   getFirestore,
-  collection,
-  DocumentSnapshot,
+  query,
   QuerySnapshot,
   runTransaction,
+  orderBy,
   Timestamp,
   serverTimestamp,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
+import { useReactToPrint } from 'react-to-print';
+import clsx from 'clsx';
+import { Alert, Button, Card, Flex, Form, Icon, Grid } from './components';
 import { useAppContext } from './AppContext';
 import app from './firebase';
 import RejectionDetailEdit from './RejectionDetailEdit';
 import { toDateString, checkDigit } from './tools';
 import firebaseError from './firebaseError';
 import { RejectionDetail, rejectionPath, rejectionDetailPath, Rejection, Stock } from './types';
+import './App.css';
 
 const db = getFirestore();
 type Item = RejectionDetail & { removed?: boolean };
@@ -46,6 +51,12 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
   const { getProductPrice, incrementStock } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const hisotry = useHistory();
+  const componentRef = useRef(null);
+  const pageStyle = `
+    @media print {
+      @page { size: JIS-B5 portrait; margin: 0; }
+    }  
+  `;
 
   useEffect(() => {
     if (shopCode && rejectionNumber > 0) {
@@ -74,7 +85,9 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
         if (reject) {
           setRejection(reject);
           const detailPath = rejectionDetailPath(shopCode, rejectionNumber);
-          const qSnap = (await getDocs(collection(db, detailPath))) as QuerySnapshot<Item>;
+          const qSnap = (await getDocs(
+            query(collection(db, detailPath), orderBy('productCode'))
+          )) as QuerySnapshot<Item>;
           const newItems = new Map<string, Item>();
           qSnap.docs.forEach((docSnap) => {
             newItems.set(docSnap.id, docSnap.data());
@@ -94,6 +107,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
       if (price) {
         const item = items.get(productCode);
         const rejectType = price.noReturn ? 'waste' : 'return';
+        console.log({ price, rejectType });
         if (item) {
           setInputRejectionDetail({ ...item, rejectType, fixed: false });
         } else {
@@ -220,16 +234,33 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
     }
   };
 
+  const getSortedItems = () => {
+    const targetItems = getTargetItems();
+    const itemsList: Item[][] = [];
+    const supplierItems = new Map<string, Item[]>();
+    // 仕入先ごとに返品項目をまとめる
+    targetItems
+      .filter((item) => item.rejectType === 'return')
+      .forEach((item) => {
+        const items2 = supplierItems.get(item.supplierCode ?? '') ?? [];
+        items2.push(item);
+        supplierItems.set(item.supplierCode ?? '', items2);
+      });
+    Array.from(supplierItems.values()).forEach((item2) => {
+      itemsList.push(item2);
+    });
+    // 廃棄を追加
+    itemsList.push(targetItems.filter((item) => item.rejectType === 'waste'));
+
+    return itemsList;
+  };
+
   const getTargetItems = () => {
     return Array.from(items.values()).filter((item) => !item.removed);
   };
 
   const getUnfixedItems = () => {
     return Array.from(items.values()).filter((item) => !item.fixed);
-  };
-
-  const existUnfixedItems = () => {
-    return Array.from(items.values()).some((item) => !item.fixed);
   };
 
   const sumItemQuantity = () => {
@@ -245,7 +276,15 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
     };
   };
 
+  const handlePrint = useReactToPrint({
+    content: () => componentRef.current,
+    pageStyle,
+  });
+
   const total = getTotal();
+  const template_cols = '3fr 8fr 3fr 2fr 3fr 6fr 6fr 2fr 2fr';
+  const className = 'border-b px-2 py-3';
+  const className2 = 'font-bold border-b text-center py-3';
 
   return (
     <div className="pt-12">
@@ -285,6 +324,9 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                 setRejection((prev) => ({ ...prev, date: Timestamp.fromDate(date) }));
               }}
             />
+            <Button className="w-32" disabled={sumItemQuantity() === 0 || processing} onClick={handlePrint}>
+              印刷
+            </Button>
           </Flex>
           {errors.length > 0 && (
             <Alert severity="error" onClose={() => setErrors([])}>
@@ -349,70 +391,74 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
               </div>
             </Flex>
           </Flex>
-          <Table className="w-full">
-            <Table.Head>
-              <Table.Row>
-                <Table.Cell type="th">No</Table.Cell>
-                <Table.Cell type="th">商品コード</Table.Cell>
-                <Table.Cell type="th">商品名</Table.Cell>
-                <Table.Cell type="th">種別</Table.Cell>
-                <Table.Cell type="th">数量</Table.Cell>
-                <Table.Cell type="th">
-                  <small>仕入価格(税抜)</small>
-                </Table.Cell>
-                <Table.Cell type="th">仕入先</Table.Cell>
-                <Table.Cell type="th">理由</Table.Cell>
-                <Table.Cell type="th">履歴</Table.Cell>
-                <Table.Cell></Table.Cell>
-              </Table.Row>
-            </Table.Head>
-            <Table.Body>
-              {getTargetItems().map(
-                (item, i) =>
-                  !item.removed && (
-                    <Table.Row key={i}>
-                      <Table.Cell>{i + 1}</Table.Cell>
-                      <Table.Cell>{item.productCode}</Table.Cell>
-                      <Table.Cell>{item.productName}</Table.Cell>
-                      <Table.Cell>{item.rejectType === 'return' ? '返品' : '廃棄'}</Table.Cell>
-                      <Table.Cell>{item.quantity}</Table.Cell>
-                      <Table.Cell>{item.costPrice?.toLocaleString()}</Table.Cell>
-                      <Table.Cell>{item.rejectType === 'return' && item.supplierName}</Table.Cell>
-                      <Table.Cell>{item.reason}</Table.Cell>
-                      <Table.Cell>
-                        {item.history && item.history.length > 0 && [...item.history, item.quantity].join('⇒')}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {!rejection.fixed && (
-                          <>
-                            <Button
-                              variant="icon"
-                              size="xs"
-                              color="none"
-                              className="hover:bg-gray-300 "
-                              onClick={() => {
-                                setInputRejectionDetail(items.get(item.productCode));
-                              }}
-                            >
-                              <Icon name="pencil-alt" />
-                            </Button>
-                            <Button
-                              variant="icon"
-                              size="xs"
-                              color="none"
-                              className="hover:bg-gray-300"
-                              onClick={removeItem(item.productCode)}
-                            >
-                              <Icon name="trash" />
-                            </Button>
-                          </>
-                        )}
-                      </Table.Cell>
-                    </Table.Row>
-                  )
-              )}
-            </Table.Body>
-          </Table>
+          <div ref={componentRef}>
+            {getSortedItems().map((item2, index) => (
+              <div className="w-full page-break-alway">
+                <Grid cols="9" gap="0" auto_cols="fr" template_cols={template_cols}>
+                  {index === 0 && (
+                    <>
+                      <div className={className2}>商品コード</div>
+                      <div className={className2}>商品名</div>
+                      <div className={className2}>種別</div>
+                      <div className={className2}>数量</div>
+                      <div className={className2}>
+                        <small>仕入価格(税抜)</small>
+                      </div>
+                      <div className={className2}>仕入先</div>
+                      <div className={className2}>理由</div>
+                      <div className={className2}>履歴</div>
+                      <div className={className2}></div>
+                    </>
+                  )}
+                  {item2.map(
+                    (item, i) =>
+                      !item.removed && (
+                        <React.Fragment key={i}>
+                          <div className={className}>{item.productCode}</div>
+                          <div className={className}>{item.productName}</div>
+                          <div className={clsx(className, 'text-center')}>
+                            {item.rejectType === 'return' ? '返品' : '廃棄'}
+                          </div>
+                          <div className={clsx(className, 'text-right')}>{item.quantity}</div>
+                          <div className={clsx(className, 'text-right')}>{item.costPrice?.toLocaleString()}</div>
+                          <div className={className}>{item.rejectType === 'return' && item.supplierName}</div>
+                          <div className={className}>{item.reason}</div>
+                          <div className={className}>
+                            {item.history && item.history.length > 0 && [...item.history, item.quantity].join('⇒')}
+                          </div>
+                          <div className={className}>
+                            {!rejection.fixed && (
+                              <>
+                                <Button
+                                  variant="icon"
+                                  size="xs"
+                                  color="none"
+                                  className="hover:bg-gray-300 "
+                                  onClick={() => {
+                                    setInputRejectionDetail(items.get(item.productCode));
+                                  }}
+                                >
+                                  <Icon name="pencil-alt" />
+                                </Button>
+                                <Button
+                                  variant="icon"
+                                  size="xs"
+                                  color="none"
+                                  className="hover:bg-gray-300"
+                                  onClick={removeItem(item.productCode)}
+                                >
+                                  <Icon name="trash" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </React.Fragment>
+                      )
+                  )}
+                </Grid>
+              </div>
+            ))}
+          </div>
         </Card>
       </div>
     </div>

@@ -285,7 +285,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
   const getProductPrice = async (
     shopCode: string,
     productCode: string,
-    types: ('finalCostPrice' | 'sellingPrice' | 'noReturn' | 'product')[]
+    types: ('finalCostPrice' | 'sellingPrice' | 'product')[]
   ) => {
     let product: Product | undefined = undefined;
     const prices: {
@@ -339,6 +339,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
           // prices.supplierCode = product.supplierCode;
           // prices.supplierName = product.supplierName;
         }
+        if (product && product.noReturn !== undefined) prices.noReturn = product.noReturn;
       }
     }
     // 店舗売価

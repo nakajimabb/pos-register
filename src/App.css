@@ -49,4 +49,8 @@
   .hidden-print {
     display: none;
   }
+  .page-break-alway {
+    page-break-before: always;
+  }
 }
+
