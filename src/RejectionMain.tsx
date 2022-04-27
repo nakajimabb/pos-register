@@ -48,7 +48,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
   const [items, setItems] = useState<Map<string, Item>>(new Map());
   const [errors, setErrors] = useState<string[]>([]);
   const [processing, setProcessing] = useState<boolean>(false);
-  const { getProductPrice, incrementStock } = useAppContext();
+  const { suppliers, registListner, getProductPrice, incrementStock } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const hisotry = useHistory();
   const componentRef = useRef(null);
@@ -57,6 +57,10 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
       @page { size: JIS-B5 portrait; margin: 0; }
     }  
   `;
+
+  useEffect(() => {
+    registListner('suppliers');
+  }, []);
 
   useEffect(() => {
     if (shopCode && rejectionNumber > 0) {
@@ -107,7 +111,6 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
       if (price) {
         const item = items.get(productCode);
         const rejectType = price.noReturn ? 'waste' : 'return';
-        console.log({ price, rejectType });
         if (item) {
           setInputRejectionDetail({ ...item, rejectType, fixed: false });
         } else {
@@ -118,7 +121,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
             quantity: 0,
             costPrice: price.finalCostPrice ?? null,
             supplierCode: price.supplierCode,
-            supplierName: price.supplierName,
+            supplierName: suppliers.get(price.supplierCode ?? '')?.name ?? '',
             reason: '',
             fixed: false,
           });

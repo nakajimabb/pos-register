@@ -80,7 +80,6 @@ export type ContextType = {
         noReturn?: boolean | undefined;
         product?: Product | undefined;
         supplierCode?: string | undefined;
-        supplierName?: string | undefined;
       }
     | undefined
   >;
@@ -294,7 +293,6 @@ export const AppContextProvider: React.FC = ({ children }) => {
       noReturn?: boolean;
       product?: Product;
       supplierCode?: string;
-      supplierName?: string;
     } = {};
     // 店舗最終原価
     if (types.includes('finalCostPrice')) {
@@ -317,7 +315,6 @@ export const AppContextProvider: React.FC = ({ children }) => {
         if (costPrice.costPrice) {
           prices.finalCostPrice = costPrice.costPrice;
           prices.supplierCode = costPrice.supplierCode;
-          prices.supplierName = costPrice.supplierName;
           if (costPrice.noReturn !== undefined) prices.noReturn = costPrice.noReturn;
           else {
             if (!product) product = await pdct(productCode);
@@ -327,8 +324,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
           if (!product) product = await pdct(productCode);
           if (product && product.costPrice) {
             prices.finalCostPrice = product.costPrice;
-            // prices.supplierCode = product.supplierCode;
-            // prices.supplierName = product.supplierName;
+            if (product.supplierRef) prices.supplierCode = product.supplierRef.id;
           }
           if (product && product.noReturn !== undefined) prices.noReturn = product.noReturn;
         }
@@ -336,8 +332,7 @@ export const AppContextProvider: React.FC = ({ children }) => {
         if (!product) product = await pdct(productCode);
         if (product && product.costPrice) {
           prices.finalCostPrice = product.costPrice;
-          // prices.supplierCode = product.supplierCode;
-          // prices.supplierName = product.supplierName;
+          if (product.supplierRef) prices.supplierCode = product.supplierRef.id;
         }
         if (product && product.noReturn !== undefined) prices.noReturn = product.noReturn;
       }
