@@ -3,8 +3,11 @@ import InfiniteScroll from 'react-infinite-scroller';
 import {
   collection,
   query,
+  doc,
+  getDoc,
   getDocs,
   getFirestore,
+  DocumentSnapshot,
   orderBy,
   startAfter,
   endAt,
@@ -14,12 +17,12 @@ import {
   QuerySnapshot,
 } from 'firebase/firestore';
 import Select from 'react-select';
-
+import clsx from 'clsx';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import { useAppContext } from './AppContext';
 import ShopProductEdit from './ShopProductEdit';
-import { ProductCostPrice, ProductSellingPrice, Stock } from './types';
+import { Product, ProductCostPrice, ProductSellingPrice, Stock } from './types';
 import { nameWithCode, arrToPieces } from './tools';
 
 const db = getFirestore();
@@ -36,6 +39,7 @@ type ShopProduct = {
 const ProductCostPriceList: React.FC = () => {
   const [search, setSearch] = useState({ text: '', shopCode: '' });
   const [shopProducts, setShopProducts] = useState<Map<string, ShopProduct>>(new Map());
+  const [products, setProducts] = useState<Map<string, Product | null>>(new Map());
   const [open, setOpen] = useState(false);
   const [targetProductCode, setTargetProductCode] = useState<string | null>(null);
   const [shopOptions, setShopOptions] = useState<{ label: string; value: string }[]>([]);
@@ -44,7 +48,11 @@ const ProductCostPriceList: React.FC = () => {
     productCode: '',
     completed: false,
   });
-  const { shops, currentShop, role, registListner, searchProducts } = useAppContext();
+  const { shops, suppliers, currentShop, role, registListner, searchProducts } = useAppContext();
+
+  useEffect(() => {
+    registListner('suppliers');
+  }, []);
 
   useEffect(() => {
     if (currentShop) {
@@ -88,6 +96,25 @@ const ProductCostPriceList: React.FC = () => {
     } else {
       queryShopProducts(search.shopCode, []);
     }
+  };
+
+  const loadProducts = async (productCodes: string[]) => {
+    const existCodes = Array.from(products.keys());
+    const pdctCodes = productCodes.filter((code) => !existCodes.includes(code));
+    const pieces: string[][] = arrToPieces(pdctCodes, 10);
+    const pdcts = new Map<string, Product>();
+    await Promise.all(
+      pieces.map(async (codes) => {
+        const conds: QueryConstraint[] = [where('code', 'in', codes)];
+        const q = query(collection(db, 'products'), ...conds);
+        const snap = (await getDocs(q)) as QuerySnapshot<Product>;
+        snap.docs.forEach((item) => {
+          const product = item.data();
+          pdcts.set(product.code, product);
+        });
+      })
+    );
+    setProducts((prev) => new Map([...Array.from(prev), ...Array.from(pdcts)]));
   };
 
   const queryShopProducts = async (shopCode: string, productCodes: string[], mode: 'query' | 'get' = 'query') => {
@@ -173,6 +200,8 @@ const ProductCostPriceList: React.FC = () => {
           setPosition({ productCode: lastProductCode, completed });
         }
         setShopProducts((prev) => new Map([...Array.from(prev.entries()), ...Array.from(items.entries())]));
+        const pdctCodes = [...Array.from(shopProducts.keys()), ...Array.from(items.keys())];
+        await loadProducts(pdctCodes);
       } catch (error) {
         setPosition((prev) => ({ ...prev, completed: true }));
         console.log({ error });
@@ -205,6 +234,30 @@ const ProductCostPriceList: React.FC = () => {
         else return 0;
       })
       .map((entry) => entry[0]);
+
+  const getPrice = (productCode: string, price: number | null, priceType: 'sellingPrice' | 'costPrice') => {
+    if (price !== null) {
+      return { isShop: true, price };
+    } else {
+      const product = products.get(productCode);
+      const pdctPrice = product ? product[priceType] : null;
+      return { isShop: false, price: pdctPrice };
+    }
+  };
+
+  const getSupplierName = (productCode: string, supplierName: string) => {
+    if (supplierName) {
+      return { isShop: true, supplierName };
+    } else {
+      const product = products.get(productCode);
+      if (product && product.supplierRef) {
+        const supplierCode = product.supplierRef.id;
+        return { isShop: false, supplierName: suppliers.get(supplierCode)?.name ?? '' };
+      } else {
+        return { isShop: false, supplierName: '' };
+      }
+    }
+  };
 
   return (
     <InfiniteScroll className="pt-12" id="top" hasMore={true} loadMore={loadMore}>
@@ -269,44 +322,59 @@ const ProductCostPriceList: React.FC = () => {
                 const item = shopProducts.get(productCode);
                 const productName = item?.productName;
                 const stock = item?.stock;
-                const sellingPrice = item?.productSellingPrice;
+                const { isShop, price: sellingPrice } = getPrice(
+                  productCode,
+                  item?.productSellingPrice?.sellingPrice ?? null,
+                  'sellingPrice'
+                );
                 const costPrices = (item?.productCostPrices ?? [{ costPrice: undefined, supplierName: undefined }]) as {
                   costPrice?: number;
                   supplierName?: string;
                 }[];
                 const rowSpan = costPrices.length;
 
-                return costPrices.map((item, j) => (
-                  <Table.Row key={100 * i + j}>
-                    {j === 0 && (
-                      <>
-                        <Table.Cell rowSpan={rowSpan}>{productCode}</Table.Cell>
-                        <Table.Cell rowSpan={rowSpan}>{productName}</Table.Cell>
-                        <Table.Cell rowSpan={rowSpan} className="text-right">
-                          {stock?.quantity ?? 0}
-                        </Table.Cell>
-                        <Table.Cell rowSpan={rowSpan} className="text-right">
-                          {sellingPrice?.sellingPrice?.toLocaleString() ?? ''}
-                        </Table.Cell>
-                      </>
-                    )}
-                    <Table.Cell className="text-right">{item.costPrice?.toLocaleString() ?? ''}</Table.Cell>
-                    <Table.Cell>{item.supplierName}</Table.Cell>
-                    {j === 0 && (
-                      <Table.Cell rowSpan={rowSpan}>
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300 "
-                          onClick={editProductCostPrice(productCode)}
-                        >
-                          <Icon name="pencil-alt" />
-                        </Button>
+                return costPrices.map((item, j) => {
+                  const { isShop: isShop2, price: costPrice } = getPrice(
+                    productCode,
+                    item.costPrice ?? null,
+                    'costPrice'
+                  );
+                  const { isShop: isShop3, supplierName } = getSupplierName(productCode, item.supplierName ?? '');
+
+                  return (
+                    <Table.Row key={100 * i + j}>
+                      {j === 0 && (
+                        <>
+                          <Table.Cell rowSpan={rowSpan}>{productCode}</Table.Cell>
+                          <Table.Cell rowSpan={rowSpan}>{productName}</Table.Cell>
+                          <Table.Cell rowSpan={rowSpan} className="text-right">
+                            {stock?.quantity ?? 0}
+                          </Table.Cell>
+                          <Table.Cell rowSpan={rowSpan} className={clsx('text-right', isShop && 'text-red-700')}>
+                            {sellingPrice?.toLocaleString() ?? ''}
+                          </Table.Cell>
+                        </>
+                      )}
+                      <Table.Cell className={clsx('text-right', isShop2 && 'text-red-700')}>
+                        {costPrice?.toLocaleString() ?? ''}
                       </Table.Cell>
-                    )}
-                  </Table.Row>
-                ));
+                      <Table.Cell className={clsx('text-right', isShop3 && 'text-red-700')}>{supplierName}</Table.Cell>
+                      {j === 0 && (
+                        <Table.Cell rowSpan={rowSpan}>
+                          <Button
+                            variant="icon"
+                            size="xs"
+                            color="none"
+                            className="hover:bg-gray-300 "
+                            onClick={editProductCostPrice(productCode)}
+                          >
+                            <Icon name="pencil-alt" />
+                          </Button>
+                        </Table.Cell>
+                      )}
+                    </Table.Row>
+                  );
+                });
               })}
             </Table.Body>
           </Table>
