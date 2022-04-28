@@ -13,7 +13,7 @@ type Props = {
   shopCode: string;
   value: RejectionDetail | undefined;
   onClose: () => void;
-  onUpdate: (deliveryDetail: RejectionDetail) => void;
+  onUpdate: (rejectionDetail: RejectionDetail) => void;
 };
 
 const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, onUpdate }) => {

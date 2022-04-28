@@ -20,6 +20,7 @@ export type Shop = {
   buildingName: string;
   tel: string;
   fax: string;
+  orderable?: boolean;
   role?: 'shop' | 'manager' | 'admin';
 };
 

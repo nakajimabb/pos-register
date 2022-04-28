@@ -169,12 +169,21 @@ const ShopEdit: React.FC<Props> = ({ mode, open, shopCode, onClose, onUpdate }) 
             <Form.Label>権限</Form.Label>
             <Form.Text placeholder="権限" disabled value={shop.role && ROLE_NAMES[shop.role]} />
             <Form.Label></Form.Label>
-            <Form.Checkbox
-              disabled={mode !== 'edit'}
-              label="非表示"
-              checked={shop.hidden}
-              onChange={(e) => setShop({ ...shop, hidden: e.target.checked })}
-            />
+            <div>
+              <Form.Checkbox
+                disabled={mode !== 'edit'}
+                label="非表示"
+                checked={shop.hidden}
+                onChange={(e) => setShop({ ...shop, hidden: e.target.checked })}
+              />
+              &emsp;
+              <Form.Checkbox
+                disabled={mode !== 'edit'}
+                label="発注可能"
+                checked={shop.orderable}
+                onChange={(e) => setShop({ ...shop, orderable: e.target.checked })}
+              />
+            </div>
           </Grid>
         </Modal.Body>
         {mode === 'edit' && (
