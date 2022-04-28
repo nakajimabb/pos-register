@@ -30,6 +30,9 @@ import DeliveryFromSale from './DeliveryFromSale';
 import RejectionNew from './RejectionNew';
 import RejectionEdit from './RejectionEdit';
 import RejectionList from './RejectionList';
+import InternalOrderNew from './InternalOrderNew';
+import InternalOrderEdit from './InternalOrderEdit';
+import InternalOrderList from './InternalOrderList';
 import InventoryMain from './InventoryMain';
 import InventoryList from './InventoryList';
 import InventoryAll from './InventoryAll';
@@ -82,6 +85,9 @@ const App: React.FC = () => {
           <Route exact path="/rejection_new" component={RejectionNew} />
           <Route exact path="/rejection_edit" component={RejectionEdit} />
           <Route exact path="/rejection_list" component={RejectionList} />
+          <Route exact path="/internal_order_new" component={InternalOrderNew} />
+          <Route exact path="/internal_order_edit" component={InternalOrderEdit} />
+          <Route exact path="/internal_order_list" component={InternalOrderList} />
           <Route exact path="/delivery_new" component={DeliveryNew} />
           <Route exact path="/delivery_edit" component={DeliveryEdit} />
           <Route exact path="/delivery_list" component={DeliveryList} />

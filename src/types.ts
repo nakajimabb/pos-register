@@ -210,6 +210,27 @@ export type PurchaseDetail = {
   fixed: boolean;
 };
 
+// 社内発注
+export type InternalOrder = {
+  internalOrderNumber: number;
+  shopCode: string; // 店舗コード
+  shopName: string; // 店舗名
+  srcShopCode: string; // 発注先店舗コード
+  srcShopName: string; // 発注先店舗名
+  date: Timestamp; // 仕入日
+  fixed: boolean;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+};
+
+// 社内発注詳細情報
+export type InternalOrderDetail = {
+  productCode: string; // JANコード
+  productName: string;
+  quantity: number;
+  costPrice: number | null; // 原価(税抜)
+};
+
 // 廃棄・返品情報
 export type Rejection = {
   rejectionNumber: number;
@@ -332,3 +353,12 @@ export const rejectionDetailPath = (
   rejectionNumber: number,
   productCode: string | undefined = undefined
 ) => rejectionPath(shopCode, rejectionNumber) + `/rejectionDetails/${productCode ?? ''}`;
+
+export const internalOrderPath = (shopCode: string, internalOrderNumber: number | undefined = undefined) =>
+  `shops/${shopCode}/internalOrders/${internalOrderNumber ?? ''}`;
+
+export const internalOrderDetailPath = (
+  shopCode: string,
+  internalOrderNumber: number,
+  productCode: string | undefined = undefined
+) => internalOrderPath(shopCode, internalOrderNumber) + `/internalOrderDetails/${productCode ?? ''}`;
