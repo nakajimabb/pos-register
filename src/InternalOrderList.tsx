@@ -99,7 +99,7 @@ const InternalOrderList: React.FC = () => {
             <Table.Head>
               <Table.Row>
                 <Table.Cell>仕入番号</Table.Cell>
-                <Table.Cell>仕入日</Table.Cell>
+                <Table.Cell>発注日</Table.Cell>
                 <Table.Cell></Table.Cell>
               </Table.Row>
             </Table.Head>

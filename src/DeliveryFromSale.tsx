@@ -10,7 +10,7 @@ import {
   QueryConstraint,
   Timestamp,
   runTransaction,
-  orderBy,
+  collectionGroup,
   where,
   QuerySnapshot,
   serverTimestamp,
@@ -21,10 +21,23 @@ import { Alert, Button, Card, Form, Table } from './components';
 import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
 import { nameWithCode, toDateString, isNum, OTC_DIVISION } from './tools';
-import { Sale, SaleDetail, DeliveryDetail, Delivery, deliveryPath, deliveryDetailPath } from './types';
+import {
+  InternalOrder,
+  InternalOrderDetail,
+  Sale,
+  SaleDetail,
+  DeliveryDetail,
+  Delivery,
+  deliveryPath,
+  deliveryDetailPath,
+  internalOrderDetailPath,
+} from './types';
 import DeliveryPrint from './DeliveryPrint';
+import InternalOrderPrint from './InternalOrderPrint';
 
 const db = getFirestore();
+
+type InternalOrderItem = InternalOrder & { target?: boolean };
 
 const DeliveryFromSale: React.FC = () => {
   const [search, setSearch] = useState<{ shopCode: string; minDate: Date | null; maxDate: Date | null }>({
@@ -37,6 +50,8 @@ const DeliveryFromSale: React.FC = () => {
   const [messages, setMessages] = useState<string[]>([]);
   const [deliveryDetails, setDeliveryDetails] = useState<Map<string, DeliveryDetail[]>>(new Map());
   const [deliveries, setDeliveries] = useState<Map<string, Delivery[]>>(new Map());
+  const [internalOrders, setInternalOrders] = useState<Map<string, InternalOrderItem[]>>(new Map());
+  const [orderTarget, setOrderTarget] = useState<InternalOrderItem | null>(null);
   const { registListner, shops, currentShop } = useAppContext();
 
   useEffect(() => {
@@ -128,7 +143,7 @@ const DeliveryFromSale: React.FC = () => {
         const path = deliveryPath(currentShop.code);
         const qq = query(collection(db, path), where('date', '>', search.minDate)) as Query<Delivery>;
         const qqsnap = await getDocs(qq);
-        const delivs = new Map(deliveries);
+        const delivs = new Map<string, Delivery[]>();
         qqsnap.docs.forEach((dsnap) => {
           const deliv = dsnap.data();
           const shopDelivs = Array.from(delivs.get(deliv.dstShopCode) ?? []);
@@ -136,6 +151,32 @@ const DeliveryFromSale: React.FC = () => {
           delivs.set(deliv.dstShopCode, shopDelivs);
         });
         setDeliveries(delivs);
+
+        // 社内発注
+        const conds2: QueryConstraint[] = [];
+
+        if (search.minDate) {
+          conds2.push(where('date', '>=', search.minDate));
+        }
+        if (search.maxDate) {
+          const date = new Date(search.maxDate);
+          date.setDate(date.getDate() + 1);
+          conds2.push(where('date', '<', date));
+        }
+        if (search.shopCode) conds2.push(where('shopCode', '==', search.shopCode));
+
+        const q2 = query(collectionGroup(db, 'internalOrders'), ...conds2) as Query<InternalOrder>;
+        const qsnap2 = await getDocs(q2);
+
+        const orders = new Map<string, InternalOrderItem[]>();
+        qsnap2.docs.forEach((dsnap) => {
+          const order = dsnap.data() as InternalOrderItem;
+          order.target = order.srcShopCode === currentShop.code;
+          const shopOrders = Array.from(orders.get(order.shopCode) ?? []);
+          shopOrders.push(order);
+          orders.set(order.shopCode, shopOrders);
+        });
+        setInternalOrders(orders);
       } catch (error) {
         console.log({ error });
         alert(firebaseError(error));
@@ -177,14 +218,47 @@ const DeliveryFromSale: React.FC = () => {
             soldDatedFrom: Timestamp.fromDate(search.minDate),
             soldDatedTo: Timestamp.fromDate(search.maxDate),
           };
+
+          //　社内発注データ取得
+          const orders = internalOrders.get(shopCode);
+          const orderDetails = new Map<string, InternalOrderDetail>();
+          if (orders) {
+            const tasks = Array.from(orders.values()).map(async (order) => {
+              const path = internalOrderDetailPath(shopCode, order.internalOrderNumber);
+              const qsnap = (await getDocs(collection(db, path))) as QuerySnapshot<InternalOrderDetail>;
+              return qsnap.docs.map((dsnap) => dsnap.data());
+            });
+            const results = await Promise.all(tasks);
+            results.forEach((arr) => {
+              arr.forEach((detail) => {
+                const detail2 = orderDetails.get(detail.productCode);
+                if (detail2) {
+                  orderDetails.set(detail.productCode, { ...detail2, quantity: detail.quantity + detail2.quantity });
+                } else {
+                  orderDetails.set(detail.productCode, detail);
+                }
+              });
+            });
+          }
+
           await runTransaction(db, async (transaction) => {
             transaction.set(doc(db, deliveryPath(shopCode, deliveryNumber)), {
               ...delivery,
               updatedAt: serverTimestamp(),
             });
             details.forEach((detail) => {
+              const orderDetail = orderDetails.get(detail.productCode);
+              const orderQuantity = orderDetail?.quantity ?? 0;
               const path = deliveryDetailPath(shopCode, deliveryNumber, detail.productCode);
-              transaction.set(doc(db, path), detail);
+              transaction.set(doc(db, path), { ...detail, quantity: detail.quantity + orderQuantity });
+              orderDetails.set(detail.productCode, { ...detail, quantity: 0 }); // カウント済
+            });
+            // 社内発注(売上に含まれないもの)
+            Array.from(orderDetails.values()).forEach((orderDetail) => {
+              if (orderDetail.quantity > 0) {
+                const path = deliveryDetailPath(shopCode, deliveryNumber, orderDetail.productCode);
+                transaction.set(doc(db, path), { ...orderDetail, fixed: false });
+              }
             });
           });
 
@@ -227,6 +301,14 @@ const DeliveryFromSale: React.FC = () => {
               shopCode={currentShop.code}
               deliveryNumber={targetDeliveryNumber}
               onClose={() => setTargetDeliveryNumber(null)}
+            />
+          )}
+          {orderTarget && currentShop && (
+            <InternalOrderPrint
+              mode="modal"
+              shopCode={orderTarget.shopCode}
+              internalOrderNumber={orderTarget.internalOrderNumber}
+              onClose={() => setOrderTarget(null)}
             />
           )}
           <Form className="flex space-x-2 mb-2" onSubmit={queryDeliveries}>
@@ -284,6 +366,7 @@ const DeliveryFromSale: React.FC = () => {
             {Array.from(deliveryDetails.entries()).map(([shopCode, details], i) => {
               const shop = shops.get(shopCode) ?? { code: '', name: '' };
               const delivs = deliveries.get(shopCode) ?? [];
+              const orders = internalOrders.get(shopCode) ?? [];
               return (
                 <>
                   {details.map((detail, j) => (
@@ -294,6 +377,20 @@ const DeliveryFromSale: React.FC = () => {
                       <Table.Cell>{detail.quantity}</Table.Cell>
                       <Table.Cell>{detail.costPrice?.toLocaleString()}</Table.Cell>
                       <Table.Cell>{(detail.quantity * Number(detail.costPrice)).toLocaleString()}</Table.Cell>
+                    </Table.Row>
+                  ))}
+                  {orders.map((order, j) => (
+                    <Table.Row key={j}>
+                      <Table.Cell>{nameWithCode(shop)}</Table.Cell>
+                      <Table.Cell>⇒ {shops.get(order.srcShopCode)?.name}</Table.Cell>
+                      <Table.Cell>発注日 {toDateString(order.date.toDate(), 'MM-DD')}</Table.Cell>
+                      <Table.Cell>
+                        <Button color="light" size="sm" onClick={() => setOrderTarget(order)} className="mx-1">
+                          詳細
+                        </Button>
+                      </Table.Cell>
+                      <Table.Cell></Table.Cell>
+                      <Table.Cell></Table.Cell>
                     </Table.Row>
                   ))}
                   <Table.Row key={i}>
