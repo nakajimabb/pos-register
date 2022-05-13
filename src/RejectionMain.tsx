@@ -118,7 +118,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
             rejectType,
             productCode: productCode,
             productName: price.product?.name ?? '',
-            quantity: 0,
+            quantity: 1,
             costPrice: price.finalCostPrice ?? null,
             supplierCode: price.supplierCode,
             supplierName: suppliers.get(price.supplierCode ?? '')?.name ?? '',
@@ -413,23 +413,25 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                       <div className={className2}></div>
                     </>
                   )}
-                  {item2.map(
-                    (item, i) =>
+                  {item2.map((item, i) => {
+                    const isReturn = item.rejectType === 'return';
+                    const bgColor = isReturn ? 'bg-yellow-100' : 'bg-green-100';
+                    return (
                       !item.removed && (
                         <React.Fragment key={i}>
-                          <div className={className}>{item.productCode}</div>
-                          <div className={className}>{item.productName}</div>
-                          <div className={clsx(className, 'text-center')}>
-                            {item.rejectType === 'return' ? '返品' : '廃棄'}
+                          <div className={clsx(className, bgColor)}>{item.productCode}</div>
+                          <div className={clsx(className, bgColor)}>{item.productName}</div>
+                          <div className={clsx(className, bgColor, 'text-center')}>{isReturn ? '返品' : '廃棄'}</div>
+                          <div className={clsx(className, bgColor, 'text-right')}>{item.quantity}</div>
+                          <div className={clsx(className, bgColor, 'text-right')}>
+                            {item.costPrice?.toLocaleString()}
                           </div>
-                          <div className={clsx(className, 'text-right')}>{item.quantity}</div>
-                          <div className={clsx(className, 'text-right')}>{item.costPrice?.toLocaleString()}</div>
-                          <div className={className}>{item.rejectType === 'return' && item.supplierName}</div>
-                          <div className={className}>{item.reason}</div>
-                          <div className={className}>
+                          <div className={clsx(className, bgColor)}>{isReturn && item.supplierName}</div>
+                          <div className={clsx(className, bgColor)}>{item.reason}</div>
+                          <div className={clsx(className, bgColor)}>
                             {item.history && item.history.length > 0 && [...item.history, item.quantity].join('⇒')}
                           </div>
-                          <div className={className}>
+                          <div className={clsx(className, bgColor)}>
                             {!rejection.fixed && (
                               <>
                                 <Button
@@ -457,7 +459,8 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                           </div>
                         </React.Fragment>
                       )
-                  )}
+                    );
+                  })}
                 </Grid>
               </div>
             ))}

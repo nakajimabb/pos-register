@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Select, { SingleValue } from 'react-select';
 import { doc, getDoc, getFirestore, DocumentSnapshot } from 'firebase/firestore';
 import { Alert, Button, Form, Grid, Modal } from './components';
@@ -22,7 +22,7 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, 
       rejectType: 'return',
       productCode: '',
       productName: '',
-      quantity: 0,
+      quantity: 1,
       costPrice: null,
       reason: '',
       fixed: false,
@@ -31,9 +31,11 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, 
   const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);
   const [alert, setAlert] = useState({ error: '', info: '' });
   const { registListner, suppliers } = useAppContext();
+  const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     registListner('suppliers');
+    ref.current?.focus();
   }, []);
 
   useEffect(() => {
@@ -129,6 +131,7 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, 
             <Form.Number
               placeholder="数量"
               value={String(rejectionDetail.quantity)}
+              innerRef={ref}
               onChange={(e) => setRejectionDetail({ ...rejectionDetail, quantity: +e.target.value })}
             />
             <Form.Label>種別</Form.Label>
