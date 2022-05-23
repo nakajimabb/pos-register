@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
 import { Flex, Modal, Table } from './components';
 import { toDateString, nameWithCode } from './tools';
-import { Rejection, RejectionDetail, rejectionPath } from './types';
+import { Rejection, RejectionDetail, rejectionPath, wasteReasons } from './types';
 var JsBarcode = require('jsbarcode');
 
 const db = getFirestore();
@@ -100,6 +100,7 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
                 <Table.Cell>仕入価格(税抜)</Table.Cell>
                 <Table.Cell>仕入先</Table.Cell>
                 <Table.Cell>理由</Table.Cell>
+                <Table.Cell>廃棄理由</Table.Cell>
               </Table.Row>
             </Table.Head>
             <Table.Body>
@@ -115,7 +116,12 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
                   <Table.Cell>{item.quantity}</Table.Cell>
                   <Table.Cell>{item.costPrice?.toLocaleString()}</Table.Cell>
                   <Table.Cell>{item.rejectType === 'return' && item.supplierName}</Table.Cell>
-                  <Table.Cell>{item.reason}</Table.Cell>
+                  <Table.Cell>
+                    <small>{item.reason}</small>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <small>{item.wasteReason && wasteReasons[item.wasteReason]}</small>
+                  </Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>

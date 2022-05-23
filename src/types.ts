@@ -244,6 +244,8 @@ export type Rejection = {
   updatedAt?: Timestamp;
 };
 
+export type WasteReason = 'selfConsumption' | 'expired' | 'quantityPlus' | 'quantityMinus' | 'inventoryAdjustment';
+
 // 廃棄・返品情報
 export type RejectionDetail = {
   rejectType: 'return' | 'waste';
@@ -256,6 +258,15 @@ export type RejectionDetail = {
   supplierCode?: string; // 仕入先コード
   supplierName?: string;
   reason: string;
+  wasteReason?: WasteReason;
+};
+
+export const wasteReasons = {
+  selfConsumption: '自家消費',
+  expired: '期限切れ',
+  quantityPlus: '数量がプラス',
+  quantityMinus: '数量がマイナス',
+  inventoryAdjustment: '棚卸システム調整',
 };
 
 // 出庫情報

@@ -3,7 +3,7 @@ import Select, { SingleValue } from 'react-select';
 import { doc, getDoc, getFirestore, DocumentSnapshot } from 'firebase/firestore';
 import { Alert, Button, Form, Grid, Modal } from './components';
 import { isNum, nameWithCode } from './tools';
-import { ProductCostPrice, productCostPricePath, RejectionDetail, Product } from './types';
+import { ProductCostPrice, productCostPricePath, RejectionDetail, Product, WasteReason, wasteReasons } from './types';
 import { useAppContext } from './AppContext';
 
 const db = getFirestore();
@@ -161,8 +161,16 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, 
             <Form.TextArea
               value={String(rejectionDetail.reason)}
               onChange={(e) => {
-                console.log(e.target.value);
                 setRejectionDetail({ ...rejectionDetail, reason: e.target.value });
+              }}
+            />
+            <Form.Label>廃棄理由</Form.Label>
+            <Form.Select
+              value={String(rejectionDetail.wasteReason)}
+              required
+              options={Object.entries(wasteReasons).map((item) => ({ label: item[1], value: item[0] }))}
+              onChange={(e) => {
+                setRejectionDetail({ ...rejectionDetail, wasteReason: e.target.value as WasteReason });
               }}
             />
           </Grid>

@@ -23,7 +23,7 @@ import app from './firebase';
 import RejectionDetailEdit from './RejectionDetailEdit';
 import { toDateString, checkDigit } from './tools';
 import firebaseError from './firebaseError';
-import { RejectionDetail, rejectionPath, rejectionDetailPath, Rejection, Stock } from './types';
+import { RejectionDetail, rejectionPath, rejectionDetailPath, Rejection, Stock, wasteReasons } from './types';
 import './App.css';
 
 const db = getFirestore();
@@ -210,6 +210,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
             costPrice: item.costPrice,
             rejectType: item.rejectType,
             reason: item.reason,
+            wasteReason: item.wasteReason,
             fixed: true,
             history,
           };
@@ -285,7 +286,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
   });
 
   const total = getTotal();
-  const template_cols = '3fr 8fr 3fr 2fr 3fr 6fr 6fr 2fr 2fr';
+  const template_cols = '3fr 8fr 3fr 2fr 3fr 6fr 6fr 2fr 2fr 2fr';
   const className = 'border-b px-2 py-3';
   const className2 = 'font-bold border-b text-center py-3';
 
@@ -307,7 +308,8 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                 item.costPrice !== detail.costPrice ||
                 item.supplierCode !== detail.supplierCode ||
                 item.supplierName !== detail.supplierName ||
-                item.reason !== detail.reason;
+                item.reason !== detail.reason ||
+                item.wasteReason !== detail.wasteReason;
               if (diff) {
                 const newItems = new Map(items);
                 newItems.set(detail.productCode, { ...detail, fixed: false, removed: false });
@@ -409,6 +411,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                       </div>
                       <div className={className2}>仕入先</div>
                       <div className={className2}>理由</div>
+                      <div className={className2}>廃棄理由</div>
                       <div className={className2}>履歴</div>
                       <div className={className2}></div>
                     </>
@@ -427,7 +430,12 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                             {item.costPrice?.toLocaleString()}
                           </div>
                           <div className={clsx(className, bgColor)}>{isReturn && item.supplierName}</div>
-                          <div className={clsx(className, bgColor)}>{item.reason}</div>
+                          <div className={clsx(className, bgColor)}>
+                            <small>{item.reason}</small>
+                          </div>
+                          <div className={clsx(className, bgColor)}>
+                            <small>{item.wasteReason && wasteReasons[item.wasteReason]}</small>
+                          </div>
                           <div className={clsx(className, bgColor)}>
                             {item.history && item.history.length > 0 && [...item.history, item.quantity].join('⇒')}
                           </div>
