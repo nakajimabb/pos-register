@@ -89,15 +89,28 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
               <small>{sumItemCostPrice().toLocaleString()}円</small>
             </div>
           </Flex>
-          <Table className="w-full">
+          <Table size={mode === 'print' ? 'xs' : 'md'} className="w-full">
+            <colgroup>
+              <col style={{ width: '3%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '6%' }} />
+              <col style={{ width: '6%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '12%' }} />
+            </colgroup>
             <Table.Head>
               <Table.Row>
-                <Table.Cell>No</Table.Cell>
+                <Table.Cell>No1</Table.Cell>
                 <Table.Cell>商品コード</Table.Cell>
                 <Table.Cell>商品名</Table.Cell>
                 <Table.Cell>種別</Table.Cell>
                 <Table.Cell>数量</Table.Cell>
-                <Table.Cell>仕入価格(税抜)</Table.Cell>
+                <Table.Cell>
+                  <small>仕入価格(税抜)</small>
+                </Table.Cell>
                 <Table.Cell>仕入先</Table.Cell>
                 <Table.Cell>理由</Table.Cell>
                 <Table.Cell>廃棄理由</Table.Cell>
@@ -106,20 +119,20 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
             <Table.Body>
               {items.map((item, i) => (
                 <Table.Row key={i}>
-                  <Table.Cell>{i + 1}</Table.Cell>
-                  <Table.Cell>{item.productCode}</Table.Cell>
-                  <Table.Cell>{item.productName}</Table.Cell>
-                  <Table.Cell>
+                  <Table.Cell className="print-p-1">{i + 1}</Table.Cell>
+                  <Table.Cell className="print-p-1">{item.productCode}</Table.Cell>
+                  <Table.Cell className="print-p-1">{item.productName}</Table.Cell>
+                  <Table.Cell className="print-p-1">
                     {item.rejectType === 'return' && '返品'}
                     {item.rejectType === 'waste' && '廃棄'}
                   </Table.Cell>
-                  <Table.Cell>{item.quantity}</Table.Cell>
-                  <Table.Cell>{item.costPrice?.toLocaleString()}</Table.Cell>
-                  <Table.Cell>{item.rejectType === 'return' && item.supplierName}</Table.Cell>
+                  <Table.Cell className="print-p-1">{item.quantity}</Table.Cell>
+                  <Table.Cell className="print-p-1">{item.costPrice?.toLocaleString()}</Table.Cell>
+                  <Table.Cell className="print-p-1">{item.rejectType === 'return' && item.supplierName}</Table.Cell>
                   <Table.Cell>
                     <small>{item.reason}</small>
                   </Table.Cell>
-                  <Table.Cell>
+                  <Table.Cell className="print-p-1">
                     <small>{item.wasteReason && wasteReasons[item.wasteReason]}</small>
                   </Table.Cell>
                 </Table.Row>

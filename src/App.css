@@ -52,5 +52,8 @@
   .page-break-alway {
     page-break-before: always;
   }
+  .print-text-sm {
+    font-size: 0.875rem;
+  }
 }
 

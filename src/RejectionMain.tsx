@@ -286,9 +286,9 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
   });
 
   const total = getTotal();
-  const template_cols = '3fr 8fr 3fr 2fr 3fr 6fr 6fr 2fr 2fr 2fr';
-  const className = 'border-b px-2 py-3';
-  const className2 = 'font-bold border-b text-center py-3';
+  const template_cols = '5fr 8fr 4fr 4fr 5fr 8fr 10fr 6fr 3fr';
+  const className = 'border-b px-1 py-2 print-text-sm';
+  const className2 = 'font-bold border-b text-center py-2 print-text-sm';
 
   return (
     <div className="pt-12">
@@ -412,7 +412,6 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                       <div className={className2}>仕入先</div>
                       <div className={className2}>理由</div>
                       <div className={className2}>廃棄理由</div>
-                      <div className={className2}>履歴</div>
                       <div className={className2}></div>
                     </>
                   )}
@@ -435,9 +434,6 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                           </div>
                           <div className={clsx(className, bgColor)}>
                             <small>{item.wasteReason && wasteReasons[item.wasteReason]}</small>
-                          </div>
-                          <div className={clsx(className, bgColor)}>
-                            {item.history && item.history.length > 0 && [...item.history, item.quantity].join('⇒')}
                           </div>
                           <div className={clsx(className, bgColor)}>
                             {!rejection.fixed && (
