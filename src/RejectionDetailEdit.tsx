@@ -24,7 +24,6 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, 
       productName: '',
       quantity: 1,
       costPrice: null,
-      reason: '',
       fixed: false,
     }
   );
@@ -156,13 +155,6 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, 
               value={selectValue(rejectionDetail.supplierCode ?? '', supplierOptions)}
               options={supplierOptions}
               onChange={changeSupplier}
-            />
-            <Form.Label>理由</Form.Label>
-            <Form.TextArea
-              value={String(rejectionDetail.reason)}
-              onChange={(e) => {
-                setRejectionDetail({ ...rejectionDetail, reason: e.target.value });
-              }}
             />
             <Form.Label>廃棄理由</Form.Label>
             <Form.Select

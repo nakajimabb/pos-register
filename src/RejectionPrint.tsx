@@ -71,7 +71,7 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
   return (
     <Modal open size="none" onClose={onClose} className={clsx('w-4/5 overflow-visible', mode === 'print' && 'hidden')}>
       <Modal.Body>
-        <div ref={componentRef}>
+        <div ref={componentRef} className="print-p-3">
           <h1 className="text-2xl font-bold mb-3">
             廃棄・返品処理 {rejection?.date ? toDateString(rejection?.date?.toDate(), 'MM/DD') : ''}
             &emsp;
@@ -91,15 +91,14 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
           </Flex>
           <Table size={mode === 'print' ? 'xs' : 'md'} className="w-full">
             <colgroup>
-              <col style={{ width: '3%' }} />
-              <col style={{ width: '15%' }} />
-              <col style={{ width: '15%' }} />
-              <col style={{ width: '6%' }} />
-              <col style={{ width: '6%' }} />
-              <col style={{ width: '8%' }} />
-              <col style={{ width: '15%' }} />
+              <col style={{ width: '5%' }} />
               <col style={{ width: '20%' }} />
-              <col style={{ width: '12%' }} />
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '14%' }} />
             </colgroup>
             <Table.Head>
               <Table.Row>
@@ -112,7 +111,6 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
                   <small>仕入価格(税抜)</small>
                 </Table.Cell>
                 <Table.Cell>仕入先</Table.Cell>
-                <Table.Cell>理由</Table.Cell>
                 <Table.Cell>廃棄理由</Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -129,9 +127,6 @@ const RejectionPrint: React.FC<Props> = ({ mode, shopCode, rejectionNumber, onCl
                   <Table.Cell className="print-p-1">{item.quantity}</Table.Cell>
                   <Table.Cell className="print-p-1">{item.costPrice?.toLocaleString()}</Table.Cell>
                   <Table.Cell className="print-p-1">{item.rejectType === 'return' && item.supplierName}</Table.Cell>
-                  <Table.Cell>
-                    <small>{item.reason}</small>
-                  </Table.Cell>
                   <Table.Cell className="print-p-1">
                     <small>{item.wasteReason && wasteReasons[item.wasteReason]}</small>
                   </Table.Cell>

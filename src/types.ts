@@ -257,7 +257,6 @@ export type RejectionDetail = {
   fixed: boolean;
   supplierCode?: string; // 仕入先コード
   supplierName?: string;
-  reason: string;
   wasteReason?: WasteReason;
 };
 

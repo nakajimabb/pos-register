@@ -122,7 +122,6 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
             costPrice: price.finalCostPrice ?? null,
             supplierCode: price.supplierCode,
             supplierName: suppliers.get(price.supplierCode ?? '')?.name ?? '',
-            reason: '',
             fixed: false,
           });
         }
@@ -209,7 +208,6 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
             quantity: item.quantity,
             costPrice: item.costPrice,
             rejectType: item.rejectType,
-            reason: item.reason,
             wasteReason: item.wasteReason,
             fixed: true,
             history,
@@ -286,7 +284,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
   });
 
   const total = getTotal();
-  const template_cols = '5fr 8fr 4fr 4fr 5fr 8fr 10fr 6fr 3fr';
+  const template_cols = '5fr 8fr 4fr 4fr 5fr 8fr 6fr 3fr';
   const className = 'border-b px-1 py-2 print-text-sm';
   const className2 = 'font-bold border-b text-center py-2 print-text-sm';
 
@@ -308,7 +306,6 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                 item.costPrice !== detail.costPrice ||
                 item.supplierCode !== detail.supplierCode ||
                 item.supplierName !== detail.supplierName ||
-                item.reason !== detail.reason ||
                 item.wasteReason !== detail.wasteReason;
               if (diff) {
                 const newItems = new Map(items);
@@ -396,7 +393,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
               </div>
             </Flex>
           </Flex>
-          <div ref={componentRef}>
+          <div ref={componentRef} className="print-p-3">
             {getSortedItems().map((item2, index) => (
               <div key={index} className="w-full page-break-alway">
                 <Grid cols="9" gap="0" auto_cols="fr" template_cols={template_cols}>
@@ -410,7 +407,6 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                         <small>仕入価格(税抜)</small>
                       </div>
                       <div className={className2}>仕入先</div>
-                      <div className={className2}>理由</div>
                       <div className={className2}>廃棄理由</div>
                       <div className={className2}></div>
                     </>
@@ -429,9 +425,6 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                             {item.costPrice?.toLocaleString()}
                           </div>
                           <div className={clsx(className, bgColor)}>{isReturn && item.supplierName}</div>
-                          <div className={clsx(className, bgColor)}>
-                            <small>{item.reason}</small>
-                          </div>
                           <div className={clsx(className, bgColor)}>
                             <small>{item.wasteReason && wasteReasons[item.wasteReason]}</small>
                           </div>
