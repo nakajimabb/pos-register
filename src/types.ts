@@ -244,7 +244,7 @@ export type Rejection = {
   updatedAt?: Timestamp;
 };
 
-export type WasteReason = 'selfConsumption' | 'expired' | 'quantityPlus' | 'quantityMinus' | 'inventoryAdjustment';
+export type WasteReason = 'selfConsumption' | 'expired' | 'corruption';
 
 // 廃棄・返品情報
 export type RejectionDetail = {
@@ -264,9 +264,7 @@ export type RejectionDetail = {
 export const wasteReasons = {
   selfConsumption: '自家消費',
   expired: '期限切れ',
-  quantityPlus: '数量がプラス',
-  quantityMinus: '数量がマイナス',
-  inventoryAdjustment: '棚卸システム調整',
+  corruption: '破損',
 };
 
 // 出庫情報
