@@ -160,7 +160,9 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, 
             <Form.Select
               value={String(rejectionDetail.wasteReason)}
               required
-              options={Object.entries(wasteReasons).map((item) => ({ label: item[1], value: item[0] }))}
+              options={[{ label: '', value: '' }].concat(
+                Object.entries(wasteReasons).map((item) => ({ label: item[1], value: item[0] }))
+              )}
               onChange={(e) => {
                 setRejectionDetail({ ...rejectionDetail, wasteReason: e.target.value as WasteReason });
               }}
