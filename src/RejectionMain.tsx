@@ -21,9 +21,10 @@ import { Alert, Button, Card, Flex, Form, Icon, Grid } from './components';
 import { useAppContext } from './AppContext';
 import app from './firebase';
 import RejectionDetailEdit from './RejectionDetailEdit';
+import UnregisteredProductEdit from './UnregisteredProductEdit';
 import { toDateString, checkDigit } from './tools';
 import firebaseError from './firebaseError';
-import { RejectionDetail, rejectionPath, rejectionDetailPath, Rejection, Stock, wasteReasons } from './types';
+import { RejectionDetail, rejectionPath, rejectionDetailPath, Rejection, Stock, wasteReasons, Product } from './types';
 import './App.css';
 
 const db = getFirestore();
@@ -48,6 +49,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
   const [items, setItems] = useState<Map<string, Item>>(new Map());
   const [errors, setErrors] = useState<string[]>([]);
   const [processing, setProcessing] = useState<boolean>(false);
+  const [openProductEdit, setOpenProductEdit] = useState<boolean>(false);
   const { suppliers, registListner, getProductPrice, incrementStock } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const hisotry = useHistory();
@@ -128,7 +130,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
         codeRef.current?.focus();
       } else {
         if (checkDigit(productCode)) {
-          setErrors((prev) => [...prev, '商品マスタが存在しません。']);
+          setOpenProductEdit(true);
         } else {
           setErrors((prev) => [...prev, '不正なPLUコードです。']);
         }
@@ -278,6 +280,11 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
     };
   };
 
+  const updateNewProduct = (product: Product) => {
+    changeTargetItem(product.code);
+    codeRef.current?.focus();
+  };
+
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
     pageStyle,
@@ -314,6 +321,15 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
               }
               setInputProductCode('');
             }}
+          />
+        )}
+        {openProductEdit && (
+          <UnregisteredProductEdit
+            open
+            shopCode={shopCode}
+            productCode={inputProductCode}
+            onClose={() => setOpenProductEdit(false)}
+            onUpdate={updateNewProduct}
           />
         )}
         <Card className="p-5 overflow-visible">
