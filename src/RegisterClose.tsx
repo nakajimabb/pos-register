@@ -17,7 +17,7 @@ import { format } from 'date-fns';
 import { Button, Card, Flex, Form, Progress } from './components';
 import { useAppContext } from './AppContext';
 import { RegisterStatus } from './types';
-import { toDateString } from './tools';
+import { nameWithCode, toDateString } from './tools';
 
 const db = getFirestore();
 
@@ -71,6 +71,7 @@ const RegisterClose: React.FC = () => {
     <Flex direction="col" justify_content="center" align_items="center" className="h-screen">
       <Card className="container w-1/3 p-2">
         <Card.Body>
+          <p className="text-center text-xl mb-4">{currentShop && nameWithCode(currentShop)}</p>
           <p className="text-center">この営業日で精算を実行します。</p>
           <div className="flex justify-center">
             <Form className="my-4">

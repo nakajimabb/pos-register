@@ -6,7 +6,7 @@ import { Alert, Button, Card, Flex, Form } from './components';
 import firebaseError from './firebaseError';
 import { useAppContext } from './AppContext';
 import { RegisterStatus } from './types';
-import { toDateString } from './tools';
+import { nameWithCode, toDateString } from './tools';
 
 const db = getFirestore();
 
@@ -50,6 +50,7 @@ const RegisterOpen: React.FC = () => {
               {error}
             </Alert>
           )}
+          <p className="text-center text-xl mb-4">{currentShop && nameWithCode(currentShop)}</p>
           <p className="text-center">この営業日でレジを開設します。</p>
           <div className="flex justify-center">
             <Form className="my-4">
