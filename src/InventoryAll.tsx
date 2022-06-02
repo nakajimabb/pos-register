@@ -33,7 +33,7 @@ const InventoryList: React.FC = () => {
     status: '',
     loaded: false,
   });
-  const [target, setTarget] = useState<{ delivery: Inventory; mode: 'modal' | 'print' } | null>(null);
+  const [target, setTarget] = useState<{ delivery: Inventory; mode: 'modal' | 'print' | 'excel' } | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [inventories, setInventories] = useState<Map<string, Inventory[]>>(new Map());
   const { registListner, shops } = useAppContext();
@@ -266,7 +266,6 @@ const InventoryList: React.FC = () => {
                         <Table.Cell>{invt.sum[10]?.amount?.toLocaleString()}</Table.Cell>
                         <Table.Cell>{invt.sum[0]?.quantity}</Table.Cell>
                         <Table.Cell>{invt.sum[0]?.amount?.toLocaleString()}</Table.Cell>
-                        <Table.Cell></Table.Cell>
                         <Table.Cell>
                           <Button
                             color="light"
@@ -283,6 +282,14 @@ const InventoryList: React.FC = () => {
                             className="mx-1"
                           >
                             印刷
+                          </Button>
+                          <Button
+                            color="light"
+                            size="sm"
+                            onClick={() => setTarget({ delivery: invt, mode: 'excel' })}
+                            className="mx-1"
+                          >
+                            Excel
                           </Button>
                         </Table.Cell>
                       </Table.Row>

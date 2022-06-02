@@ -9,6 +9,7 @@ import {
   QuerySnapshot,
   setDoc,
 } from 'firebase/firestore';
+import * as xlsx from 'xlsx';
 import clsx from 'clsx';
 import { useReactToPrint } from 'react-to-print';
 import { Button, Flex, Modal, Table } from './components';
@@ -20,7 +21,7 @@ import { useAppContext } from './AppContext';
 const db = getFirestore();
 
 type Props = {
-  mode: 'modal' | 'print';
+  mode: 'modal' | 'print' | 'excel';
   shopCode: string;
   date: Date;
   onClose: () => void;
@@ -45,6 +46,7 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
 
   useEffect(() => {
     if (loaded && handlePrint && mode === 'print') handlePrint();
+    if (loaded && downloadExcel && mode === 'excel') downloadExcel();
   }, [loaded]);
 
   const loadInventoryDetails = async (shopCode: string, date: Date) => {
@@ -114,8 +116,98 @@ const InventoryPrint: React.FC<Props> = ({ mode, shopCode, date, onClose }) => {
     }
   };
 
+  const s2ab = (s: any) => {
+    const buf = new ArrayBuffer(s.length);
+    const view = new Uint8Array(buf);
+    for (let i = 0; i !== s.length; ++i) view[i] = s.charCodeAt(i) & 0xff;
+    return buf;
+  };
+
+  const downloadExcel = async () => {
+    const sums = new Map<number, { quantity: number; amount: number }>();
+    for (const detail of items) {
+      if (detail.costPrice && detail.quantity) {
+        if (detail.stockTax !== undefined) {
+          const sum = sums.get(detail.stockTax) ?? { quantity: 0, amount: 0 };
+          sum.quantity += detail.quantity;
+          sum.amount += detail.quantity * detail.costPrice;
+          sums.set(detail.stockTax, sum);
+        }
+        const sum0 = sums.get(100) ?? { quantity: 0, amount: 0 };
+        sum0.quantity += detail.quantity;
+        sum0.amount += detail.quantity * detail.costPrice;
+        sums.set(100, sum0);
+      }
+    }
+    const sortedSums = Array.from(sums.entries()).sort((v1, v2) => v1[0] - v2[0]);
+
+    const dataArray: string[][] = [];
+    dataArray.push([
+      '',
+      `棚卸リスト${inventory && nameWithCode({ code: inventory.shopCode, name: inventory.shopName })}`,
+    ]);
+    dataArray.push(['', 'ステータス', `${inventory && (inventory.fixedAt ? '確定済' : '作業中')}`]);
+    dataArray.push([
+      '',
+      '作業期間',
+      `${inventory && toDateString(inventory.date.toDate(), 'MM/DD hh:mm')} 〜 ${
+        inventory && inventory.fixedAt && toDateString(inventory.fixedAt.toDate(), 'MM/DD hh:mm')
+      }`,
+    ]);
+    dataArray.push(['', '', '', '', '', '', '実数', '金額']);
+    sortedSums.map(([tax, value]) => {
+      dataArray.push([
+        '',
+        '',
+        '',
+        '',
+        '',
+        tax === 100 ? '合計' : `${tax}%商品`,
+        `${value.quantity}`,
+        `${value.amount.toLocaleString()}`,
+      ]);
+    });
+    dataArray.push([]);
+
+    dataArray.push(['No', '商品コード', '商品名', '原価', '消費税', '理論値', '数量', '差異']);
+
+    getSortItems().map((item, i) => {
+      const row: string[] = [];
+      row.push(`${i + 1}`);
+      row.push(item.productCode);
+      row.push(item.productName);
+      row.push(`${item.costPrice}`);
+      row.push(item.stockTax ? `${item.stockTax}%` : '');
+      row.push(`${item.stock}`);
+      row.push(`${item.quantity}`);
+      row.push(`${item.quantity - item.stock}`);
+      dataArray.push(row);
+    });
+
+    const sheet = xlsx.utils.aoa_to_sheet(dataArray);
+    const wb = {
+      SheetNames: ['Sheet1'],
+      Sheets: { Sheet1: sheet },
+    };
+    const wb_out = xlsx.write(wb, { type: 'binary' });
+    var blob = new Blob([s2ab(wb_out)], {
+      type: 'application/octet-stream',
+    });
+
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = `棚卸リスト.xlsx`;
+    link.click();
+    onClose();
+  };
+
   return (
-    <Modal open size="none" onClose={onClose} className={clsx('w-2/3 overflow-visible', mode === 'print' && 'hidden')}>
+    <Modal
+      open
+      size="none"
+      onClose={onClose}
+      className={clsx('w-2/3 overflow-visible', (mode === 'print' || mode === 'excel') && 'hidden')}
+    >
       <Modal.Body>
         <div ref={componentRef}>
           <Flex justify_content="between" className="mb-3">
