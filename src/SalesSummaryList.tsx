@@ -24,14 +24,14 @@ type Row = (string | number)[];
 const db = getFirestore();
 
 const SalesSummaryList: React.FC = () => {
-  const [completed, setCompleted] = useState<boolean>(false);
+  const [completed, setCompleted] = useState<boolean>(true);
   const [salesItems, setSalesItems] = useState<{ [code: string]: { [code: string]: number | string } }>({});
   const [shopCode, setShopCode] = useState<string>();
   const [shopOptions, setShopsOptions] = useState<{ label: string; value: string }[]>([]);
   const [dateTimeFrom, setDateTimeFrom] = useState<Date>();
-  const [dateTimeTo, setDateTimeTo] = useState<Date>();
+  const [dateTimeTo, setDateTimeTo] = useState<Date>(new Date());
   const [messages, setMessages] = useState<string[]>([]);
-  const { currentShop, shops, role, registListner } = useAppContext();
+  const { currentShop, shops, role, registListner, getProductPrice } = useAppContext();
 
   useEffect(() => {
     registListner('shops');
@@ -47,6 +47,7 @@ const SalesSummaryList: React.FC = () => {
         value: code,
         label: nameWithCode(shop),
       }));
+      options.unshift({ value: '', label: '' });
       setShopsOptions(options);
     }
     if (currentShop) {
@@ -65,14 +66,42 @@ const SalesSummaryList: React.FC = () => {
     return buf;
   };
 
-  const querySales = async (e: React.FormEvent) => {
+  const searchSales = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCompleted(false);
-    if (shopCode) {
+    if (shopCode && checkDateRange()) {
+      setCompleted(false);
+      const salesItemsData = await querySales(shopCode);
+      if (salesItemsData) setSalesItems(salesItemsData);
+      setCompleted(true);
+    } else {
+      if (!shopCode) setMessages((prev) => prev.concat('店舗を選択してください。'));
+    }
+  };
+
+  const checkDateRange = () => {
+    if (!shopCode) {
+      if (dateTimeFrom && dateTimeTo) {
+        const diffDay = (dateTimeTo.getTime() - dateTimeFrom.getTime()) / (24 * 60 * 60 * 1000);
+        if (diffDay >= 93) {
+          setMessages((prev) => prev.concat('日付の範囲を3ヶ月以内に指定してください。'));
+        } else {
+          return true;
+        }
+      } else {
+        setMessages((prev) => prev.concat('日付の範囲を指定してください(3ヶ月以内)。'));
+      }
+      return false;
+    } else {
+      return true;
+    }
+  };
+
+  const querySales = async (shop_code: string) => {
+    if (shop_code) {
       try {
         const salesItemsData: { [code: string]: { [code: string]: number | string } } = {};
         const conds: QueryConstraint[] = [];
-        conds.push(where('shopCode', '==', shopCode));
+        conds.push(where('shopCode', '==', shop_code));
         if (dateTimeFrom) {
           conds.push(where('createdAt', '>=', dateTimeFrom));
         }
@@ -95,7 +124,6 @@ const SalesSummaryList: React.FC = () => {
                   }
                   salesItemsData[detail.product.code]['costPrice'] = toNumber(detail.product.costPrice);
                   salesItemsData[detail.product.code]['productName'] = detail.product.name;
-                  const costPricesRef = collection(db, 'shops', shopCode, 'productCostPrices');
                   salesItemsData[detail.product.code]['salesCount'] =
                     toNumber(salesItemsData[detail.product.code]['salesCount']) + detail.quantity * registerSign;
                   salesItemsData[detail.product.code]['salesTotal'] =
@@ -105,6 +133,7 @@ const SalesSummaryList: React.FC = () => {
                   salesItemsData[detail.product.code]['costTotal'] =
                     toNumber(salesItemsData[detail.product.code]['costTotal']) +
                     toNumber(detail.product.costPrice) * detail.quantity * registerSign;
+                  const costPricesRef = collection(db, 'shops', shop_code, 'productCostPrices');
                   const costPricesSnap = await getDocs(
                     query(costPricesRef, where('productCode', '==', detail.product.code), limit(1))
                   );
@@ -128,7 +157,7 @@ const SalesSummaryList: React.FC = () => {
         await Promise.all(
           Object.keys(salesItemsData).map(async (productCode) => {
             if (productCode) {
-              const stockRef = doc(collection(db, 'shops', shopCode, 'stocks'), productCode);
+              const stockRef = doc(collection(db, 'shops', shop_code, 'stocks'), productCode);
               const stockDoc = await getDoc(stockRef);
               if (stockDoc.exists()) {
                 const stock = stockDoc.data() as Stock;
@@ -139,87 +168,101 @@ const SalesSummaryList: React.FC = () => {
             }
           })
         );
-        setSalesItems(salesItemsData);
-        setCompleted(true);
         return salesItemsData;
       } catch (error) {
         console.log({ error });
-        setCompleted(true);
         alert(firebaseError(error));
       }
     }
   };
 
   const downloadExcel = async (e: React.FormEvent) => {
-    const salesItemsData = await querySales(e);
-    const dataArray: Row[] = [];
-    dataArray.push([
-      '商品コード',
-      '商品名',
-      '仕入先コード',
-      '仕入先名',
-      '売上数',
-      '売上税抜',
-      '評価原価',
-      '原価率',
-      '粗利',
-      '粗利率',
-      '在庫数',
-      '在庫金額',
-    ]);
-    if (salesItemsData) {
-      Object.keys(salesItemsData)
-        .sort()
-        .map((productCode) => {
-          dataArray.push([
-            productCode,
-            salesItemsData[productCode]['productName'],
-            salesItemsData[productCode]['supplierCode'],
-            salesItemsData[productCode]['supplierName'],
-            toNumber(salesItemsData[productCode]['salesCount']),
-            toNumber(salesItemsData[productCode]['salesTotal']),
-            toNumber(salesItemsData[productCode]['costTotal']),
-            toNumber(salesItemsData[productCode]['salesTotal']) > 0
-              ? parseFloat(
-                  (
-                    (toNumber(salesItemsData[productCode]['costTotal']) /
-                      toNumber(salesItemsData[productCode]['salesTotal'])) *
-                    100
-                  ).toFixed(1)
-                )
-              : 0,
-            toNumber(salesItemsData[productCode]['salesTotal']) - toNumber(salesItemsData[productCode]['costTotal']),
-            toNumber(salesItemsData[productCode]['salesTotal']) > 0
-              ? parseFloat(
-                  (
-                    ((toNumber(salesItemsData[productCode]['salesTotal']) -
-                      toNumber(salesItemsData[productCode]['costTotal'])) /
-                      toNumber(salesItemsData[productCode]['salesTotal'])) *
-                    100
-                  ).toFixed(1)
-                )
-              : 0,
-            toNumber(salesItemsData[productCode]['stockCount']),
-            toNumber(salesItemsData[productCode]['stockCount']) * toNumber(salesItemsData[productCode]['costPrice']),
-          ]);
-        });
-    }
-    const sheet = xlsx.utils.aoa_to_sheet(dataArray);
-    const wscols = [15, 30, 15, 15, 10, 10, 10, 10, 10, 10, 10, 10].map((value) => ({ wch: value }));
-    sheet['!cols'] = wscols;
-    const wb = {
-      SheetNames: ['売上帳票'],
-      Sheets: { 売上帳票: sheet },
-    };
-    const wb_out = xlsx.write(wb, { type: 'binary' });
-    var blob = new Blob([s2ab(wb_out)], {
-      type: 'application/octet-stream',
-    });
+    e.preventDefault();
+    if (shops && checkDateRange()) {
+      setCompleted(false);
+      const shopCodes = shopCode ? [shopCode] : Array.from(shops.keys());
+      const dataArray: Row[] = [];
+      dataArray.push([
+        '店舗コード',
+        '商品コード',
+        '商品名',
+        '仕入先コード',
+        '仕入先名',
+        '売上数',
+        '売上税抜',
+        '評価原価',
+        '原価率',
+        '粗利',
+        '粗利率',
+        '在庫数',
+        '在庫金額',
+      ]);
+      for await (const shop_code of shopCodes) {
+        const salesItemsData = await querySales(shop_code);
+        if (salesItemsData) {
+          Object.keys(salesItemsData)
+            .sort()
+            .forEach((productCode) => {
+              dataArray.push([
+                shop_code,
+                productCode,
+                salesItemsData[productCode]['productName'],
+                salesItemsData[productCode]['supplierCode'],
+                salesItemsData[productCode]['supplierName'],
+                toNumber(salesItemsData[productCode]['salesCount']),
+                toNumber(salesItemsData[productCode]['salesTotal']),
+                toNumber(salesItemsData[productCode]['costTotal']),
+                toNumber(salesItemsData[productCode]['salesTotal']) > 0
+                  ? parseFloat(
+                      (
+                        (toNumber(salesItemsData[productCode]['costTotal']) /
+                          toNumber(salesItemsData[productCode]['salesTotal'])) *
+                        100
+                      ).toFixed(1)
+                    )
+                  : 0,
+                toNumber(salesItemsData[productCode]['salesTotal']) -
+                  toNumber(salesItemsData[productCode]['costTotal']),
+                toNumber(salesItemsData[productCode]['salesTotal']) > 0
+                  ? parseFloat(
+                      (
+                        ((toNumber(salesItemsData[productCode]['salesTotal']) -
+                          toNumber(salesItemsData[productCode]['costTotal'])) /
+                          toNumber(salesItemsData[productCode]['salesTotal'])) *
+                        100
+                      ).toFixed(1)
+                    )
+                  : 0,
+                toNumber(salesItemsData[productCode]['stockCount']),
+                toNumber(salesItemsData[productCode]['stockCount']) *
+                  toNumber(salesItemsData[productCode]['costPrice']),
+              ]);
+            });
+        }
+      }
+      const sheet = xlsx.utils.aoa_to_sheet(dataArray);
+      const wscols = [15, 30, 15, 15, 10, 10, 10, 10, 10, 10, 10, 10].map((value) => ({ wch: value }));
+      sheet['!cols'] = wscols;
+      const wb = {
+        SheetNames: ['売上帳票'],
+        Sheets: { 売上帳票: sheet },
+      };
+      const wb_out = xlsx.write(wb, { type: 'binary' });
+      var blob = new Blob([s2ab(wb_out)], {
+        type: 'application/octet-stream',
+      });
 
-    const link = document.createElement('a');
-    link.href = window.URL.createObjectURL(blob);
-    link.download = `売上帳票.xlsx`;
-    link.click();
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `売上帳票.xlsx`;
+      link.click();
+      setCompleted(true);
+    }
+  };
+
+  const showPrice = (shopCode: string, productCode: string) => async () => {
+    const prices = await getProductPrice(shopCode, productCode, ['finalCostPrice', 'product']);
+    console.log({ prices });
   };
 
   return (
@@ -227,7 +270,7 @@ const SalesSummaryList: React.FC = () => {
       <div className="p-4">
         <h1 className="text-xl font-bold mb-2">売上帳票</h1>
         <Card className="p-5 overflow-visible">
-          <Form className="flex space-x-2 mb-2" onSubmit={querySales}>
+          <Form className="flex space-x-2 mb-2" onSubmit={searchSales}>
             <Select
               value={selectValue(shopCode, shopOptions)}
               options={shopOptions}
@@ -249,8 +292,10 @@ const SalesSummaryList: React.FC = () => {
                 setDateTimeTo(new Date(e.target.value));
               }}
             />
-            <Button className="w-48">検索</Button>
-            <Button className="w-48" onClick={downloadExcel}>
+            <Button className="w-48" disabled={!completed}>
+              検索
+            </Button>
+            <Button className="w-48" disabled={!completed} onClick={downloadExcel}>
               Excel
             </Button>
           </Form>
@@ -334,7 +379,13 @@ const SalesSummaryList: React.FC = () => {
                         ).toLocaleString()}
                       </Table.Cell>
                       <Table.Cell className="text-right"></Table.Cell>
-                      <Table.Cell></Table.Cell>
+                      <Table.Cell>
+                        {false && (
+                          <Button size="xs" onClick={showPrice(shopCode ?? '', productCode)}>
+                            価格
+                          </Button>
+                        )}
+                      </Table.Cell>
                     </Table.Row>
                   );
                 })}
