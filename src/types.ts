@@ -347,6 +347,9 @@ export const productSellingPricePath = (shopCode: string, productCode: string) =
 export const stockPath = (shopCode: string, productCode: string | undefined = undefined) =>
   `shops/${shopCode}/stocks/${productCode ?? ''}`;
 
+export const monthlyStockPath = (shopCode: string, month: string, productCode: string | undefined = undefined) =>
+  `shops/${shopCode}/monthlyStocks/${month}/stocks/${productCode ?? ''}`;
+
 export const inventoryPath = (shopCode: string, date: Date | undefined = undefined) =>
   `shops/${shopCode}/inventories/${date ? toDateString(date, 'YYYY-MM-DD') : ''}`;
 
