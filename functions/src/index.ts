@@ -3,6 +3,7 @@ import * as functions from 'firebase-functions';
 import * as client from 'cheerio-httpcli';
 import * as crypto from 'crypto';
 import * as FTP from 'ftp';
+import { subDays } from 'date-fns';
 
 admin.initializeApp();
 
@@ -201,6 +202,61 @@ exports.scheduledUpdateShops = functions
   .timeZone('Asia/Tokyo')
   .onRun(() => {
     updateShopsFromKKb();
+  });
+
+const createMonthlyStocksImpl = async (month: string) => {
+  try {
+    let results: any[] = [];
+    const shopsSnapshot = await db.collection('shops').get();
+    const shops = shopsSnapshot.docs.map((doc) => doc.data());
+    for await (const shop of shops) {
+      const shopCode = shop.code;
+      const stocksSnapshot = await db.collection('shops').doc(shopCode).collection('stocks').get();
+      const stocks = stocksSnapshot.docs.map((doc) => doc.data());
+      const BATCH_UNIT = 100;
+      const taskSize = Math.ceil(stocks.length / BATCH_UNIT);
+      const sequential = [...Array(taskSize).keys()];
+
+      // firestore 更新
+      const tasks1 = sequential.map(async (i) => {
+        const batch = db.batch();
+        const sliced = stocks.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+        sliced.forEach((stock: any) => {
+          const ref = db
+            .collection('shops')
+            .doc(shopCode)
+            .collection('monthlyStocks')
+            .doc(month)
+            .collection('stocks')
+            .doc(stock.productCode);
+          const p = { ...stock, month };
+          batch.set(ref, p);
+        });
+        return await batch.commit();
+      });
+      results = results.concat(await Promise.all(tasks1));
+    }
+    return { results };
+  } catch (error) {
+    throw new functions.https.HttpsError('unknown', 'error in createMonthlyStocks', error);
+  }
+};
+
+export const createMonthlyStocks = functions
+  .runWith({ timeoutSeconds: 540 })
+  .region('asia-northeast1')
+  .https.onCall(async (data) => {
+    return await createMonthlyStocksImpl(data.month);
+  });
+
+exports.scheduledCreateMonthlyStocks = functions
+  .runWith({ timeoutSeconds: 540 })
+  .region('asia-northeast1')
+  .pubsub.schedule('0 6 1 * *')
+  .timeZone('Asia/Tokyo')
+  .onRun(() => {
+    const month = toDateString(subDays(new Date(), 1), 'YYYYMM');
+    createMonthlyStocksImpl(month);
   });
 
 export const getSequence = functions.region('asia-northeast1').https.onCall(async (data) => {
