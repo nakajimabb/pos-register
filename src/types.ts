@@ -126,6 +126,7 @@ export type Sale = {
 export type SaleDetail = {
   salesId: string;
   index: number;
+  productCode: string;
   product: Product;
   division: string;
   quantity: number;

@@ -73,6 +73,7 @@ const RegisterPayment: React.FC<Props> = ({
         const detail: SaleDetail = {
           salesId: saleRef.id,
           index: index,
+          productCode: item.product.code,
           product: item.product,
           division: item.division,
           quantity: item.quantity,

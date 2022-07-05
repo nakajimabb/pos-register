@@ -54,6 +54,7 @@ const ItemTrendList: React.FC = () => {
 
   const searchItemTrends = async () => {
     if (shopCode && checkDateRange()) {
+      setMessages([]);
       setCompleted(false);
       let result = await queryItemTrends();
       if (result) {
@@ -67,14 +68,14 @@ const ItemTrendList: React.FC = () => {
 
   const checkDateRange = () => {
     if (dateFrom && dateTo) {
-      const diffDay = differenceInMonths(dateFrom, dateTo);
-      if (diffDay > 3) {
-        setMessages((prev) => prev.concat('月の範囲を3ヶ月以内に指定してください。'));
+      const diffDay = differenceInMonths(dateTo, dateFrom);
+      if (diffDay > 6) {
+        setMessages((prev) => prev.concat('月の範囲を6ヶ月以内に指定してください。'));
       } else {
         return true;
       }
     } else {
-      setMessages((prev) => prev.concat('月の範囲を指定してください(3ヶ月以内)。'));
+      setMessages((prev) => prev.concat('月の範囲を指定してください(6ヶ月以内)。'));
     }
     return false;
   };
@@ -96,32 +97,33 @@ const ItemTrendList: React.FC = () => {
         await Promise.all(
           purchaseQuerySnapshot.docs.map(async (purchaseDoc) => {
             const purchase = purchaseDoc.data() as Purchase;
-            const detailsSnapshot = await getDocs(
-              collection(db, purchaseDetailPath(shopCode, purchase.purchaseNumber))
+            const detailConds = [where('productCode', '==', productCode)];
+            const detailsQuery = query(
+              collection(db, purchaseDetailPath(shopCode, purchase.purchaseNumber)),
+              ...detailConds
             );
+            const detailsSnapshot = await getDocs(detailsQuery);
             const purchaseDateString = format(purchase.date.toDate(), 'yyyy/MM/dd');
             const purchaseMonthString = format(purchase.date.toDate(), 'yyyy/MM');
             await Promise.all(
               detailsSnapshot.docs.map(async (detailDoc) => {
                 const detail = detailDoc.data() as PurchaseDetail;
-                if (detail.productCode === productCode) {
-                  if (!Object.keys(itemTrendsData).includes(purchaseDateString)) {
-                    itemTrendsData[purchaseDateString] = {};
-                  }
-                  if (!Object.keys(itemTrendsSummariesData).includes(purchaseMonthString)) {
-                    itemTrendsSummariesData[purchaseMonthString] = {};
-                  }
-                  itemTrendsData[purchaseDateString]['purchaseCount'] =
-                    toNumber(itemTrendsData[purchaseDateString]['purchaseCount']) + detail.quantity;
-                  itemTrendsData[purchaseDateString]['purchaseCostTotal'] =
-                    toNumber(itemTrendsData[purchaseDateString]['purchaseCostTotal']) +
-                    toNumber(detail.costPrice) * detail.quantity;
-                  itemTrendsSummariesData[purchaseMonthString]['purchaseCount'] =
-                    toNumber(itemTrendsSummariesData[purchaseMonthString]['purchaseCount']) + detail.quantity;
-                  itemTrendsSummariesData[purchaseMonthString]['purchaseCostTotal'] =
-                    toNumber(itemTrendsSummariesData[purchaseMonthString]['purchaseCostTotal']) +
-                    toNumber(detail.costPrice) * detail.quantity;
+                if (!Object.keys(itemTrendsData).includes(purchaseDateString)) {
+                  itemTrendsData[purchaseDateString] = {};
                 }
+                if (!Object.keys(itemTrendsSummariesData).includes(purchaseMonthString)) {
+                  itemTrendsSummariesData[purchaseMonthString] = {};
+                }
+                itemTrendsData[purchaseDateString]['purchaseCount'] =
+                  toNumber(itemTrendsData[purchaseDateString]['purchaseCount']) + detail.quantity;
+                itemTrendsData[purchaseDateString]['purchaseCostTotal'] =
+                  toNumber(itemTrendsData[purchaseDateString]['purchaseCostTotal']) +
+                  toNumber(detail.costPrice) * detail.quantity;
+                itemTrendsSummariesData[purchaseMonthString]['purchaseCount'] =
+                  toNumber(itemTrendsSummariesData[purchaseMonthString]['purchaseCount']) + detail.quantity;
+                itemTrendsSummariesData[purchaseMonthString]['purchaseCostTotal'] =
+                  toNumber(itemTrendsSummariesData[purchaseMonthString]['purchaseCostTotal']) +
+                  toNumber(detail.costPrice) * detail.quantity;
               })
             );
           })
@@ -132,32 +134,33 @@ const ItemTrendList: React.FC = () => {
         await Promise.all(
           deliveryQuerySnapshot.docs.map(async (deliveryDoc) => {
             const delivery = deliveryDoc.data() as Delivery;
-            const detailsSnapshot = await getDocs(
-              collection(db, deliveryDetailPath(shopCode, delivery.deliveryNumber))
+            const detailConds = [where('productCode', '==', productCode)];
+            const detailsQuery = query(
+              collection(db, deliveryDetailPath(shopCode, delivery.deliveryNumber)),
+              ...detailConds
             );
+            const detailsSnapshot = await getDocs(detailsQuery);
             const deliveryDateString = format(delivery.date.toDate(), 'yyyy/MM/dd');
             const deliveryMonthString = format(delivery.date.toDate(), 'yyyy/MM');
             await Promise.all(
               detailsSnapshot.docs.map(async (detailDoc) => {
                 const detail = detailDoc.data() as DeliveryDetail;
-                if (detail.productCode === productCode) {
-                  if (!Object.keys(itemTrendsData).includes(deliveryDateString)) {
-                    itemTrendsData[deliveryDateString] = {};
-                  }
-                  if (!Object.keys(itemTrendsSummariesData).includes(deliveryMonthString)) {
-                    itemTrendsSummariesData[deliveryMonthString] = {};
-                  }
-                  itemTrendsData[deliveryDateString]['deliveryCount'] =
-                    toNumber(itemTrendsData[deliveryDateString]['deliveryCount']) + detail.quantity;
-                  itemTrendsData[deliveryDateString]['deliveryCostTotal'] =
-                    toNumber(itemTrendsData[deliveryDateString]['deliveryCostTotal']) +
-                    toNumber(detail.costPrice) * detail.quantity;
-                  itemTrendsSummariesData[deliveryMonthString]['deliveryCount'] =
-                    toNumber(itemTrendsSummariesData[deliveryMonthString]['deliveryCount']) + detail.quantity;
-                  itemTrendsSummariesData[deliveryMonthString]['deliveryCostTotal'] =
-                    toNumber(itemTrendsSummariesData[deliveryMonthString]['deliveryCostTotal']) +
-                    toNumber(detail.costPrice) * detail.quantity;
+                if (!Object.keys(itemTrendsData).includes(deliveryDateString)) {
+                  itemTrendsData[deliveryDateString] = {};
                 }
+                if (!Object.keys(itemTrendsSummariesData).includes(deliveryMonthString)) {
+                  itemTrendsSummariesData[deliveryMonthString] = {};
+                }
+                itemTrendsData[deliveryDateString]['deliveryCount'] =
+                  toNumber(itemTrendsData[deliveryDateString]['deliveryCount']) + detail.quantity;
+                itemTrendsData[deliveryDateString]['deliveryCostTotal'] =
+                  toNumber(itemTrendsData[deliveryDateString]['deliveryCostTotal']) +
+                  toNumber(detail.costPrice) * detail.quantity;
+                itemTrendsSummariesData[deliveryMonthString]['deliveryCount'] =
+                  toNumber(itemTrendsSummariesData[deliveryMonthString]['deliveryCount']) + detail.quantity;
+                itemTrendsSummariesData[deliveryMonthString]['deliveryCostTotal'] =
+                  toNumber(itemTrendsSummariesData[deliveryMonthString]['deliveryCostTotal']) +
+                  toNumber(detail.costPrice) * detail.quantity;
               })
             );
           })
@@ -168,32 +171,33 @@ const ItemTrendList: React.FC = () => {
         await Promise.all(
           rejectionQuerySnapshot.docs.map(async (rejectionDoc) => {
             const rejection = rejectionDoc.data() as Rejection;
-            const detailsSnapshot = await getDocs(
-              collection(db, rejectionDetailPath(shopCode, rejection.rejectionNumber))
+            const detailConds = [where('productCode', '==', productCode)];
+            const detailsQuery = query(
+              collection(db, rejectionDetailPath(shopCode, rejection.rejectionNumber)),
+              ...detailConds
             );
+            const detailsSnapshot = await getDocs(detailsQuery);
             const rejectionDateString = format(rejection.date.toDate(), 'yyyy/MM/dd');
             const rejectionMonthString = format(rejection.date.toDate(), 'yyyy/MM');
             await Promise.all(
               detailsSnapshot.docs.map(async (detailDoc) => {
                 const detail = detailDoc.data() as RejectionDetail;
-                if (detail.productCode === productCode) {
-                  if (!Object.keys(itemTrendsData).includes(rejectionDateString)) {
-                    itemTrendsData[rejectionDateString] = {};
-                  }
-                  if (!Object.keys(itemTrendsSummariesData).includes(rejectionMonthString)) {
-                    itemTrendsSummariesData[rejectionMonthString] = {};
-                  }
-                  itemTrendsData[rejectionDateString]['rejectionCount'] =
-                    toNumber(itemTrendsData[rejectionDateString]['rejectionCount']) + detail.quantity;
-                  itemTrendsData[rejectionDateString]['rejectionCostTotal'] =
-                    toNumber(itemTrendsData[rejectionDateString]['rejectionCostTotal']) +
-                    toNumber(detail.costPrice) * detail.quantity;
-                  itemTrendsSummariesData[rejectionMonthString]['rejectionCount'] =
-                    toNumber(itemTrendsSummariesData[rejectionMonthString]['rejectionCount']) + detail.quantity;
-                  itemTrendsSummariesData[rejectionMonthString]['rejectionCostTotal'] =
-                    toNumber(itemTrendsSummariesData[rejectionMonthString]['rejectionCostTotal']) +
-                    toNumber(detail.costPrice) * detail.quantity;
+                if (!Object.keys(itemTrendsData).includes(rejectionDateString)) {
+                  itemTrendsData[rejectionDateString] = {};
                 }
+                if (!Object.keys(itemTrendsSummariesData).includes(rejectionMonthString)) {
+                  itemTrendsSummariesData[rejectionMonthString] = {};
+                }
+                itemTrendsData[rejectionDateString]['rejectionCount'] =
+                  toNumber(itemTrendsData[rejectionDateString]['rejectionCount']) + detail.quantity;
+                itemTrendsData[rejectionDateString]['rejectionCostTotal'] =
+                  toNumber(itemTrendsData[rejectionDateString]['rejectionCostTotal']) +
+                  toNumber(detail.costPrice) * detail.quantity;
+                itemTrendsSummariesData[rejectionMonthString]['rejectionCount'] =
+                  toNumber(itemTrendsSummariesData[rejectionMonthString]['rejectionCount']) + detail.quantity;
+                itemTrendsSummariesData[rejectionMonthString]['rejectionCostTotal'] =
+                  toNumber(itemTrendsSummariesData[rejectionMonthString]['rejectionCostTotal']) +
+                  toNumber(detail.costPrice) * detail.quantity;
               })
             );
           })
@@ -214,34 +218,33 @@ const ItemTrendList: React.FC = () => {
           salesQuerySnapshot.docs.map(async (saleDoc) => {
             const sale = saleDoc.data() as Sale;
             const registerSign = sale.status === 'Return' ? -1 : 1;
-            const detailsSnapshot = await getDocs(collection(db, 'sales', saleDoc.id, 'saleDetails'));
+            const detailConds = [where('productCode', '==', productCode)];
+            detailConds.push(where('division', '==', OTC_DIVISION));
+            const detailsQuery = query(collection(db, 'sales', saleDoc.id, 'saleDetails'), ...detailConds);
+            const detailsSnapshot = await getDocs(detailsQuery);
             const saleDateString = format(sale.createdAt.toDate(), 'yyyy/MM/dd');
             const saleMonthString = format(sale.createdAt.toDate(), 'yyyy/MM');
             await Promise.all(
               detailsSnapshot.docs.map(async (detailDoc) => {
                 const detail = detailDoc.data() as SaleDetail;
-                if (detail.product.code && detail.division === OTC_DIVISION) {
-                  if (detail.product.code === productCode) {
-                    if (!Object.keys(itemTrendsData).includes(saleDateString)) {
-                      itemTrendsData[saleDateString] = {};
-                    }
-                    if (!Object.keys(itemTrendsSummariesData).includes(saleMonthString)) {
-                      itemTrendsSummariesData[saleMonthString] = {};
-                    }
-                    itemTrendsData[saleDateString]['salesCount'] =
-                      toNumber(itemTrendsData[saleDateString]['salesCount']) + detail.quantity * registerSign;
-                    itemTrendsData[saleDateString]['salesTotal'] =
-                      toNumber(itemTrendsData[saleDateString]['salesTotal']) +
-                      toNumber(detail.product.sellingPrice) * detail.quantity * registerSign -
-                      detail.discount;
-                    itemTrendsSummariesData[saleMonthString]['salesCount'] =
-                      toNumber(itemTrendsSummariesData[saleMonthString]['salesCount']) + detail.quantity * registerSign;
-                    itemTrendsSummariesData[saleMonthString]['salesTotal'] =
-                      toNumber(itemTrendsSummariesData[saleMonthString]['salesTotal']) +
-                      toNumber(detail.product.sellingPrice) * detail.quantity * registerSign -
-                      detail.discount;
-                  }
+                if (!Object.keys(itemTrendsData).includes(saleDateString)) {
+                  itemTrendsData[saleDateString] = {};
                 }
+                if (!Object.keys(itemTrendsSummariesData).includes(saleMonthString)) {
+                  itemTrendsSummariesData[saleMonthString] = {};
+                }
+                itemTrendsData[saleDateString]['salesCount'] =
+                  toNumber(itemTrendsData[saleDateString]['salesCount']) + detail.quantity * registerSign;
+                itemTrendsData[saleDateString]['salesTotal'] =
+                  toNumber(itemTrendsData[saleDateString]['salesTotal']) +
+                  toNumber(detail.product.sellingPrice) * detail.quantity * registerSign -
+                  detail.discount;
+                itemTrendsSummariesData[saleMonthString]['salesCount'] =
+                  toNumber(itemTrendsSummariesData[saleMonthString]['salesCount']) + detail.quantity * registerSign;
+                itemTrendsSummariesData[saleMonthString]['salesTotal'] =
+                  toNumber(itemTrendsSummariesData[saleMonthString]['salesTotal']) +
+                  toNumber(detail.product.sellingPrice) * detail.quantity * registerSign -
+                  detail.discount;
               })
             );
           })
