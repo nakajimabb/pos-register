@@ -22,6 +22,9 @@ import {
   rejectionDetailPath,
   monthlyStockPath,
   Stock,
+  Inventory,
+  inventoryDetailPath,
+  InventoryDetail,
 } from './types';
 
 const db = getFirestore();
@@ -81,8 +84,11 @@ const ItemTrendList: React.FC = () => {
   };
 
   const queryItemTrends = async () => {
-    if (shopCode && dateFrom) {
+    if (shopCode && dateFrom && productCode) {
       try {
+        if (!prices) {
+          await findProduct(productCode);
+        }
         const itemTrendsData: { [code: string]: { [code: string]: number | string } } = {};
         const itemTrendsSummariesData: { [code: string]: { [code: string]: number | string } } = {};
         const conds: QueryConstraint[] = [];
@@ -104,25 +110,16 @@ const ItemTrendList: React.FC = () => {
             );
             const detailsSnapshot = await getDocs(detailsQuery);
             const purchaseDateString = format(purchase.date.toDate(), 'yyyy/MM/dd');
-            const purchaseMonthString = format(purchase.date.toDate(), 'yyyy/MM');
             await Promise.all(
               detailsSnapshot.docs.map(async (detailDoc) => {
                 const detail = detailDoc.data() as PurchaseDetail;
                 if (!Object.keys(itemTrendsData).includes(purchaseDateString)) {
                   itemTrendsData[purchaseDateString] = {};
                 }
-                if (!Object.keys(itemTrendsSummariesData).includes(purchaseMonthString)) {
-                  itemTrendsSummariesData[purchaseMonthString] = {};
-                }
                 itemTrendsData[purchaseDateString]['purchaseCount'] =
                   toNumber(itemTrendsData[purchaseDateString]['purchaseCount']) + detail.quantity;
                 itemTrendsData[purchaseDateString]['purchaseCostTotal'] =
                   toNumber(itemTrendsData[purchaseDateString]['purchaseCostTotal']) +
-                  toNumber(detail.costPrice) * detail.quantity;
-                itemTrendsSummariesData[purchaseMonthString]['purchaseCount'] =
-                  toNumber(itemTrendsSummariesData[purchaseMonthString]['purchaseCount']) + detail.quantity;
-                itemTrendsSummariesData[purchaseMonthString]['purchaseCostTotal'] =
-                  toNumber(itemTrendsSummariesData[purchaseMonthString]['purchaseCostTotal']) +
                   toNumber(detail.costPrice) * detail.quantity;
               })
             );
@@ -141,25 +138,16 @@ const ItemTrendList: React.FC = () => {
             );
             const detailsSnapshot = await getDocs(detailsQuery);
             const deliveryDateString = format(delivery.date.toDate(), 'yyyy/MM/dd');
-            const deliveryMonthString = format(delivery.date.toDate(), 'yyyy/MM');
             await Promise.all(
               detailsSnapshot.docs.map(async (detailDoc) => {
                 const detail = detailDoc.data() as DeliveryDetail;
                 if (!Object.keys(itemTrendsData).includes(deliveryDateString)) {
                   itemTrendsData[deliveryDateString] = {};
                 }
-                if (!Object.keys(itemTrendsSummariesData).includes(deliveryMonthString)) {
-                  itemTrendsSummariesData[deliveryMonthString] = {};
-                }
                 itemTrendsData[deliveryDateString]['deliveryCount'] =
                   toNumber(itemTrendsData[deliveryDateString]['deliveryCount']) + detail.quantity;
                 itemTrendsData[deliveryDateString]['deliveryCostTotal'] =
                   toNumber(itemTrendsData[deliveryDateString]['deliveryCostTotal']) +
-                  toNumber(detail.costPrice) * detail.quantity;
-                itemTrendsSummariesData[deliveryMonthString]['deliveryCount'] =
-                  toNumber(itemTrendsSummariesData[deliveryMonthString]['deliveryCount']) + detail.quantity;
-                itemTrendsSummariesData[deliveryMonthString]['deliveryCostTotal'] =
-                  toNumber(itemTrendsSummariesData[deliveryMonthString]['deliveryCostTotal']) +
                   toNumber(detail.costPrice) * detail.quantity;
               })
             );
@@ -178,26 +166,42 @@ const ItemTrendList: React.FC = () => {
             );
             const detailsSnapshot = await getDocs(detailsQuery);
             const rejectionDateString = format(rejection.date.toDate(), 'yyyy/MM/dd');
-            const rejectionMonthString = format(rejection.date.toDate(), 'yyyy/MM');
             await Promise.all(
               detailsSnapshot.docs.map(async (detailDoc) => {
                 const detail = detailDoc.data() as RejectionDetail;
                 if (!Object.keys(itemTrendsData).includes(rejectionDateString)) {
                   itemTrendsData[rejectionDateString] = {};
                 }
-                if (!Object.keys(itemTrendsSummariesData).includes(rejectionMonthString)) {
-                  itemTrendsSummariesData[rejectionMonthString] = {};
-                }
                 itemTrendsData[rejectionDateString]['rejectionCount'] =
                   toNumber(itemTrendsData[rejectionDateString]['rejectionCount']) + detail.quantity;
                 itemTrendsData[rejectionDateString]['rejectionCostTotal'] =
                   toNumber(itemTrendsData[rejectionDateString]['rejectionCostTotal']) +
                   toNumber(detail.costPrice) * detail.quantity;
-                itemTrendsSummariesData[rejectionMonthString]['rejectionCount'] =
-                  toNumber(itemTrendsSummariesData[rejectionMonthString]['rejectionCount']) + detail.quantity;
-                itemTrendsSummariesData[rejectionMonthString]['rejectionCostTotal'] =
-                  toNumber(itemTrendsSummariesData[rejectionMonthString]['rejectionCostTotal']) +
-                  toNumber(detail.costPrice) * detail.quantity;
+              })
+            );
+          })
+        );
+
+        const inventoryQuery = query(collection(db, 'shops', shopCode, 'inventories'), ...conds);
+        const inventoryQuerySnapshot = await getDocs(inventoryQuery);
+        await Promise.all(
+          inventoryQuerySnapshot.docs.map(async (inventoryDoc) => {
+            const inventory = inventoryDoc.data() as Inventory;
+            const detailConds = [where('productCode', '==', productCode)];
+            const detailsQuery = query(
+              collection(db, inventoryDetailPath(shopCode, inventory.date.toDate())),
+              ...detailConds
+            );
+            const detailsSnapshot = await getDocs(detailsQuery);
+            const inventoryDateString = format(inventory.date.toDate(), 'yyyy/MM/dd');
+            await Promise.all(
+              detailsSnapshot.docs.map(async (detailDoc) => {
+                const detail = detailDoc.data() as InventoryDetail;
+                if (!Object.keys(itemTrendsData).includes(inventoryDateString)) {
+                  itemTrendsData[inventoryDateString] = {};
+                }
+                itemTrendsData[inventoryDateString]['stockCount'] = detail.quantity;
+                itemTrendsData[inventoryDateString]['stockCostTotal'] = toNumber(detail.costPrice) * detail.quantity;
               })
             );
           })
@@ -223,26 +227,16 @@ const ItemTrendList: React.FC = () => {
             const detailsQuery = query(collection(db, 'sales', saleDoc.id, 'saleDetails'), ...detailConds);
             const detailsSnapshot = await getDocs(detailsQuery);
             const saleDateString = format(sale.createdAt.toDate(), 'yyyy/MM/dd');
-            const saleMonthString = format(sale.createdAt.toDate(), 'yyyy/MM');
             await Promise.all(
               detailsSnapshot.docs.map(async (detailDoc) => {
                 const detail = detailDoc.data() as SaleDetail;
                 if (!Object.keys(itemTrendsData).includes(saleDateString)) {
                   itemTrendsData[saleDateString] = {};
                 }
-                if (!Object.keys(itemTrendsSummariesData).includes(saleMonthString)) {
-                  itemTrendsSummariesData[saleMonthString] = {};
-                }
                 itemTrendsData[saleDateString]['salesCount'] =
                   toNumber(itemTrendsData[saleDateString]['salesCount']) + detail.quantity * registerSign;
                 itemTrendsData[saleDateString]['salesTotal'] =
                   toNumber(itemTrendsData[saleDateString]['salesTotal']) +
-                  toNumber(detail.product.sellingPrice) * detail.quantity * registerSign -
-                  detail.discount;
-                itemTrendsSummariesData[saleMonthString]['salesCount'] =
-                  toNumber(itemTrendsSummariesData[saleMonthString]['salesCount']) + detail.quantity * registerSign;
-                itemTrendsSummariesData[saleMonthString]['salesTotal'] =
-                  toNumber(itemTrendsSummariesData[saleMonthString]['salesTotal']) +
                   toNumber(detail.product.sellingPrice) * detail.quantity * registerSign -
                   detail.discount;
               })
@@ -264,31 +258,61 @@ const ItemTrendList: React.FC = () => {
           .forEach((dateString, index, dateStringArray) => {
             const prevStockCount =
               index == 0 ? monthlyStockQuantity : toNumber(itemTrendsData[dateStringArray[index - 1]]['stockCount']);
-            itemTrendsData[dateString]['stockCount'] =
-              prevStockCount +
-              toNumber(itemTrendsData[dateString]['purchaseCount']) -
-              toNumber(itemTrendsData[dateString]['salesCount']) -
-              toNumber(itemTrendsData[dateString]['deliveryCount']) -
-              toNumber(itemTrendsData[dateString]['rejectionCount']);
-            itemTrendsData[dateString]['stockCostTotal'] =
-              toNumber(itemTrendsData[dateString]['stockCount']) * toNumber(prices?.finalCostPrice);
-          });
+            if (toNumber(itemTrendsData[dateString]['stockCount']) == 0) {
+              itemTrendsData[dateString]['stockCount'] =
+                prevStockCount +
+                toNumber(itemTrendsData[dateString]['purchaseCount']) -
+                toNumber(itemTrendsData[dateString]['salesCount']) -
+                toNumber(itemTrendsData[dateString]['deliveryCount']) -
+                toNumber(itemTrendsData[dateString]['rejectionCount']);
+              itemTrendsData[dateString]['stockCostTotal'] =
+                toNumber(itemTrendsData[dateString]['stockCount']) * toNumber(prices?.finalCostPrice);
+            }
 
-        Object.keys(itemTrendsSummariesData)
-          .sort()
-          .forEach((dateString, index, dateStringArray) => {
-            const prevStockCount =
-              index == 0
-                ? monthlyStockQuantity
-                : toNumber(itemTrendsSummariesData[dateStringArray[index - 1]]['stockCount']);
-            itemTrendsSummariesData[dateString]['stockCount'] =
-              prevStockCount +
-              toNumber(itemTrendsSummariesData[dateString]['purchaseCount']) -
-              toNumber(itemTrendsSummariesData[dateString]['salesCount']) -
-              toNumber(itemTrendsSummariesData[dateString]['deliveryCount']) -
-              toNumber(itemTrendsSummariesData[dateString]['rejectionCount']);
-            itemTrendsSummariesData[dateString]['stockCostTotal'] =
-              toNumber(itemTrendsSummariesData[dateString]['stockCount']) * toNumber(prices?.finalCostPrice);
+            const monthString = dateString.substring(0, 7);
+            if (!Object.keys(itemTrendsSummariesData).includes(monthString)) {
+              itemTrendsSummariesData[monthString] = {};
+            }
+
+            itemTrendsSummariesData[monthString]['purchaseCount'] =
+              toNumber(itemTrendsSummariesData[monthString]['purchaseCount']) +
+              toNumber(itemTrendsData[dateString]['purchaseCount']);
+            itemTrendsSummariesData[monthString]['purchaseCostTotal'] =
+              toNumber(itemTrendsSummariesData[monthString]['purchaseCostTotal']) +
+              toNumber(itemTrendsData[dateString]['purchaseCostTotal']);
+            itemTrendsSummariesData[monthString]['rejectionCount'] =
+              toNumber(itemTrendsSummariesData[monthString]['rejectionCount']) +
+              toNumber(itemTrendsData[dateString]['rejectionCount']);
+            itemTrendsSummariesData[monthString]['rejectionCostTotal'] =
+              toNumber(itemTrendsSummariesData[monthString]['rejectionCostTotal']) +
+              toNumber(itemTrendsData[dateString]['rejectionCostTotal']);
+            itemTrendsSummariesData[monthString]['deliveryCount'] =
+              toNumber(itemTrendsSummariesData[monthString]['deliveryCount']) +
+              toNumber(itemTrendsData[dateString]['deliveryCount']);
+            itemTrendsSummariesData[monthString]['deliveryCostTotal'] =
+              toNumber(itemTrendsSummariesData[monthString]['deliveryCostTotal']) +
+              toNumber(itemTrendsData[dateString]['deliveryCostTotal']);
+            itemTrendsSummariesData[monthString]['salesCount'] =
+              toNumber(itemTrendsSummariesData[monthString]['salesCount']) +
+              toNumber(itemTrendsData[dateString]['salesCount']);
+            itemTrendsSummariesData[monthString]['salesTotal'] =
+              toNumber(itemTrendsSummariesData[monthString]['salesTotal']) +
+              toNumber(itemTrendsData[dateString]['salesTotal']);
+
+            if (toNumber(itemTrendsData[dateString]['stockCount']) == 0) {
+              itemTrendsSummariesData[monthString]['stockCount'] =
+                toNumber(itemTrendsSummariesData[monthString]['purchaseCount']) -
+                toNumber(itemTrendsSummariesData[monthString]['salesCount']) -
+                toNumber(itemTrendsSummariesData[monthString]['deliveryCount']) -
+                toNumber(itemTrendsSummariesData[monthString]['rejectionCount']);
+              itemTrendsSummariesData[monthString]['stockCostTotal'] =
+                toNumber(itemTrendsSummariesData[monthString]['stockCount']) * toNumber(prices?.finalCostPrice);
+            } else {
+              itemTrendsSummariesData[monthString]['stockCount'] = toNumber(itemTrendsData[dateString]['stockCount']);
+              itemTrendsSummariesData[monthString]['stockCostTotal'] = toNumber(
+                itemTrendsData[dateString]['stockCostTotal']
+              );
+            }
           });
 
         return [itemTrendsData, itemTrendsSummariesData];
@@ -498,34 +522,39 @@ const ItemTrendList: React.FC = () => {
                 <Table.Head>
                   <Table.Row>
                     <Table.Cell></Table.Cell>
-                    <Table.Cell colSpan={2} className="text-center font-bold">
+                    <Table.Cell colSpan={3} className="text-center font-bold">
                       仕入
                     </Table.Cell>
-                    <Table.Cell colSpan={2} className="text-center font-bold">
+                    <Table.Cell colSpan={3} className="text-center font-bold">
                       販売(税抜)
                     </Table.Cell>
-                    <Table.Cell colSpan={2} className="text-center font-bold">
+                    <Table.Cell colSpan={3} className="text-center font-bold">
                       出庫
                     </Table.Cell>
-                    <Table.Cell colSpan={2} className="text-center font-bold">
+                    <Table.Cell colSpan={3} className="text-center font-bold">
                       廃棄
                     </Table.Cell>
-                    <Table.Cell colSpan={2} className="text-center font-bold">
+                    <Table.Cell colSpan={3} className="text-center font-bold">
                       在庫
                     </Table.Cell>
                   </Table.Row>
                   <Table.Row>
-                    <Table.Cell className="w-2/12 text-center font-bold">日付</Table.Cell>
-                    <Table.Cell className="w-1/12 text-center font-bold">数量</Table.Cell>
-                    <Table.Cell className="w-1/12 text-center font-bold">金額</Table.Cell>
-                    <Table.Cell className="w-1/12 text-center font-bold">数量</Table.Cell>
-                    <Table.Cell className="w-1/12 text-center font-bold">金額</Table.Cell>
-                    <Table.Cell className="w-1/12 text-center font-bold">数量</Table.Cell>
-                    <Table.Cell className="w-1/12 text-center font-bold">金額</Table.Cell>
-                    <Table.Cell className="w-1/12 text-center font-bold">数量</Table.Cell>
-                    <Table.Cell className="w-1/12 text-center font-bold">金額</Table.Cell>
-                    <Table.Cell className="w-1/12 text-center font-bold">数量</Table.Cell>
-                    <Table.Cell className="w-1/12 text-center font-bold">金額</Table.Cell>
+                    <Table.Cell className="text-center font-bold">日付</Table.Cell>
+                    <Table.Cell className="text-center font-bold">数量</Table.Cell>
+                    <Table.Cell className="text-center font-bold">単価</Table.Cell>
+                    <Table.Cell className="text-center font-bold">金額</Table.Cell>
+                    <Table.Cell className="text-center font-bold">数量</Table.Cell>
+                    <Table.Cell className="text-center font-bold">単価</Table.Cell>
+                    <Table.Cell className="text-center font-bold">金額</Table.Cell>
+                    <Table.Cell className="text-center font-bold">数量</Table.Cell>
+                    <Table.Cell className="text-center font-bold">単価</Table.Cell>
+                    <Table.Cell className="text-center font-bold">金額</Table.Cell>
+                    <Table.Cell className="text-center font-bold">数量</Table.Cell>
+                    <Table.Cell className="text-center font-bold">単価</Table.Cell>
+                    <Table.Cell className="text-center font-bold">金額</Table.Cell>
+                    <Table.Cell className="text-center font-bold">数量</Table.Cell>
+                    <Table.Cell className="text-center font-bold">単価</Table.Cell>
+                    <Table.Cell className="text-center font-bold">金額</Table.Cell>
                   </Table.Row>
                 </Table.Head>
                 <Table.Body>
@@ -539,10 +568,20 @@ const ItemTrendList: React.FC = () => {
                             {toNumber(itemTrends[date]['purchaseCount']).toLocaleString()}
                           </Table.Cell>
                           <Table.Cell className="text-right">
+                            {toNumber(itemTrends[date]['purchaseCount']) > 0
+                              ? toNumber(prices?.finalCostPrice).toLocaleString()
+                              : 0}
+                          </Table.Cell>
+                          <Table.Cell className="text-right">
                             {toNumber(itemTrends[date]['purchaseCostTotal']).toLocaleString()}
                           </Table.Cell>
                           <Table.Cell className="text-right">
                             {toNumber(itemTrends[date]['salesCount']).toLocaleString()}
+                          </Table.Cell>
+                          <Table.Cell className="text-right">
+                            {toNumber(itemTrends[date]['salesCount']) > 0
+                              ? toNumber(prices?.sellingPrice).toLocaleString()
+                              : 0}
                           </Table.Cell>
                           <Table.Cell className="text-right">
                             {toNumber(itemTrends[date]['salesTotal']).toLocaleString()}
@@ -551,16 +590,31 @@ const ItemTrendList: React.FC = () => {
                             {toNumber(itemTrends[date]['deliveryCount']).toLocaleString()}
                           </Table.Cell>
                           <Table.Cell className="text-right">
+                            {toNumber(itemTrends[date]['deliveryCount']) > 0
+                              ? toNumber(prices?.finalCostPrice).toLocaleString()
+                              : 0}
+                          </Table.Cell>
+                          <Table.Cell className="text-right">
                             {toNumber(itemTrends[date]['deliveryCostTotal']).toLocaleString()}
                           </Table.Cell>
                           <Table.Cell className="text-right">
                             {toNumber(itemTrends[date]['rejectionCount']).toLocaleString()}
                           </Table.Cell>
                           <Table.Cell className="text-right">
+                            {toNumber(itemTrends[date]['rejectionCount']) > 0
+                              ? toNumber(prices?.finalCostPrice).toLocaleString()
+                              : 0}
+                          </Table.Cell>
+                          <Table.Cell className="text-right">
                             {toNumber(itemTrends[date]['rejectionCostTotal']).toLocaleString()}
                           </Table.Cell>
                           <Table.Cell className="text-right">
                             {toNumber(itemTrends[date]['stockCount']).toLocaleString()}
+                          </Table.Cell>
+                          <Table.Cell className="text-right">
+                            {toNumber(itemTrends[date]['stockCount']) > 0
+                              ? toNumber(prices?.finalCostPrice).toLocaleString()
+                              : 0}
                           </Table.Cell>
                           <Table.Cell className="text-right">
                             {toNumber(itemTrends[date]['stockCostTotal']).toLocaleString()}
