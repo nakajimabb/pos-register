@@ -3,7 +3,7 @@ import * as functions from 'firebase-functions';
 import * as client from 'cheerio-httpcli';
 import * as crypto from 'crypto';
 import * as FTP from 'ftp';
-import { subDays } from 'date-fns';
+import { addDays, subDays } from 'date-fns';
 
 admin.initializeApp();
 
@@ -50,6 +50,8 @@ const getDecryptedString = (encrypted: string, method: string, key: string, iv: 
   const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
   return decrypted.toString();
 };
+
+const isNum = (n: unknown) => (typeof n === 'string' || typeof n === 'number') && !isNaN(Number(n));
 
 export const getAuthUserByCode = functions.region('asia-northeast1').https.onCall(async (data) => {
   const f = async () => {
@@ -554,4 +556,118 @@ export const sendDailyClosingData = functions
       }
     };
     return await f();
+  });
+
+const updateAvgCostPricesImpl = async (date: Date) => {
+  try {
+    const date2 = addDays(date, 1);
+
+    // 除外対象の店舗
+    const hiddenShops = await db.collection('shops').where('hidden', '==', true).get();
+    const hiddenShopCodes = hiddenShops.docs.map((dsnap) => dsnap.data().code as string);
+    console.log({ hiddenShopCodes });
+
+    // 仕入れ情報の取得
+    const q = db
+      .collectionGroup('purchases')
+      .where('date', '>=', admin.firestore.Timestamp.fromDate(date))
+      .where('date', '<', admin.firestore.Timestamp.fromDate(date2));
+    const qsnap = await q.get();
+    const tasks = qsnap.docs.map(async (dsnap) => {
+      const result: { shopCode: string; productCode: string; quantity: number; costPrice: number }[] = [];
+      try {
+        const purchase = dsnap.data();
+        console.log({ purchase });
+        if (!hiddenShopCodes.includes(purchase.shopCode)) {
+          const qsnap2 = await db
+            .collection('shops')
+            .doc(purchase.shopCode)
+            .collection('purchases')
+            .doc(purchase.purchaseNumber)
+            .collection('purchaseDetails')
+            .get();
+          qsnap2.docs.forEach((dsnap2) => {
+            const detail = dsnap2.data();
+            if (isNum(detail.costPrice)) {
+              result.push({
+                shopCode: purchase.shopCode,
+                productCode: detail.productCode,
+                quantity: detail.quantity,
+                costPrice: Number(detail.costPrice),
+              });
+            }
+          });
+        }
+      } catch (error) {
+        console.log({ error });
+      }
+      return result;
+    });
+    const results = await Promise.all(tasks);
+    console.log({ results });
+
+    const items = new Map<string, { quantity: number; costPrice: number }[]>();
+    results.flat().forEach((r) => {
+      if (r.quantity > 0) {
+        const item = items.get(r.productCode) ?? [];
+        item.push({ quantity: r.quantity, costPrice: r.costPrice });
+        items.set(r.productCode, item);
+      }
+    });
+    console.log({ items });
+
+    // 現在値、在庫数、仕入れ情報から移動平均原価の再計算を行う
+    const tasks2 = Array.from(items.entries()).map(async ([productCode, item]) => {
+      const result = { productCode, avgCostPrice: NaN, totalStock: 0, totalQuantity: 0 };
+      try {
+        const dPdct = await db.collection('products').doc(productCode).get();
+        const product = dPdct.data();
+        if (product) {
+          const validAvgCostPrice = isNum(product.avgCostPrice);
+          let totalStock = 0;
+          if (validAvgCostPrice) {
+            const snapStock = await db.collectionGroup('stocks').where('productCode', '==', productCode).get();
+            totalStock = snapStock.docs
+              .map((dsnap) => dsnap.data().quantity)
+              .reduce((sum, quantity) => sum + quantity, 0);
+            result.totalStock = totalStock;
+          }
+          const totalQuantity = item.reduce((sum, i) => sum + i.quantity, 0);
+          result.totalQuantity = totalQuantity;
+          if (totalStock + totalQuantity > 0) {
+            const avgCostPrice0 = validAvgCostPrice ? Number(product.avgCostPrice) : 0;
+            const avgCostPrice =
+              item.reduce((sum, i) => sum + i.quantity * i.costPrice, avgCostPrice0 * totalStock) /
+              (totalStock + totalQuantity);
+            result.avgCostPrice = avgCostPrice;
+            const productRef = db.collection('products').doc(productCode);
+            await productRef.set({ avgCostPrice: Math.round(avgCostPrice) }, { merge: true });
+          }
+        }
+      } catch (error) {
+        console.log({ error });
+      }
+      return result;
+    });
+    const results2 = await Promise.all(tasks2);
+    return { results2 };
+  } catch (error) {
+    throw new functions.https.HttpsError('unknown', 'error in updateAvgCostPrices', error);
+  }
+};
+
+export const updateAvgCostPrices = functions
+  .runWith({ timeoutSeconds: 540 })
+  .region('asia-northeast1')
+  .https.onCall(async (data) => {
+    return await updateAvgCostPricesImpl(new Date(data.date));
+  });
+
+exports.scheduledUpdateAvgCostPrices = functions
+  .runWith({ timeoutSeconds: 540 })
+  .region('asia-northeast1')
+  .pubsub.schedule('0 1 * * *')
+  .timeZone('Asia/Tokyo')
+  .onRun(() => {
+    updateAvgCostPricesImpl(subDays(new Date(), 1));
   });
