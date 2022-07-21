@@ -220,6 +220,9 @@ const createMonthlyStocksImpl = async (month: string) => {
       const sequential = [...Array(taskSize).keys()];
 
       // firestore 更新
+      const monthlyStocksRef = db.collection('shops').doc(shopCode).collection('monthlyStocks').doc(month);
+      await monthlyStocksRef.set({ month, shopCode, shopName: shop.name }, { merge: true });
+
       const tasks1 = sequential.map(async (i) => {
         const batch = db.batch();
         const sliced = stocks.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
@@ -229,7 +232,7 @@ const createMonthlyStocksImpl = async (month: string) => {
             .doc(shopCode)
             .collection('monthlyStocks')
             .doc(month)
-            .collection('stocks')
+            .collection('monthlyStockDetails')
             .doc(stock.productCode);
           const p = { ...stock, month };
           batch.set(ref, p);

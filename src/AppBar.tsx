@@ -357,6 +357,7 @@ const AppBar: React.FC = () => {
           <Dropdown.Item title="仕入先マスタ" to="/suppliers" />
           <Dropdown.Item title="仕入先マスタ取込" to="/import_suppliers" />
           <Dropdown.Item title="売上帳票" to="/sales_summary_list" />
+          <Dropdown.Item title="売上仕入対比表" to="/sales_delivery_list" />
         </Dropdown>
       </Flex>
       <Flex align_items="center">

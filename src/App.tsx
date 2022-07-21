@@ -44,6 +44,7 @@ import RegisterClose from './RegisterClose';
 import ImportStock from './ImportStock';
 import SalesSummaryList from './SalesSummaryList';
 import ItemTrendList from './ItemTrendList';
+import SalesDeliveryList from './SalesDeliveryList';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -102,6 +103,7 @@ const App: React.FC = () => {
           <Route exact path="/import_stocks" component={ImportStock} />
           <Route exact path="/sales_summary_list" component={SalesSummaryList} />
           <Route exact path="/item_trend_list" component={ItemTrendList} />
+          <Route exact path="/sales_delivery_list" component={SalesDeliveryList} />
           <Route exact path="/tailwind" component={Tailwind} />
         </Router>
       </AppContextProvider>

@@ -320,6 +320,12 @@ export type InventoryDetail = {
   countedAt: Timestamp | null; // 最終カウント時刻
 };
 
+export type MonthlyStock = {
+  month: string;
+  shopCode: string;
+  shopName: string;
+};
+
 export const deliveryPath = (shopCode: string, deliveryNumber: number | undefined = undefined) =>
   `shops/${shopCode}/deliveries/${deliveryNumber ?? ''}`;
 
@@ -349,7 +355,7 @@ export const stockPath = (shopCode: string, productCode: string | undefined = un
   `shops/${shopCode}/stocks/${productCode ?? ''}`;
 
 export const monthlyStockPath = (shopCode: string, month: string, productCode: string | undefined = undefined) =>
-  `shops/${shopCode}/monthlyStocks/${month}/stocks/${productCode ?? ''}`;
+  `shops/${shopCode}/monthlyStocks/${month}/monthlyStockDetails/${productCode ?? ''}`;
 
 export const inventoryPath = (shopCode: string, date: Date | undefined = undefined) =>
   `shops/${shopCode}/inventories/${date ? toDateString(date, 'YYYY-MM-DD') : ''}`;
