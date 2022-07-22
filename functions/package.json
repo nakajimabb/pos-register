@@ -15,13 +15,16 @@
   "main": "lib/index.js",
   "dependencies": {
     "cheerio-httpcli": "^0.8.2",
+    "date-fns": "^2.27.0",
     "firebase-admin": "^10.0.0",
     "firebase-functions": "^3.22.0",
     "ftp": "^0.3.10",
-    "date-fns": "^2.27.0"
+    "nodemailer": "^6.7.7",
+    "nodemailer-ses-transport": "^1.5.1"
   },
   "devDependencies": {
     "@types/ftp": "^0.3.33",
+    "@types/nodemailer": "^6.4.4",
     "@typescript-eslint/eslint-plugin": "^5.5.0",
     "@typescript-eslint/parser": "^5.5.0",
     "eslint": "^8.3.0",

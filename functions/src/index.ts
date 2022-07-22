@@ -3,12 +3,17 @@ import * as functions from 'firebase-functions';
 import * as client from 'cheerio-httpcli';
 import * as crypto from 'crypto';
 import * as FTP from 'ftp';
+import * as nodemailer from 'nodemailer';
 import { addDays, subDays } from 'date-fns';
-
+import { SES_CONFIG } from './ses';
 admin.initializeApp();
+
+import sesTransport = require('nodemailer-ses-transport');
 
 const auth = admin.auth();
 const db = admin.firestore();
+const SENDER = 'info@ebondkkb.com';
+const mailTransport = nodemailer.createTransport(sesTransport(SES_CONFIG));
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
@@ -52,6 +57,28 @@ const getDecryptedString = (encrypted: string, method: string, key: string, iv: 
 };
 
 const isNum = (n: unknown) => (typeof n === 'string' || typeof n === 'number') && !isNaN(Number(n));
+
+export const sendMail = functions.region('asia-northeast1').https.onCall(async (data) => {
+  const f = async () => {
+    try {
+      const { email, subject, body } = data;
+      if (!email) {
+        throw new functions.https.HttpsError('unknown', 'メールアドレスが指定されていません。');
+      }
+      const mailOptions = {
+        from: SENDER,
+        to: email,
+        subject,
+        text: body,
+      };
+      const result = await mailTransport.sendMail(mailOptions);
+      return { result };
+    } catch (error) {
+      throw new functions.https.HttpsError('unknown', 'error in createAccount', error);
+    }
+  };
+  return await f();
+});
 
 export const getAuthUserByCode = functions.region('asia-northeast1').https.onCall(async (data) => {
   const f = async () => {

@@ -17,6 +17,7 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useReactToPrint } from 'react-to-print';
 import clsx from 'clsx';
+import { format } from 'date-fns';
 import { Alert, Button, Card, Flex, Form, Icon, Grid } from './components';
 import { useAppContext } from './AppContext';
 import app from './firebase';
@@ -52,7 +53,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
   const [errors, setErrors] = useState<string[]>([]);
   const [processing, setProcessing] = useState<boolean>(false);
   const [openProductEdit, setOpenProductEdit] = useState<boolean>(false);
-  const { suppliers, registListner, getProductPrice, incrementStock } = useAppContext();
+  const { currentShop, shops, suppliers, registListner, getProductPrice, incrementStock } = useAppContext();
   const codeRef = useRef<HTMLInputElement>(null);
   const hisotry = useHistory();
   const componentRef = useRef(null);
@@ -232,6 +233,25 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
           }
         }
       });
+
+      // メール送信
+      if (fixed) {
+        const functions = getFunctions(app, 'asia-northeast1');
+        const subject = '廃棄・返品申請が承認されました';
+        let body = `以下の廃棄・返品申請が承認されました。\n\n`;
+        body += `店舗：${reject.shopCode} ${reject.shopName}\n`;
+        body += `廃棄番号：${reject.rejectionNumber}\n`;
+        body += `申請日：${format(reject.date.toDate(), 'yyyy/MM/dd')}\n`;
+        const emails = [];
+        emails.push(shops.get(reject.shopCode)?.email);
+        emails.push(currentShop?.email);
+        for (let email of emails) {
+          if (email) {
+            const result = await httpsCallable(functions, 'sendMail')({ email, subject, body });
+            console.log(result);
+          }
+        }
+      }
       setProcessing(false);
       alert('保存しました。');
       if (rejectionNumber > 0) {

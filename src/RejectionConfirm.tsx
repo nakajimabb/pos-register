@@ -163,8 +163,8 @@ const RejectionConfirm: React.FC = () => {
           <Table className="w-full">
             <Table.Head>
               <Table.Row>
-                <Table.Cell>仕入番号</Table.Cell>
-                <Table.Cell>仕入日</Table.Cell>
+                <Table.Cell>廃棄番号</Table.Cell>
+                <Table.Cell>申請日</Table.Cell>
                 <Table.Cell>店舗コード</Table.Cell>
                 <Table.Cell>店舗名</Table.Cell>
                 <Table.Cell>商品種</Table.Cell>
@@ -186,7 +186,7 @@ const RejectionConfirm: React.FC = () => {
                     <Table.Cell>{item.totalVariety}</Table.Cell>
                     <Table.Cell>{item.totalQuantity}</Table.Cell>
                     <Table.Cell>{item.totalAmount?.toLocaleString()}</Table.Cell>
-                    <Table.Cell>{item.submitted ? (item.fixed ? '確定済' : '申請中') : ''}</Table.Cell>
+                    <Table.Cell>{item.submitted ? (item.fixed ? '承認済' : '申請中') : ''}</Table.Cell>
                     <Table.Cell>
                       <Link
                         to={`/rejection_edit?shopCode=${item.shopCode}&rejectionNumber=${item.rejectionNumber}&confirmMode=true`}

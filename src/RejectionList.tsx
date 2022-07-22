@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   getFirestore,
@@ -15,7 +15,7 @@ import {
 import { Alert, Button, Card, Form, Table } from './components';
 import RejectionPrint from './RejectionPrint';
 import { useAppContext } from './AppContext';
-import { nameWithCode, toDateString } from './tools';
+import { toDateString } from './tools';
 import firebaseError from './firebaseError';
 import { Rejection } from './types';
 
@@ -98,8 +98,8 @@ const RejectionList: React.FC = () => {
           <Table className="w-full">
             <Table.Head>
               <Table.Row>
-                <Table.Cell>仕入番号</Table.Cell>
-                <Table.Cell>仕入日</Table.Cell>
+                <Table.Cell>廃棄番号</Table.Cell>
+                <Table.Cell>申請日</Table.Cell>
                 <Table.Cell>商品種</Table.Cell>
                 <Table.Cell>商品数</Table.Cell>
                 <Table.Cell>金額(税抜)</Table.Cell>
