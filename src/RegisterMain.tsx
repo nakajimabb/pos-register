@@ -518,7 +518,7 @@ const RegisterMain: React.FC = () => {
                           );
                           if (existingIndex >= 0) {
                             basketItems[existingIndex].quantity += 1;
-                            setBasketItems(addBundleDiscount(basketItems));
+                            setBasketItems(addBundleDiscount([...basketItems]));
                           } else {
                             const basketItem = {
                               product: shortcut.product,
@@ -528,6 +528,7 @@ const RegisterMain: React.FC = () => {
                             };
                             setBasketItems(addBundleDiscount([...basketItems, basketItem]));
                           }
+                          document.getElementById('productCode')?.focus();
                         }
                       }}
                       key={index}
