@@ -51,6 +51,7 @@ const DeliveryFromSale: React.FC = () => {
   const [deliveryDetails, setDeliveryDetails] = useState<Map<string, DeliveryDetail[]>>(new Map());
   const [deliveries, setDeliveries] = useState<Map<string, Delivery[]>>(new Map());
   const [internalOrders, setInternalOrders] = useState<Map<string, InternalOrderItem[]>>(new Map());
+  const [internalOrderDetails, setInternalOrderDetails] = useState<Map<number, InternalOrderDetail[]>>(new Map());
   const [orderTarget, setOrderTarget] = useState<InternalOrderItem | null>(null);
   const { registListner, shops, currentShop } = useAppContext();
 
@@ -177,6 +178,26 @@ const DeliveryFromSale: React.FC = () => {
           orders.set(order.shopCode, shopOrders);
         });
         setInternalOrders(orders);
+
+        const orderDetails = new Map<number, InternalOrderDetail[]>();
+        for (let [shopCode, orderItems] of Array.from(orders.entries())) {
+          const internalOrderNumbers = orderItems.map((order) => order.internalOrderNumber);
+          const tasks = orderItems.map(async (order) => {
+            const path = internalOrderDetailPath(order.shopCode, order.internalOrderNumber);
+            const qsnap = (await getDocs(collection(db, path))) as QuerySnapshot<InternalOrderDetail>;
+            return qsnap.docs.map((dsnap) => dsnap.data());
+          });
+          const results = await Promise.all(tasks);
+          results.forEach((arr, index) => {
+            arr.forEach((detail) => {
+              const orderNumber = internalOrderNumbers[index];
+              const shopOrderDetails = Array.from(orderDetails.get(orderNumber) ?? []);
+              shopOrderDetails.push(detail);
+              orderDetails.set(orderNumber, shopOrderDetails);
+            });
+          });
+        }
+        setInternalOrderDetails(orderDetails);
       } catch (error) {
         console.log({ error });
         alert(firebaseError(error));
@@ -379,20 +400,34 @@ const DeliveryFromSale: React.FC = () => {
                       <Table.Cell>{(detail.quantity * Number(detail.costPrice)).toLocaleString()}</Table.Cell>
                     </Table.Row>
                   ))}
-                  {orders.map((order, j) => (
-                    <Table.Row key={j}>
-                      <Table.Cell>{nameWithCode(shop)}</Table.Cell>
-                      <Table.Cell>⇒ {shops.get(order.srcShopCode)?.name}</Table.Cell>
-                      <Table.Cell>発注日 {toDateString(order.date.toDate(), 'MM-DD')}</Table.Cell>
-                      <Table.Cell>
-                        <Button color="light" size="sm" onClick={() => setOrderTarget(order)} className="mx-1">
-                          詳細
-                        </Button>
-                      </Table.Cell>
-                      <Table.Cell></Table.Cell>
-                      <Table.Cell></Table.Cell>
-                    </Table.Row>
-                  ))}
+                  {orders.map((order, j) => {
+                    const orderDetails = internalOrderDetails.get(order.internalOrderNumber);
+                    return (
+                      <>
+                        <Table.Row key={j}>
+                          <Table.Cell>{nameWithCode(shop)}</Table.Cell>
+                          <Table.Cell>⇒ {shops.get(order.srcShopCode)?.name}</Table.Cell>
+                          <Table.Cell>発注日 {toDateString(order.date.toDate(), 'MM-DD')}</Table.Cell>
+                          <Table.Cell></Table.Cell>
+                          <Table.Cell></Table.Cell>
+                          <Table.Cell></Table.Cell>
+                        </Table.Row>
+                        {orderDetails &&
+                          orderDetails.map((orderDetail, k) => (
+                            <Table.Row key={k}>
+                              <Table.Cell>{nameWithCode(shop)}</Table.Cell>
+                              <Table.Cell>{orderDetail.productCode}</Table.Cell>
+                              <Table.Cell>{orderDetail.productName}</Table.Cell>
+                              <Table.Cell>{orderDetail.quantity}</Table.Cell>
+                              <Table.Cell>{orderDetail.costPrice?.toLocaleString()}</Table.Cell>
+                              <Table.Cell>
+                                {(orderDetail.quantity * Number(orderDetail.costPrice)).toLocaleString()}
+                              </Table.Cell>
+                            </Table.Row>
+                          ))}
+                      </>
+                    );
+                  })}
                   <Table.Row key={i}>
                     <Table.Cell>{nameWithCode(shop)}</Table.Cell>
                     <Table.Cell></Table.Cell>
@@ -400,9 +435,22 @@ const DeliveryFromSale: React.FC = () => {
                     <Table.Cell></Table.Cell>
                     <Table.Cell className="bold">合計</Table.Cell>
                     <Table.Cell>
-                      {details
-                        .reduce((sum, detail) => sum + detail.quantity * Number(detail.costPrice), 0)
-                        .toLocaleString()}
+                      {(
+                        details.reduce((sum, detail) => sum + detail.quantity * Number(detail.costPrice), 0) +
+                        orders
+                          .map((order) => {
+                            const orderDetails = internalOrderDetails.get(order.internalOrderNumber);
+                            if (orderDetails) {
+                              return orderDetails.reduce(
+                                (sum, orderDetail) => sum + orderDetail.quantity * Number(orderDetail.costPrice),
+                                0
+                              );
+                            } else {
+                              return 0;
+                            }
+                          })
+                          .reduce((sum, detailSum) => sum + detailSum, 0)
+                      ).toLocaleString()}
                     </Table.Cell>
                     <Table.Cell>
                       <Button onClick={createDelivery(shopCode)}>作成</Button>
