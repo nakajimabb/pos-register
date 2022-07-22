@@ -34,9 +34,10 @@ type Props = {
   shopCode: string;
   shopName?: string;
   rejectionNumber?: number;
+  confirmMode?: boolean;
 };
 
-const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = -1 }) => {
+const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = -1, confirmMode = false }) => {
   const [inputProductCode, setInputProductCode] = useState<string>('');
   const [inputRejectionDetail, setInputRejectionDetail] = useState<RejectionDetail | undefined>(undefined);
   const [rejection, setRejection] = useState<Rejection>({
@@ -44,6 +45,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
     rejectionNumber,
     shopName: shopName ?? '',
     date: Timestamp.fromDate(new Date()),
+    submitted: false,
     fixed: false,
   });
   const [items, setItems] = useState<Map<string, Item>>(new Map());
@@ -77,6 +79,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
       rejectionNumber: -1,
       shopName: shopName ?? '',
       date: Timestamp.fromDate(new Date()),
+      submitted: false,
       fixed: false,
     });
     setItems(new Map());
@@ -114,7 +117,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
         const item = items.get(productCode);
         const rejectType = price.noReturn ? 'waste' : 'return';
         if (item) {
-          setInputRejectionDetail({ ...item, rejectType, fixed: false });
+          setInputRejectionDetail({ ...item, rejectType, fixed: false, submitted: false });
         } else {
           setInputRejectionDetail({
             rejectType,
@@ -125,6 +128,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
             supplierCode: price.supplierCode,
             supplierName: suppliers.get(price.supplierCode ?? '')?.name ?? '',
             fixed: false,
+            submitted: false,
           });
         }
         codeRef.current?.focus();
@@ -142,7 +146,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
     const newItems = new Map(items);
     const item = newItems.get(productCode);
     if (item) {
-      newItems.set(productCode, { ...item, removed: true, quantity: 0, fixed: false });
+      newItems.set(productCode, { ...item, removed: true, quantity: 0, fixed: false, submitted: false });
       setItems(newItems);
     }
   };
@@ -151,10 +155,12 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
     e.preventDefault();
   };
 
-  const save = async () => {
+  const save = async (status: 'fixed' | 'submitted') => {
     try {
       setProcessing(true);
-      const reject = { ...rejection, fixed: true };
+      const fixed = status == 'fixed';
+      const submitted = true;
+      const reject = { ...rejection, fixed, submitted };
       await runTransaction(db, async (transaction) => {
         // get existing Data
         const details = new Map<string, RejectionDetail>();
@@ -202,8 +208,8 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
           const detail = details.get(item.productCode);
           const ref2 = doc(db, rejectionDetailPath(reject.shopCode, reject.rejectionNumber, item.productCode));
           // 詳細データ更新
-          const history = detail?.history ?? [];
-          if (detail && item.quantity !== detail.quantity) history.push(detail.quantity);
+          const detailHistory = detail?.history ?? [];
+          if (detail && item.quantity !== detail.quantity) detailHistory.push(detail.quantity);
           const value: RejectionDetail = {
             productCode: item.productCode,
             productName: item.productName,
@@ -211,8 +217,9 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
             costPrice: item.costPrice,
             rejectType: item.rejectType,
             wasteReason: item.wasteReason,
-            fixed: true,
-            history,
+            fixed,
+            submitted,
+            history: detailHistory,
           };
           if (item.rejectType === 'return') {
             value.supplierCode = item.supplierCode;
@@ -220,14 +227,19 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
           }
           transaction.set(ref2, value);
           // 在庫更新
-          const diff = detail ? detail.quantity - item.quantity : -item.quantity;
-          incrementStock(reject.shopCode, item.productCode, item.productName, diff, transaction);
+          if (fixed) {
+            incrementStock(reject.shopCode, item.productCode, item.productName, -item.quantity, transaction);
+          }
         }
       });
       setProcessing(false);
       alert('保存しました。');
       if (rejectionNumber > 0) {
-        hisotry.push('/rejection_new');
+        if (confirmMode) {
+          hisotry.push('/rejection_confirm');
+        } else {
+          hisotry.push('/rejection_new');
+        }
       } else {
         resetRejection();
       }
@@ -356,7 +368,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
           <hr className="m-4" />
           <Flex justify_content="between" className="mb-2">
             <Form className="flex space-x-2" onSubmit={handleSubmit}>
-              {!rejection.fixed && (
+              {!rejection.submitted && !rejection.fixed && (
                 <>
                   <Form.Text
                     value={inputProductCode}
@@ -374,21 +386,37 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
                 </>
               )}
             </Form>
-            {!rejection.fixed && (
+            {!confirmMode && !rejection.submitted && !rejection.fixed && (
               <Button
                 className="w-32"
                 disabled={sumItemQuantity() === 0 || processing}
                 onClick={() => {
-                  if (window.confirm('確定しますか？')) {
-                    save();
+                  if (window.confirm('申請しますか？')) {
+                    save('submitted');
                   }
                 }}
               >
-                確定
+                申請
               </Button>
             )}
-            {rejection.fixed && (
-              <Button className="w-32" onClick={() => setRejection((prev) => ({ ...prev, fixed: false }))}>
+            {confirmMode && rejection.submitted && !rejection.fixed && (
+              <Button
+                className="w-32"
+                disabled={sumItemQuantity() === 0 || processing}
+                onClick={() => {
+                  if (window.confirm('承認しますか？')) {
+                    save('fixed');
+                  }
+                }}
+              >
+                承認
+              </Button>
+            )}
+            {!confirmMode && rejection.submitted && !rejection.fixed && (
+              <Button
+                className="w-32"
+                onClick={() => setRejection((prev) => ({ ...prev, submitted: false, fixed: false }))}
+              >
                 再編集
               </Button>
             )}

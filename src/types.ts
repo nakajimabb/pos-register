@@ -238,6 +238,7 @@ export type Rejection = {
   shopCode: string; // 店舗コード
   shopName: string; // 店舗名
   date: Timestamp; // 仕入日
+  submitted: boolean;
   fixed: boolean;
   totalVariety?: number;
   totalQuantity?: number;
@@ -255,6 +256,7 @@ export type RejectionDetail = {
   quantity: number;
   history?: number[];
   costPrice: number | null; // 原価(税抜)
+  submitted: boolean;
   fixed: boolean;
   supplierCode?: string; // 仕入先コード
   supplierName?: string;

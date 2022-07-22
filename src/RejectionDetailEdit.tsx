@@ -25,6 +25,7 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, 
       quantity: 1,
       costPrice: null,
       fixed: false,
+      submitted: false,
     }
   );
   const [supplierOptions, setSuppliersOptions] = useState<{ label: string; value: string }[]>([]);

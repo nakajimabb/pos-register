@@ -45,6 +45,7 @@ import ImportStock from './ImportStock';
 import SalesSummaryList from './SalesSummaryList';
 import ItemTrendList from './ItemTrendList';
 import SalesDeliveryList from './SalesDeliveryList';
+import RejectionConfirm from './RejectionConfirm';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -87,6 +88,7 @@ const App: React.FC = () => {
           <Route exact path="/rejection_new" component={RejectionNew} />
           <Route exact path="/rejection_edit" component={RejectionEdit} />
           <Route exact path="/rejection_list" component={RejectionList} />
+          <Route exact path="/rejection_confirm" component={RejectionConfirm} />
           <Route exact path="/internal_order_new" component={InternalOrderNew} />
           <Route exact path="/internal_order_edit" component={InternalOrderEdit} />
           <Route exact path="/internal_order_list" component={InternalOrderList} />
