@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { getFirestore, collection, getDocs, query, QueryConstraint, where, doc, getDoc } from 'firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  query,
+  QueryConstraint,
+  where,
+  doc,
+  getDoc,
+  DocumentData,
+  QueryDocumentSnapshot,
+} from 'firebase/firestore';
 import { addDays, format, startOfMonth, endOfMonth, differenceInMonths } from 'date-fns';
 import Select from 'react-select';
 import { Alert, Button, Card, Form, Table } from './components';
 import { useAppContext } from './AppContext';
 import RegisterSearch from './RegisterSearch';
-import { toNumber, toDateString, nameWithCode, OTC_DIVISION } from './tools';
+import { toNumber, toDateString, nameWithCode, arrToPieces, OTC_DIVISION } from './tools';
 import firebaseError from './firebaseError';
 import {
   Delivery,
@@ -217,32 +228,34 @@ const ItemTrendList: React.FC = () => {
         }
         const salesQuery = query(collection(db, 'sales'), ...salesConds);
         const salesQuerySnapshot = await getDocs(salesQuery);
-
-        await Promise.all(
-          salesQuerySnapshot.docs.map(async (saleDoc) => {
-            const sale = saleDoc.data() as Sale;
-            const registerSign = sale.status === 'Return' ? -1 : 1;
-            const detailConds = [where('productCode', '==', productCode)];
-            detailConds.push(where('division', '==', OTC_DIVISION));
-            const detailsQuery = query(collection(db, 'sales', saleDoc.id, 'saleDetails'), ...detailConds);
-            const detailsSnapshot = await getDocs(detailsQuery);
-            const saleDateString = format(sale.createdAt.toDate(), 'yyyy/MM/dd');
-            await Promise.all(
-              detailsSnapshot.docs.map(async (detailDoc) => {
-                const detail = detailDoc.data() as SaleDetail;
-                if (!Object.keys(itemTrendsData).includes(saleDateString)) {
-                  itemTrendsData[saleDateString] = {};
-                }
-                itemTrendsData[saleDateString]['salesCount'] =
-                  toNumber(itemTrendsData[saleDateString]['salesCount']) + detail.quantity * registerSign;
-                itemTrendsData[saleDateString]['salesTotal'] =
-                  toNumber(itemTrendsData[saleDateString]['salesTotal']) +
-                  toNumber(detail.product.sellingPrice) * detail.quantity * registerSign -
-                  detail.discount;
-              })
-            );
-          })
-        );
+        const pieces: QueryDocumentSnapshot<DocumentData>[][] = arrToPieces(salesQuerySnapshot.docs, 100);
+        for (let piece of pieces) {
+          await Promise.all(
+            piece.map(async (saleDoc) => {
+              const sale = saleDoc.data() as Sale;
+              const registerSign = sale.status === 'Return' ? -1 : 1;
+              const detailConds = [where('productCode', '==', productCode)];
+              detailConds.push(where('division', '==', OTC_DIVISION));
+              const detailsQuery = query(collection(db, 'sales', saleDoc.id, 'saleDetails'), ...detailConds);
+              const detailsSnapshot = await getDocs(detailsQuery);
+              const saleDateString = format(sale.createdAt.toDate(), 'yyyy/MM/dd');
+              await Promise.all(
+                detailsSnapshot.docs.map(async (detailDoc) => {
+                  const detail = detailDoc.data() as SaleDetail;
+                  if (!Object.keys(itemTrendsData).includes(saleDateString)) {
+                    itemTrendsData[saleDateString] = {};
+                  }
+                  itemTrendsData[saleDateString]['salesCount'] =
+                    toNumber(itemTrendsData[saleDateString]['salesCount']) + detail.quantity * registerSign;
+                  itemTrendsData[saleDateString]['salesTotal'] =
+                    toNumber(itemTrendsData[saleDateString]['salesTotal']) +
+                    toNumber(detail.product.sellingPrice) * detail.quantity * registerSign -
+                    detail.discount;
+                })
+              );
+            })
+          );
+        }
 
         const monthlyStockSnap = await getDoc(
           doc(db, monthlyStockPath(shopCode, format(dateFrom, 'yyyyMM'), productCode))
