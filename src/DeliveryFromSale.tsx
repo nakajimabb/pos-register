@@ -14,13 +14,15 @@ import {
   where,
   QuerySnapshot,
   serverTimestamp,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import app from './firebase';
 import { Alert, Button, Card, Form, Table } from './components';
 import { useAppContext } from './AppContext';
 import firebaseError from './firebaseError';
-import { nameWithCode, toDateString, isNum, OTC_DIVISION } from './tools';
+import { nameWithCode, toDateString, isNum, arrToPieces, OTC_DIVISION } from './tools';
 import {
   InternalOrder,
   InternalOrderDetail,
@@ -92,36 +94,42 @@ const DeliveryFromSale: React.FC = () => {
 
         const q = query(collection(db, 'sales'), ...conds) as Query<Sale>;
         const qsnap = await getDocs(q);
-        const tasks = qsnap.docs.map(async (dsnap) => {
-          const details = new Map<string, Map<string, DeliveryDetail>>();
-          try {
-            const q2 = query(collection(db, 'sales', dsnap.id, 'saleDetails'), where('division', '==', OTC_DIVISION));
-            const qsnapDetail = (await getDocs(q2)) as QuerySnapshot<SaleDetail>;
-            const sale = dsnap.data();
-            const shopDetails = details.get(sale.shopCode) ?? new Map<string, DeliveryDetail>();
-            qsnapDetail.forEach((dsnapDetail) => {
-              const saleSetail = dsnapDetail.data();
-              const product = saleSetail.product;
-              if (product.code) {
-                const detail = shopDetails.get(product.code) ?? {
-                  productCode: product.code,
-                  productName: product.name,
-                  quantity: 0,
-                  costPrice: product.costPrice,
-                  fixed: false,
-                };
-                if (saleSetail.status === 'Sales') detail.quantity += saleSetail.quantity;
-                if (saleSetail.status === 'Return') detail.quantity -= saleSetail.quantity;
-                shopDetails.set(product.code, detail);
-              }
-            });
-            details.set(sale.shopCode, shopDetails);
-          } catch (error) {
-            console.log({ error });
-          }
-          return details;
-        });
-        const results = await Promise.all(tasks);
+        const pieces: QueryDocumentSnapshot<DocumentData>[][] = arrToPieces(qsnap.docs, 100);
+        let results: Map<string, Map<string, DeliveryDetail>>[] = [];
+        for (let piece of pieces) {
+          const tasks = piece.map(async (dsnap) => {
+            const details = new Map<string, Map<string, DeliveryDetail>>();
+            try {
+              const q2 = query(collection(db, 'sales', dsnap.id, 'saleDetails'), where('division', '==', OTC_DIVISION));
+              const qsnapDetail = (await getDocs(q2)) as QuerySnapshot<SaleDetail>;
+              const sale = dsnap.data();
+              const shopDetails = details.get(sale.shopCode) ?? new Map<string, DeliveryDetail>();
+              qsnapDetail.forEach((dsnapDetail) => {
+                const saleSetail = dsnapDetail.data();
+                const product = saleSetail.product;
+                if (product.code) {
+                  const detail = shopDetails.get(product.code) ?? {
+                    productCode: product.code,
+                    productName: product.name,
+                    quantity: 0,
+                    costPrice: product.costPrice,
+                    fixed: false,
+                  };
+                  if (saleSetail.status === 'Sales') detail.quantity += saleSetail.quantity;
+                  if (saleSetail.status === 'Return') detail.quantity -= saleSetail.quantity;
+                  shopDetails.set(product.code, detail);
+                }
+              });
+              details.set(sale.shopCode, shopDetails);
+            } catch (error) {
+              console.log({ error });
+            }
+            return details;
+          });
+          const result = await Promise.all(tasks);
+          results = results.concat(result);
+        }
+
         const details = new Map<string, Map<string, DeliveryDetail>>();
         results.forEach((result) => {
           for (let [shopCode, details2] of Array.from(result.entries())) {
