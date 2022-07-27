@@ -42,6 +42,7 @@ const db = getFirestore();
 type InternalOrderItem = InternalOrder & { target?: boolean };
 
 const DeliveryFromSale: React.FC = () => {
+  const [completed, setCompleted] = useState<boolean>(true);
   const [search, setSearch] = useState<{ shopCode: string; minDate: Date | null; maxDate: Date | null }>({
     shopCode: '',
     minDate: null,
@@ -80,6 +81,7 @@ const DeliveryFromSale: React.FC = () => {
     e.preventDefault();
     if (currentShop) {
       try {
+        setCompleted(false);
         const conds: QueryConstraint[] = [];
 
         if (search.minDate) {
@@ -206,9 +208,11 @@ const DeliveryFromSale: React.FC = () => {
           });
         }
         setInternalOrderDetails(orderDetails);
+        setCompleted(true);
       } catch (error) {
         console.log({ error });
         alert(firebaseError(error));
+        setCompleted(true);
       }
     }
   };
@@ -369,7 +373,9 @@ const DeliveryFromSale: React.FC = () => {
               }}
               className="mb-3 sm:mb-0 w-72"
             />
-            <Button className="w-48">検索</Button>
+            <Button className="w-48" disabled={!completed}>
+              検索
+            </Button>
           </Form>
           {messages.length > 0 && (
             <Alert severity="error" onClose={() => setMessages([])}>
