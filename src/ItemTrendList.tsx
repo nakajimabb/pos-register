@@ -11,7 +11,7 @@ import {
   DocumentData,
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import { addDays, format, startOfMonth, endOfMonth, differenceInMonths } from 'date-fns';
+import { addDays, format, startOfMonth, endOfMonth, addMonths, differenceInMonths } from 'date-fns';
 import Select from 'react-select';
 import { Alert, Button, Card, Form, Table } from './components';
 import { useAppContext } from './AppContext';
@@ -258,7 +258,7 @@ const ItemTrendList: React.FC = () => {
         }
 
         const monthlyStockSnap = await getDoc(
-          doc(db, monthlyStockPath(shopCode, format(dateFrom, 'yyyyMM'), productCode))
+          doc(db, monthlyStockPath(shopCode, format(addMonths(dateFrom, -1), 'yyyyMM'), productCode))
         );
         let monthlyStockQuantity = 0;
         if (monthlyStockSnap.exists()) {
