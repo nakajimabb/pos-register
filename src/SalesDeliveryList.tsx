@@ -10,7 +10,7 @@ import {
   QueryDocumentSnapshot,
   DocumentData,
 } from 'firebase/firestore';
-import { addDays, startOfMonth, endOfMonth, format } from 'date-fns';
+import { addDays, startOfMonth, endOfMonth, addMonths, format } from 'date-fns';
 import Select from 'react-select';
 import * as xlsx from 'xlsx';
 import { Alert, Button, Card, Form, Table } from './components';
@@ -29,6 +29,9 @@ import {
   MonthlyStock,
   monthlyStockPath,
   Stock,
+  Delivery,
+  deliveryDetailPath,
+  DeliveryDetail,
 } from './types';
 
 type Row = (string | number)[];
@@ -76,10 +79,19 @@ const SalesDeliveryList: React.FC = () => {
 
   const searchSales = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCompleted(false);
-    const saleDeliveryItemsData = await querySales();
-    if (saleDeliveryItemsData) setSaleDeliveryItems(saleDeliveryItemsData);
-    setCompleted(true);
+    setMessages([]);
+    if (targetMonth) {
+      if (Number.isNaN(targetMonth.getTime())) {
+        setMessages((prev) => prev.concat('年月を指定してください。'));
+        return;
+      }
+      setCompleted(false);
+      const saleDeliveryItemsData = await querySales();
+      if (saleDeliveryItemsData) setSaleDeliveryItems(saleDeliveryItemsData);
+      setCompleted(true);
+    } else {
+      setMessages((prev) => prev.concat('年月を指定してください。'));
+    }
   };
 
   const querySales = async () => {
@@ -88,10 +100,8 @@ const SalesDeliveryList: React.FC = () => {
       if (shopCode) {
         salesConds.push(where('shopCode', '==', shopCode));
       }
-      if (targetMonth) {
-        salesConds.push(where('createdAt', '>=', startOfMonth(targetMonth)));
-        salesConds.push(where('createdAt', '<', addDays(endOfMonth(targetMonth), 1)));
-      }
+      salesConds.push(where('createdAt', '>=', startOfMonth(targetMonth)));
+      salesConds.push(where('createdAt', '<', addDays(endOfMonth(targetMonth), 1)));
       const q = query(collection(db, 'sales'), ...salesConds);
       const querySnapshot = await getDocs(q);
       const items = new Map<string, Map<string, number | string>>();
@@ -116,6 +126,11 @@ const SalesDeliveryList: React.FC = () => {
                     detail.discount
                 );
                 shopDetails.set(
+                  'salesCostTotal',
+                  toNumber(shopDetails.get('salesCostTotal')) +
+                    toNumber(detail.product.costPrice) * detail.quantity * registerSign
+                );
+                shopDetails.set(
                   'grossProfit',
                   toNumber(shopDetails.get('grossProfit')) +
                     (toNumber(detail.product.sellingPrice) - toNumber(detail.product.costPrice)) *
@@ -134,10 +149,8 @@ const SalesDeliveryList: React.FC = () => {
       if (shopCode) {
         conds.push(where('shopCode', '==', shopCode));
       }
-      if (targetMonth) {
-        conds.push(where('date', '>=', startOfMonth(targetMonth)));
-        conds.push(where('date', '<', addDays(endOfMonth(targetMonth), 1)));
-      }
+      conds.push(where('date', '>=', startOfMonth(targetMonth)));
+      conds.push(where('date', '<', addDays(endOfMonth(targetMonth), 1)));
       const purchaseQuery = query(collectionGroup(db, 'purchases'), ...conds);
       const purchaseQuerySnapshot = await getDocs(purchaseQuery);
       const purchasePieces: QueryDocumentSnapshot<DocumentData>[][] = arrToPieces(purchaseQuerySnapshot.docs, 100);
@@ -158,6 +171,30 @@ const SalesDeliveryList: React.FC = () => {
               );
             });
             items.set(purchase.shopCode, shopDetails);
+          })
+        );
+      }
+
+      const deliveryQuery = query(collectionGroup(db, 'deliveries'), ...conds);
+      const deliveryQuerySnapshot = await getDocs(deliveryQuery);
+      const deliveryPieces: QueryDocumentSnapshot<DocumentData>[][] = arrToPieces(deliveryQuerySnapshot.docs, 100);
+      for (let piece of deliveryPieces) {
+        await Promise.all(
+          piece.map(async (deliveryDoc) => {
+            const delivery = deliveryDoc.data() as Delivery;
+            const detailsSnapshot = await getDocs(
+              collection(db, deliveryDetailPath(delivery.shopCode, delivery.deliveryNumber))
+            );
+            const shopDetails = items.get(delivery.shopCode) ?? new Map<string, number | string>();
+            detailsSnapshot.forEach((detailDoc) => {
+              const detail = detailDoc.data() as DeliveryDetail;
+              shopDetails.set('deliveryCount', toNumber(shopDetails.get('deliveryCount')) + detail.quantity);
+              shopDetails.set(
+                'deliveryTotal',
+                toNumber(shopDetails.get('deliveryTotal')) + toNumber(detail.costPrice) * detail.quantity
+              );
+            });
+            items.set(delivery.shopCode, shopDetails);
           })
         );
       }
@@ -190,7 +227,9 @@ const SalesDeliveryList: React.FC = () => {
       if (shopCode) {
         monthlyStockConds.push(where('shopCode', '==', shopCode));
       }
-      if (targetMonth) {
+      if (format(targetMonth, 'yyyyMM') === format(new Date(), 'yyyyMM')) {
+        monthlyStockConds.push(where('month', '==', format(addMonths(targetMonth, -1), 'yyyyMM')));
+      } else {
         monthlyStockConds.push(where('month', '==', format(targetMonth, 'yyyyMM')));
       }
       const monthlyStockQuery = query(collectionGroup(db, 'monthlyStocks'), ...monthlyStockConds);
@@ -227,6 +266,19 @@ const SalesDeliveryList: React.FC = () => {
             }
           })
         );
+      }
+
+      if (format(targetMonth, 'yyyyMM') === format(new Date(), 'yyyyMM')) {
+        items.forEach((shopDetails) => {
+          shopDetails.set(
+            'stockTotal',
+            toNumber(shopDetails.get('stockTotal')) +
+              toNumber(shopDetails.get('purchaseTotal')) -
+              toNumber(shopDetails.get('salesCostTotal')) -
+              toNumber(shopDetails.get('deliveryTotal')) -
+              toNumber(shopDetails.get('rejectionTotal'))
+          );
+        });
       }
 
       return items;
