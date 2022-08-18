@@ -241,7 +241,7 @@ const SalesSummaryList: React.FC = () => {
         }
       }
       const sheet = xlsx.utils.aoa_to_sheet(dataArray);
-      const wscols = [15, 30, 15, 15, 10, 10, 10, 10, 10, 10, 10, 10].map((value) => ({ wch: value }));
+      const wscols = [15, 15, 30, 15, 15, 10, 10, 10, 10, 10, 10, 10, 10].map((value) => ({ wch: value }));
       sheet['!cols'] = wscols;
       const wb = {
         SheetNames: ['売上帳票'],
@@ -306,23 +306,23 @@ const SalesSummaryList: React.FC = () => {
               ))}
             </Alert>
           )}
-          <Table className="w-full text-xs">
+          <Table border="cell" className="w-full text-xs">
             <Table.Head>
               <Table.Row>
-                <Table.Cell>商品コード</Table.Cell>
-                <Table.Cell>商品名</Table.Cell>
-                <Table.Cell>仕入先コード</Table.Cell>
-                <Table.Cell>仕入先名</Table.Cell>
-                <Table.Cell>売上数</Table.Cell>
-                <Table.Cell>売上税抜</Table.Cell>
-                <Table.Cell>評価原価</Table.Cell>
-                <Table.Cell>原価率</Table.Cell>
-                <Table.Cell>粗利</Table.Cell>
-                <Table.Cell>粗利率</Table.Cell>
-                <Table.Cell>在庫数</Table.Cell>
-                <Table.Cell>在庫金額</Table.Cell>
-                <Table.Cell>在庫回転率</Table.Cell>
-                <Table.Cell>ランク</Table.Cell>
+                <Table.Cell className="text-center">商品コード</Table.Cell>
+                <Table.Cell className="text-center">商品名</Table.Cell>
+                <Table.Cell className="text-center">仕入先コード</Table.Cell>
+                <Table.Cell className="text-center">仕入先名</Table.Cell>
+                <Table.Cell className="text-center">売上数</Table.Cell>
+                <Table.Cell className="text-center">売上税抜</Table.Cell>
+                <Table.Cell className="text-center">評価原価</Table.Cell>
+                <Table.Cell className="text-center">原価率</Table.Cell>
+                <Table.Cell className="text-center">粗利</Table.Cell>
+                <Table.Cell className="text-center">粗利率</Table.Cell>
+                <Table.Cell className="text-center">在庫数</Table.Cell>
+                <Table.Cell className="text-center">在庫金額</Table.Cell>
+                <Table.Cell className="text-center">在庫回転率</Table.Cell>
+                <Table.Cell className="text-center">ランク</Table.Cell>
               </Table.Row>
             </Table.Head>
             <Table.Body>

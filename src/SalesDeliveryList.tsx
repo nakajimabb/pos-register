@@ -308,10 +308,10 @@ const SalesDeliveryList: React.FC = () => {
 
     const saleDeliveryItemsData = await querySales();
     if (saleDeliveryItemsData && shops) {
-      Array.from(saleDeliveryItems.keys())
+      Array.from(saleDeliveryItemsData.keys())
         .sort()
         .forEach((shopCode, index) => {
-          const item = saleDeliveryItems.get(shopCode);
+          const item = saleDeliveryItemsData.get(shopCode);
           dataArray.push([
             shopCode,
             `${shops.get(shopCode)?.name}`,
@@ -384,20 +384,20 @@ const SalesDeliveryList: React.FC = () => {
               ))}
             </Alert>
           )}
-          <Table className="w-full text-xs">
+          <Table border="cell" className="w-full text-xs">
             <Table.Head>
               <Table.Row>
-                <Table.Cell className="w-1/12">店舗コード</Table.Cell>
-                <Table.Cell className="w-2/12">店舗名</Table.Cell>
-                <Table.Cell className="w-1/12">売上数量</Table.Cell>
-                <Table.Cell className="w-1/12">売上売価金額</Table.Cell>
-                <Table.Cell className="w-1/12">粗利</Table.Cell>
-                <Table.Cell className="w-1/12">粗利率</Table.Cell>
-                <Table.Cell className="w-1/12">仕入数量</Table.Cell>
-                <Table.Cell className="w-1/12">仕入原価金額</Table.Cell>
-                <Table.Cell className="w-1/12">廃棄数量</Table.Cell>
-                <Table.Cell className="w-1/12">廃棄原価金額</Table.Cell>
-                <Table.Cell className="w-1/12">最終在庫原価金額</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">店舗コード</Table.Cell>
+                <Table.Cell className="w-2/12 text-center">店舗名</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">売上数量</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">売上売価金額</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">粗利</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">粗利率</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">仕入数量</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">仕入原価金額</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">廃棄数量</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">廃棄原価金額</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">最終在庫原価金額</Table.Cell>
               </Table.Row>
             </Table.Head>
             <Table.Body>
