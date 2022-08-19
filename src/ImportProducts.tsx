@@ -27,7 +27,12 @@ const headerInfo: HeaderInfo = [
   { label: 'PLUコード', name: 'code' },
   { label: '商品名称', name: 'name' },
   { label: '商品かな名称', name: 'kana' },
-  { label: '商品設定グループ', name: 'selfMedication', mapping: { '99': false, '3': true } },
+  {
+    label: '商品設定グループ',
+    name: 'selfMedication',
+    mapping: { '99': false, '3': true },
+    comment: '99: 無効, 3: 有効',
+  },
   { label: '下代（原価）', name: 'costPrice', asNumber: true },
   { label: '売価', name: 'sellingPrice', asNumber: true },
   {
@@ -40,8 +45,8 @@ const headerInfo: HeaderInfo = [
     name: 'stockTaxClass',
     mapping: { '0': 'exclusive', '1': 'inclusive', '2': 'free' },
   },
-  { label: '売価消費税パターン', name: 'sellingTax', mapping: { '1': 10, '2': 8 } },
-  { label: '仕入消費税パターン', name: 'stockTax', mapping: { '1': 10, '2': 8 } },
+  { label: '売価消費税パターン', name: 'sellingTax', mapping: { '1': 10, '2': 8 }, comment: '1: 10%, 2: 8%' },
+  { label: '仕入消費税パターン', name: 'stockTax', mapping: { '1': 10, '2': 8 }, comment: '1: 10%, 2: 8%' },
   { label: '稼動フラグ（0:稼動、1:非稼動）', name: 'hidden', mapping: { '0': false, '1': true } },
   { label: '仕入先コード', name: 'supplierCode' },
   { label: '備考', name: 'note' },
@@ -49,11 +54,13 @@ const headerInfo: HeaderInfo = [
   { label: '更新日時', name: 'updatedAt' },
 ];
 
+type HeaderDisp = { labels: string[]; comment: string };
+
 const ImportProducts: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [messages, setMessages] = useState<string[]>([]);
   const [progress, setProgress] = useState(100);
-  const [headerDisp, setHeaderDisp] = useState<Map<string, Set<string>>>(new Map());
+  const [headerDisp, setHeaderDisp] = useState<Map<string, HeaderDisp>>(new Map());
   const [errors, setErrors] = useState<string[]>([]);
   const [overwrite, setOverwrite] = useState<boolean>(false);
   const { registListner, shops, suppliers } = useAppContext();
@@ -65,14 +72,15 @@ const ImportProducts: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const disp: Map<string, Set<string>> = new Map();
-    headerInfo.forEach(({ label, name }) => {
+    const disp: Map<string, HeaderDisp> = new Map();
+    headerInfo.forEach(({ label, name, comment }) => {
       const item = disp.get(name);
       if (item) {
-        item.add(label);
+        item.labels.push(label);
+        item.comment = comment ?? '';
         disp.set(name, item);
       } else {
-        disp.set(name, new Set([label]));
+        disp.set(name, { labels: [label], comment: comment ?? '' });
       }
     });
     setHeaderDisp(disp);
@@ -354,11 +362,19 @@ const ImportProducts: React.FC = () => {
             認識されるヘッダ<small>(完全一致)</small>
           </h2>
           <Table size="sm">
+            <Table.Head>
+              <Table.Row>
+                <Table.Cell className="font-bold">ヘッダ名称</Table.Cell>
+                <Table.Cell className="font-bold">備考</Table.Cell>
+                <Table.Cell className="font-bold">ｺｰﾄﾞ値</Table.Cell>
+              </Table.Row>
+            </Table.Head>
             <Table.Body>
               {Array.from(headerDisp.entries()).map(([name, item], i) => (
                 <Table.Row key={i}>
+                  <Table.Cell>{Array.from(item.labels).join(' | ')}</Table.Cell>
+                  <Table.Cell>{item.comment}</Table.Cell>
                   <Table.Cell>{name}</Table.Cell>
-                  <Table.Cell>{Array.from(item).join(' | ')}</Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>

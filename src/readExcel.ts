@@ -8,6 +8,7 @@ export type HeaderInfo = {
   asNumber?: boolean;
   zeroPadding?: number;
   mapping?: ValueMapping;
+  comment?: string;
 }[];
 
 const readExcel = async (blob: File, number_as_string: boolean = false) => {
