@@ -99,20 +99,19 @@ const ImportProducts: React.FC = () => {
       try {
         // EXCEL 読み込み
         const data = await readExcelAsOjects(blob, headerInfo);
+        const validData = data.filter((item) => !!item.code);
 
         const unknownSupplierCodes = new Set<string>(); // 不明な仕入先コード
         const unknownShopCodes = new Set<string>(); // 不明な店舗コード
         const ngJanCodes = new Set<string>(); // 不正なJANコード
 
-        const productCodes = new Set(data.map((item) => String(item.code)));
+        const productCodes = new Set(validData.map((item) => String(item.code)));
         const products = await readProducts(productCodes);
-        console.log({ data, products });
 
         // db 書き込み
-        let prgs = 0;
         const headCode = '00'; // 本部コード
         const BATCH_UNIT = 300;
-        const pieces: { [key: string]: FieldType }[][] = arrToPieces(data, BATCH_UNIT);
+        const pieces: { [key: string]: FieldType }[][] = arrToPieces(validData, BATCH_UNIT);
         const tasks = pieces.map(async (pdcts) => {
           const errors: string[] = [];
           const counter = { addProducts: 0, updateProducts: 0, setSellingPrices: 0, setCostPrices: 0 };
@@ -171,6 +170,7 @@ const ImportProducts: React.FC = () => {
             });
             await batch1.commit();
             setProgress((prev) => prev + Math.floor(100.0 / (3 * pieces.length))); // 進捗更新
+            console.log('batch1 executed');
 
             // 店舗売価
             const batch2 = writeBatch(db);
@@ -201,6 +201,7 @@ const ImportProducts: React.FC = () => {
             });
             await batch2.commit();
             setProgress((prev) => prev + Math.floor(100.0 / (3 * pieces.length))); // 進捗更新
+            console.log('batch2 executed');
 
             // 店舗原価
             const batch3 = writeBatch(db);
@@ -238,6 +239,8 @@ const ImportProducts: React.FC = () => {
               }
             });
             await batch3.commit();
+            console.log('batch3 executed');
+
             setProgress((prev) => prev + Math.floor(100.0 / (3 * pieces.length))); // 進捗更新
           } catch (error) {
             console.log({ error });
@@ -320,8 +323,8 @@ const ImportProducts: React.FC = () => {
   };
 
   return (
-    <Flex direction="col" justify_content="center" align_items="center">
-      <h1 className="text-xl font-bold mb-2">商品マスタ取込</h1>
+    <Flex direction="col" justify_content="center" align_items="center" className="pt-12">
+      <h1 className="text-xl font-bold mb-2 mt-4">商品マスタ取込</h1>
       <Card className="p-5">
         <Form onSubmit={importExcel} className="p-3">
           <div className="mb-2">
@@ -335,9 +338,11 @@ const ImportProducts: React.FC = () => {
             />
             <p>
               <small>
-                ※ 上書きは店舗コードがブランク、または本部(00)のときのみ実行。
+                ※ 商品マスタの上書きは店舗コードがブランク、または本部(00)のときのみ実行。
                 <br />
                 商品マスタが存在しないときは新規作成し、未登録フラグを設定する。
+                <br />
+                店舗売価・店舗原価は無条件に上書き。
               </small>
             </p>
           </div>
