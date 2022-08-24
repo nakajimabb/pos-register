@@ -159,8 +159,9 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
   const save = async (status: 'fixed' | 'submitted') => {
     try {
       setProcessing(true);
-      const fixed = status == 'fixed';
       const submitted = true;
+      const existWaste = getTargetItems().some((item) => item.rejectType === 'waste');
+      const fixed = status == 'fixed' || !existWaste;
       const reject = { ...rejection, fixed, submitted };
       await runTransaction(db, async (transaction) => {
         // get existing Data
@@ -235,7 +236,7 @@ const RejectionMain: React.FC<Props> = ({ shopCode, shopName, rejectionNumber = 
       });
 
       // メール送信
-      if (fixed) {
+      if (existWaste && fixed) {
         const functions = getFunctions(app, 'asia-northeast1');
         const subject = '廃棄・返品申請が承認されました';
         let body = `以下の廃棄・返品申請が承認されました。\n\n`;

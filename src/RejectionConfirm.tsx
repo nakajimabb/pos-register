@@ -20,7 +20,7 @@ import RejectionPrint from './RejectionPrint';
 import { useAppContext } from './AppContext';
 import { nameWithCode, toDateString } from './tools';
 import firebaseError from './firebaseError';
-import { Rejection } from './types';
+import { Rejection, rejectionDetailPath } from './types';
 
 const db = getFirestore();
 
@@ -78,7 +78,22 @@ const RejectionConfirm: React.FC = () => {
           q = query(collectionGroup(db, 'rejections'), ...conds);
         }
         const snap = await getDocs(q);
-        setRejections(snap.docs.map((item) => item.data() as Rejection));
+        const filteredRejections: Rejection[] = [];
+        await Promise.all(
+          snap.docs.map(async (item) => {
+            const rejection = item.data() as Rejection;
+            const detailsSnapshot = await getDocs(
+              query(
+                collection(db, rejectionDetailPath(rejection.shopCode, rejection.rejectionNumber)),
+                where('rejectType', '==', 'waste')
+              )
+            );
+            if (detailsSnapshot.docs.length > 0) {
+              filteredRejections.push(rejection);
+            }
+          })
+        );
+        setRejections(filteredRejections);
       } catch (error) {
         console.log({ error });
         alert(firebaseError(error));
