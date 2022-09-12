@@ -238,36 +238,48 @@ const createMonthlyStocksImpl = async (month: string) => {
     let results: any[] = [];
     const shopsSnapshot = await db.collection('shops').get();
     const shops = shopsSnapshot.docs.map((doc) => doc.data());
-    for await (const shop of shops) {
-      const shopCode = shop.code;
-      const stocksSnapshot = await db.collection('shops').doc(shopCode).collection('stocks').get();
-      const stocks = stocksSnapshot.docs.map((doc) => doc.data());
-      const BATCH_UNIT = 100;
-      const taskSize = Math.ceil(stocks.length / BATCH_UNIT);
-      const sequential = [...Array(taskSize).keys()];
+    const shopStocks = new Array<any>();
+    const BATCH_UNIT = 100;
+    const taskSize = Math.ceil(shops.length / BATCH_UNIT);
+    const sequential = [...Array(taskSize).keys()];
+    const tasks1 = sequential.map(async (i) => {
+      const sliced = shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+      return Promise.all(
+        sliced.map(async (shop: any) => {
+          const stocksSnapshot = await db.collection('shops').doc(shop.code).collection('stocks').get();
+          if (stocksSnapshot.size > 0) {
+            stocksSnapshot.forEach((doc) => {
+              const stock = doc.data();
+              shopStocks.push({ shopCode: shop.code, stock });
+            });
+            const monthlyStocksRef = db.collection('shops').doc(shop.code).collection('monthlyStocks').doc(month);
+            await monthlyStocksRef.set({ month, shopCode: shop.code, shopName: shop.name }, { merge: true });
+          }
+        })
+      );
+    });
+    await Promise.all(tasks1);
 
-      // firestore 更新
-      const monthlyStocksRef = db.collection('shops').doc(shopCode).collection('monthlyStocks').doc(month);
-      await monthlyStocksRef.set({ month, shopCode, shopName: shop.name }, { merge: true });
-
-      const tasks1 = sequential.map(async (i) => {
-        const batch = db.batch();
-        const sliced = stocks.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
-        sliced.forEach((stock: any) => {
-          const ref = db
-            .collection('shops')
-            .doc(shopCode)
-            .collection('monthlyStocks')
-            .doc(month)
-            .collection('monthlyStockDetails')
-            .doc(stock.productCode);
-          const p = { ...stock, month };
-          batch.set(ref, p);
-        });
-        return await batch.commit();
+    const taskSize2 = Math.ceil(shopStocks.length / BATCH_UNIT);
+    const sequential2 = [...Array(taskSize2).keys()];
+    const tasks2 = sequential2.map(async (i) => {
+      const batch = db.batch();
+      const sliced = shopStocks.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+      sliced.forEach((shopStock: any) => {
+        const stock = shopStock.stock;
+        const ref = db
+          .collection('shops')
+          .doc(shopStock.shopCode)
+          .collection('monthlyStocks')
+          .doc(month)
+          .collection('monthlyStockDetails')
+          .doc(stock.productCode);
+        const p = { ...stock, month };
+        batch.set(ref, p);
       });
-      results = results.concat(await Promise.all(tasks1));
-    }
+      return await batch.commit();
+    });
+    results = results.concat(await Promise.all(tasks2));
     return { results };
   } catch (error) {
     throw new functions.https.HttpsError('unknown', 'error in createMonthlyStocks', error);
