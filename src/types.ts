@@ -113,7 +113,7 @@ export type Sale = {
   salesTotal: number;
   taxTotal: number;
   discountTotal: number;
-  paymentType: 'Cash' | 'Credit';
+  paymentType: 'Cash' | 'Credit' | 'Digital';
   cashAmount: number;
   salesTaxFreeTotal: number;
   salesNormalTotal: number;

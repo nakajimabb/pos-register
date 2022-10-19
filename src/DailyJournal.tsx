@@ -187,12 +187,16 @@ const DailyJournal: React.FC = () => {
                     <Table.Cell></Table.Cell>
                     <Table.Cell className="text-right"></Table.Cell>
                     <Table.Cell className="text-right">
-                      {saleData.paymentType === 'Credit' ? 'クレジット' : '預り金'}
+                      {saleData.paymentType === 'Cash'
+                        ? '預り金'
+                        : saleData.paymentType === 'Credit'
+                        ? 'クレジット'
+                        : '電子マネー'}
                     </Table.Cell>
                     <Table.Cell className="text-right">¥{saleData.cashAmount.toLocaleString()}</Table.Cell>
                   </Table.Row>
                 );
-                if (saleData.paymentType !== 'Credit') {
+                if (saleData.paymentType === 'Cash') {
                   rows.push(
                     <Table.Row className="hover:bg-yellow-500" key={`${docId}Change`}>
                       <Table.Cell></Table.Cell>

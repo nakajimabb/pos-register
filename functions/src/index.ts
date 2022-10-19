@@ -298,9 +298,11 @@ exports.scheduledCreateMonthlyStocks = functions
   .region('asia-northeast1')
   .pubsub.schedule('0 6 1 * *')
   .timeZone('Asia/Tokyo')
-  .onRun(() => {
-    const month = toDateString(subDays(new Date(), 1), 'YYYYMM');
-    createMonthlyStocksImpl(month);
+  .onRun(async () => {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() - 1);
+    const month = toDateString(targetDate, 'YYYYMM');
+    return await createMonthlyStocksImpl(month);
   });
 
 export const getSequence = functions.region('asia-northeast1').https.onCall(async (data) => {
@@ -547,11 +549,11 @@ export const sendDailyClosingData = functions
               reportItemsData['otc_reduced'] += priceReducedTotal;
               reportItemsData['otc_normal_tax'] += Math.floor((priceNormalTotal * 10) / 100);
               reportItemsData['otc_reduced_tax'] += Math.floor((priceReducedTotal * 8) / 100);
-              if (sale.paymentType === 'Credit') {
+              if (sale.paymentType === 'Credit' || sale.paymentType === 'Digital') {
                 const taxNormalCreditTotal = Math.floor((priceNormalTotal * 10) / 100);
                 const taxReducedCreditTotal = Math.floor((priceReducedTotal * 8) / 100);
                 reportItemsData['copayment_adjust'].push([
-                  'credit',
+                  sale.paymentType === 'Credit' ? 'credit' : 'digital',
                   -(creditTotal + taxNormalCreditTotal + taxReducedCreditTotal),
                 ]);
               }

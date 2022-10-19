@@ -58,13 +58,25 @@ const DropdownItem: React.FC<ItemProps> = ({
           <div className="absolute left-full top-0 bg-white py-1 rounded-md">
             {React.Children.map(children, (child) => {
               if (!React.isValidElement(child)) return null;
-
-              return React.cloneElement(child, { setShow, trigger });
+              const childProps = { setShow, trigger };
+              return React.cloneElement(child, childProps);
             })}
           </div>
         </>
       )}
-      {!children && (to ? <Link to={to}>{title}</Link> : <div className="w-max">{title}</div>)}
+      {!children &&
+        (to ? (
+          <Link
+            to={to}
+            onClick={() => {
+              if (setShow) setShow(false);
+            }}
+          >
+            {title}
+          </Link>
+        ) : (
+          <div className="w-max">{title}</div>
+        ))}
     </div>
   );
 };
@@ -98,7 +110,9 @@ const Dropdown: DropdownType = ({ icon, align = 'right', onEnter, trigger = 'cli
   return (
     <>
       {/* Background overlay */}
-      {show && <div className="fixed inset-0" aria-hidden="true" onClick={() => setShow(false)}></div>}
+      {show && (
+        <div className="fixed inset-0" aria-hidden="true" style={{ zIndex: 999 }} onClick={() => setShow(false)}></div>
+      )}
       <span
         onClick={async () => {
           if (trigger === 'clicked') {
@@ -129,14 +143,15 @@ const Dropdown: DropdownType = ({ icon, align = 'right', onEnter, trigger = 'cli
               `${align}-0`,
               !show && 'hidden'
             )}
+            style={{ zIndex: 1000 }}
             role="menu"
             aria-orientation="vertical"
             aria-labelledby="options-menu"
           >
             {React.Children.map(children, (child) => {
               if (!React.isValidElement(child)) return null;
-
-              return React.cloneElement(child, { setShow, trigger });
+              const childProps = { setShow, trigger };
+              return React.cloneElement(child, childProps);
             })}
           </div>
         )}

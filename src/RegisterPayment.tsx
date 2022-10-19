@@ -12,7 +12,7 @@ import { toNumber, OTC_DIVISION } from './tools';
 type Props = {
   open: boolean;
   registerMode: 'Sales' | 'Return';
-  paymentType: 'Cash' | 'Credit';
+  paymentType: 'Cash' | 'Credit' | 'Digital';
   basketItems: BasketItem[];
   setBasketItems: React.Dispatch<React.SetStateAction<BasketItem[]>>;
   setRegisterMode: React.Dispatch<React.SetStateAction<'Sales' | 'Return'>>;
@@ -228,10 +228,10 @@ const RegisterPayment: React.FC<Props> = ({
       <Modal.Header
         centered={false}
         onClose={onClose}
-        className={paymentType === 'Cash' ? 'bg-blue-200' : 'bg-green-200'}
+        className={paymentType === 'Cash' ? 'bg-blue-200' : paymentType === 'Credit' ? 'bg-blue-200' : 'bg-yellow-200'}
       >
         {registerMode === 'Return' ? '返品' : 'お会計'}
-        {paymentType === 'Cash' ? '（現金）' : '（クレジット）'}
+        {paymentType === 'Cash' ? '（現金）' : paymentType === 'Credit' ? '（クレジット）' : '（電子マネー）'}
       </Modal.Header>
       <Modal.Body>
         <Table border="row" className="table-fixed w-full">

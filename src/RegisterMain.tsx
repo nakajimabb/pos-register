@@ -33,7 +33,7 @@ const RegisterMain: React.FC = () => {
   const [openModify, setOpenModify] = useState<boolean>(false);
   const [openSearch, setOpenSearch] = useState<boolean>(false);
   const [registerMode, setRegisterMode] = useState<'Sales' | 'Return'>('Sales');
-  const [paymentType, setPaymentType] = useState<'Cash' | 'Credit'>('Cash');
+  const [paymentType, setPaymentType] = useState<'Cash' | 'Credit' | 'Digital'>('Cash');
   const [registerClosed, setRegisterClosed] = useState<boolean>(false);
   const [registerStatus, setRegisterStatus] = useState<RegisterStatus>();
   const registerSign = registerMode === 'Return' ? -1 : 1;
@@ -300,7 +300,7 @@ const RegisterMain: React.FC = () => {
             )}
 
             <Flex className="w-full">
-              <div className="w-1/2 mx-4 my-2 h-4 text-xs text-red-500 font-bold">{productError}</div>
+              <div className="w-1/2 mx-4 my-2 h-6 text-xs text-red-500 font-bold">{productError}</div>
               <Flex justify_content="end" className="w-1/2">
                 {basketItems.length > 0 ? (
                   <Button
@@ -319,7 +319,7 @@ const RegisterMain: React.FC = () => {
               </Flex>
             </Flex>
 
-            <div className="h-96 overflow-y-scroll">
+            <div className="overflow-y-scroll" style={{ height: '26rem' }}>
               <Table border="row" className="table-fixed w-full text-xs">
                 <Table.Head>
                   <Table.Row>
@@ -394,7 +394,7 @@ const RegisterMain: React.FC = () => {
             </div>
 
             <Flex className="mt-4">
-              <Table border="cell" className="table-fixed w-3/5">
+              <Table border="cell" className="table-fixed w-1/2">
                 <Table.Body>
                   <Table.Row>
                     <Table.Cell type="th" className="text-xl bg-red-100">
@@ -411,7 +411,7 @@ const RegisterMain: React.FC = () => {
                 </Table.Body>
               </Table>
               <div className="mt-1 ml-4">
-                <Grid cols="2" gap="2">
+                <Grid cols="3" gap="2">
                   <Button
                     color="info"
                     size="xs"
@@ -434,7 +434,23 @@ const RegisterMain: React.FC = () => {
                       setOpenPayment(true);
                     }}
                   >
-                    クレジット会計
+                    クレジット
+                    <br />
+                    会計
+                  </Button>
+                  <Button
+                    color="warning"
+                    size="xs"
+                    disabled={basketItems.length === 0}
+                    className="h-20"
+                    onClick={() => {
+                      setPaymentType('Digital');
+                      setOpenPayment(true);
+                    }}
+                  >
+                    電子マネー
+                    <br />
+                    会計
                   </Button>
                 </Grid>
               </div>
