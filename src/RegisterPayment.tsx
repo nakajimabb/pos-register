@@ -228,7 +228,7 @@ const RegisterPayment: React.FC<Props> = ({
       <Modal.Header
         centered={false}
         onClose={onClose}
-        className={paymentType === 'Cash' ? 'bg-blue-200' : paymentType === 'Credit' ? 'bg-blue-200' : 'bg-yellow-200'}
+        className={paymentType === 'Cash' ? 'bg-blue-200' : paymentType === 'Credit' ? 'bg-green-200' : 'bg-yellow-200'}
       >
         {registerMode === 'Return' ? '返品' : 'お会計'}
         {paymentType === 'Cash' ? '（現金）' : paymentType === 'Credit' ? '（クレジット）' : '（電子マネー）'}
