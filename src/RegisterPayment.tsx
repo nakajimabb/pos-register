@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getFirestore, doc, collection, runTransaction, Timestamp } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useReactToPrint } from 'react-to-print';
-import app from './firebase';
 import { Button, Flex, Form, Modal, Table } from './components';
 import { useAppContext } from './AppContext';
 import { Sale, SaleDetail, Stock, BasketItem } from './types';
@@ -44,9 +42,7 @@ const RegisterPayment: React.FC<Props> = ({
   const save = async () => {
     if (!currentShop) return;
     runTransaction(db, async (transaction) => {
-      const functions = getFunctions(app, 'asia-northeast1');
-      const result = await httpsCallable(functions, 'getSequence')({ docId: 'sales' });
-      const receiptNumber = Number(result.data);
+      const receiptNumber = new Date().getTime();
       const sale: Sale = {
         receiptNumber,
         shopCode: currentShop.code,

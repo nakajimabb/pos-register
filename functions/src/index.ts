@@ -463,6 +463,7 @@ export const sendDailyClosingData = functions
         const SEND_FEE_RETURN = '8';
         const PLASTIC_BAG = '9';
         const HEARING_AID = '10';
+        const HEARING_EQUIPMENT = '11';
 
         const reportItemsData = {
           copayment_health: 0,
@@ -539,7 +540,10 @@ export const sendDailyClosingData = functions
                     reportItemsData['container_cost'] += amount;
                     break;
                   case HEARING_AID:
-                    reportItemsData['copayment_health'] += amount;
+                    reportItemsData['copayment_adjust'].push(['recovery', amount]);
+                    break;
+                  case HEARING_EQUIPMENT:
+                    priceNormalTotal += amount;
                     break;
                 }
                 creditTotal += amount;
