@@ -46,6 +46,7 @@ import SalesSummaryList from './SalesSummaryList';
 import ItemTrendList from './ItemTrendList';
 import SalesDeliveryList from './SalesDeliveryList';
 import RejectionConfirm from './RejectionConfirm';
+import MenuList from './MenuList';
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -106,6 +107,7 @@ const App: React.FC = () => {
           <Route exact path="/sales_summary_list" component={SalesSummaryList} />
           <Route exact path="/item_trend_list" component={ItemTrendList} />
           <Route exact path="/sales_delivery_list" component={SalesDeliveryList} />
+          <Route exact path="/menu_list" component={MenuList} />
           <Route exact path="/tailwind" component={Tailwind} />
         </Router>
       </AppContextProvider>
