@@ -155,6 +155,10 @@ const SalesDeliveryList: React.FC = () => {
                     }
 
                     shopDetails.set(
+                      'salesCostThisMonthCount',
+                      toNumber(shopDetails.get('salesCostThisMonthCount')) + detail.quantity * registerSign
+                    );
+                    shopDetails.set(
                       'salesCostThisMonthTotal',
                       toNumber(shopDetails.get('salesCostThisMonthTotal')) +
                         toNumber(shopPrices.get(detail.productCode)) * detail.quantity * registerSign -
@@ -204,6 +208,10 @@ const SalesDeliveryList: React.FC = () => {
                   }
 
                   shopDetails.set(
+                    'purchaseThisMonthCount',
+                    toNumber(shopDetails.get('purchaseThisMonthCount')) + detail.quantity
+                  );
+                  shopDetails.set(
                     'purchaseThisMonthTotal',
                     toNumber(shopDetails.get('rejectionThisMonthTotal')) +
                       toNumber(shopPrices.get(detail.productCode)) * detail.quantity
@@ -245,6 +253,10 @@ const SalesDeliveryList: React.FC = () => {
                   }
 
                   shopDetails.set(
+                    'deliveryThisMonthCount',
+                    toNumber(shopDetails.get('deliveryThisMonthCount')) + detail.quantity
+                  );
+                  shopDetails.set(
                     'deliveryThisMonthTotal',
                     toNumber(shopDetails.get('deliveryThisMonthTotal')) +
                       toNumber(shopPrices.get(detail.productCode)) * detail.quantity
@@ -285,6 +297,10 @@ const SalesDeliveryList: React.FC = () => {
                     shopPrices.set(detail.productCode, toNumber(pr?.finalCostPrice));
                   }
 
+                  shopDetails.set(
+                    'rejectionThisMonthCount',
+                    toNumber(shopDetails.get('rejectionThisMonthCount')) + detail.quantity
+                  );
                   shopDetails.set(
                     'rejectionThisMonthTotal',
                     toNumber(shopDetails.get('rejectionThisMonthTotal')) +
@@ -341,6 +357,7 @@ const SalesDeliveryList: React.FC = () => {
                     toNumber(shopDetails.get('stockTotal')) +
                       toNumber(shopPrices.get(detail.productCode)) * detail.quantity
                   );
+                  shopDetails.set('stockCount', toNumber(shopDetails.get('stockCount')) + detail.quantity);
                 })
               );
               items.set(monthlyStock.shopCode, shopDetails);
@@ -352,6 +369,14 @@ const SalesDeliveryList: React.FC = () => {
 
       if (format(monthTo, 'yyyyMM') === format(thisMonth, 'yyyyMM')) {
         items.forEach((shopDetails) => {
+          shopDetails.set(
+            'stockCount',
+            toNumber(shopDetails.get('stockCount')) +
+              toNumber(shopDetails.get('purchaseThisMonthCount')) -
+              toNumber(shopDetails.get('salesCostThisMonthCount')) -
+              toNumber(shopDetails.get('deliveryThisMonthCount')) -
+              toNumber(shopDetails.get('rejectionThisMonthCount'))
+          );
           shopDetails.set(
             'stockTotal',
             toNumber(shopDetails.get('stockTotal')) +
@@ -385,6 +410,7 @@ const SalesDeliveryList: React.FC = () => {
       '仕入原価金額',
       '廃棄数量',
       '廃棄原価金額',
+      '最終在庫数量',
       '最終在庫原価金額',
     ]);
 
@@ -407,13 +433,14 @@ const SalesDeliveryList: React.FC = () => {
             toNumber(item?.get('purchaseTotal')),
             toNumber(item?.get('rejectionCount')),
             toNumber(item?.get('rejectionTotal')),
+            toNumber(item?.get('stockCount')),
             toNumber(item?.get('stockTotal')),
           ]);
         });
     }
 
     const sheet = xlsx.utils.aoa_to_sheet(dataArray);
-    const wscols = [15, 30, 10, 10, 10, 10, 10, 10, 10, 10, 10].map((value) => ({ wch: value }));
+    const wscols = [15, 30, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10].map((value) => ({ wch: value }));
     sheet['!cols'] = wscols;
     const wb = {
       SheetNames: ['売上仕入対比表'],
@@ -476,7 +503,7 @@ const SalesDeliveryList: React.FC = () => {
             <Table.Head>
               <Table.Row>
                 <Table.Cell className="w-1/12 text-center">店舗コード</Table.Cell>
-                <Table.Cell className="w-2/12 text-center">店舗名</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">店舗名</Table.Cell>
                 <Table.Cell className="w-1/12 text-center">売上数量</Table.Cell>
                 <Table.Cell className="w-1/12 text-center">売上売価金額</Table.Cell>
                 <Table.Cell className="w-1/12 text-center">粗利</Table.Cell>
@@ -485,6 +512,7 @@ const SalesDeliveryList: React.FC = () => {
                 <Table.Cell className="w-1/12 text-center">仕入原価金額</Table.Cell>
                 <Table.Cell className="w-1/12 text-center">廃棄数量</Table.Cell>
                 <Table.Cell className="w-1/12 text-center">廃棄原価金額</Table.Cell>
+                <Table.Cell className="w-1/12 text-center">最終在庫数量</Table.Cell>
                 <Table.Cell className="w-1/12 text-center">最終在庫原価金額</Table.Cell>
               </Table.Row>
             </Table.Head>
@@ -524,6 +552,9 @@ const SalesDeliveryList: React.FC = () => {
                       </Table.Cell>
                       <Table.Cell className="text-right">
                         {toNumber(item?.get('rejectionTotal'))?.toLocaleString()}
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        {toNumber(item?.get('stockCount'))?.toLocaleString()}
                       </Table.Cell>
                       <Table.Cell className="text-right">
                         {toNumber(item?.get('stockTotal'))?.toLocaleString()}
