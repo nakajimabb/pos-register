@@ -202,8 +202,10 @@ const updateShopsFromKKb = async () => {
         const ref = db.collection('shops').doc(shop.code);
         const p = { ...shop };
         // アカウントが新たに作成されたら権限をshopに設定
-        if (createCodes.includes(shop.code)) {
+        if ('hidden' in shop === false) {
           p.hidden = false;
+        }
+        if ('role' in shop === false) {
           p.role = 'shop';
         }
         batch.set(ref, p, { merge: true });
