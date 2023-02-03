@@ -52,7 +52,9 @@ const ShortcutEdit: React.FC = () => {
           const sellingPriceSnap = await getDoc(sellingPriceref);
           if (sellingPriceSnap.exists()) {
             const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
-            product.sellingPrice = sellingPrice.sellingPrice;
+            if (sellingPrice.sellingPrice) {
+              product.sellingPrice = sellingPrice.sellingPrice;
+            }
           }
           setProduct(product);
         }
@@ -126,7 +128,9 @@ const ShortcutEdit: React.FC = () => {
                 const sellingPriceSnap = await getDoc(sellingPriceref);
                 if (sellingPriceSnap.exists()) {
                   const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
-                  product.sellingPrice = sellingPrice.sellingPrice;
+                  if (sellingPrice.sellingPrice) {
+                    product.sellingPrice = sellingPrice.sellingPrice;
+                  }
                 }
               }
               shortcutArray[item.index] = {

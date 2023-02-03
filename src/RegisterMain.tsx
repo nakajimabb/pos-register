@@ -50,7 +50,9 @@ const RegisterMain: React.FC = () => {
           const sellingPriceSnap = await getDoc(sellingPriceref);
           if (sellingPriceSnap.exists()) {
             const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
-            product.sellingPrice = sellingPrice.sellingPrice;
+            if (sellingPrice.sellingPrice) {
+              product.sellingPrice = sellingPrice.sellingPrice;
+            }
           }
         }
         const existingIndex = basketItems.findIndex((item) => item.product.code === code);
@@ -175,7 +177,9 @@ const RegisterMain: React.FC = () => {
                   const sellingPriceSnap = await getDoc(sellingPriceref);
                   if (sellingPriceSnap.exists()) {
                     const sellingPrice = sellingPriceSnap.data() as ProductSellingPrice;
-                    product.sellingPrice = sellingPrice.sellingPrice;
+                    if (sellingPrice.sellingPrice) {
+                      product.sellingPrice = sellingPrice.sellingPrice;
+                    }
                   }
                 }
                 shortcutArray[item.index] = { index: item.index, color: item.color, product };
