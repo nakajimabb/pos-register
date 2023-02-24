@@ -9,6 +9,12 @@ import { checkDigit } from './tools';
 
 const db = getFirestore();
 
+const TAX_OPTIONS = [
+  { value: '', label: '' },
+  { value: '8', label: '8%' },
+  { value: '10', label: '10%' },
+];
+
 type Props = {
   open: boolean;
   productCode: string;
@@ -68,7 +74,6 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, shopCode,
         ...product,
         sellingTaxClass: 'exclusive',
         stockTaxClass: 'exclusive',
-        sellingTax: 10,
         stockTax: 10,
         unregistered: true,
         createdAt: serverTimestamp(),
@@ -140,12 +145,26 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, shopCode,
               value={String(product.sellingPrice)}
               onChange={(e) => setProduct({ ...product, sellingPrice: +e.target.value })}
             />
+            <Form.Label>売価消費税</Form.Label>
+            <Form.Select
+              className="mb-3 sm:mb-0"
+              value={String(product.sellingTax)}
+              required
+              options={TAX_OPTIONS}
+              onChange={(e) => setProduct({ ...product, sellingTax: e.target.value ? +e.target.value : null })}
+            />
             <Form.Label>原価税抜</Form.Label>
             <Form.Number
               placeholder="原価"
               required
               value={String(product.costPrice)}
               onChange={(e) => setProduct({ ...product, costPrice: +e.target.value })}
+            />
+            <Form.Label></Form.Label>
+            <Form.Checkbox
+              label="セルフメディケーション"
+              checked={product.selfMedication}
+              onChange={(e) => setProduct({ ...product, selfMedication: e.target.checked })}
             />
           </Grid>
         </Modal.Body>
