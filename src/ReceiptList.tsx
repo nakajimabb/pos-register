@@ -197,7 +197,9 @@ const ReceiptList: React.FC = () => {
             {currentShop?.buildingName}
           </p>
           <p className="text-right text-sm mt-2">{currentShop?.formalName}</p>
-          <p className="text-center text-xl font-bold m-2">{sale?.status === 'Return' ? '返品' : '領収書'}</p>
+          <p className="text-center text-xl font-bold m-2">
+            {sale?.status === 'Return' ? '返品' : sale?.paymentType === 'Receivable' ? '未収書' : '領収書'}
+          </p>
           <Table border="cell" className="table-fixed w-full text-sm shadow-none">
             <Table.Head>
               <Table.Row>
@@ -286,7 +288,7 @@ const ReceiptList: React.FC = () => {
                 </Table.Row>
                 {sale?.status === 'Return' || saleDetails.some((detail) => !detail.outputReceipt) ? null : (
                   <Table.Row>
-                    <Table.Cell type="th">お預かり</Table.Cell>
+                    <Table.Cell type="th">{sale?.paymentType === 'Receivable' ? '未収金' : 'お預かり'}</Table.Cell>
                     <Table.Cell className="text-right pr-4">¥{sale?.cashAmount.toLocaleString()}</Table.Cell>
                     <Table.Cell></Table.Cell>
                   </Table.Row>

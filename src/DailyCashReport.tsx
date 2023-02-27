@@ -71,6 +71,8 @@ const DailyCashReport: React.FC = () => {
       reportItemsData['creditAmountTotal'] = 0;
       reportItemsData['digitalCountTotal'] = 0;
       reportItemsData['digitalAmountTotal'] = 0;
+      reportItemsData['receivableCountTotal'] = 0;
+      reportItemsData['receivableAmountTotal'] = 0;
       reportItemsData['customerCountTotal'] = 0;
       reportItemsData['customerAmountTotal'] = 0;
       reportItemsData['discountCountTotal'] = 0;
@@ -91,6 +93,8 @@ const DailyCashReport: React.FC = () => {
       reportItemsData['exclusiveTaxReducedCreditTotal'] = 0;
       reportItemsData['exclusiveTaxNormalDigitalTotal'] = 0;
       reportItemsData['exclusiveTaxReducedDigitalTotal'] = 0;
+      reportItemsData['exclusiveTaxNormalReceivableTotal'] = 0;
+      reportItemsData['exclusiveTaxReducedReceivableTotal'] = 0;
       reportItemsData['priceTaxFreeTotal'] = 0;
       Object.keys(Divisions).forEach((division) => {
         reportItemsData[`division${division}CountTotal`] = 0;
@@ -127,6 +131,8 @@ const DailyCashReport: React.FC = () => {
             reportItemsData['creditCountTotal'] += 1;
           } else if (sale.paymentType === 'Digital') {
             reportItemsData['digitalCountTotal'] += 1;
+          } else if (sale.paymentType === 'Receivable') {
+            reportItemsData['receivableCountTotal'] += 1;
           }
 
           if (sale.discountTotal > 0) {
@@ -145,6 +151,8 @@ const DailyCashReport: React.FC = () => {
               reportItemsData['creditAmountTotal'] += amount;
             } else if (sale.paymentType === 'Digital') {
               reportItemsData['digitalAmountTotal'] += amount;
+            } else if (sale.paymentType === 'Receivable') {
+              reportItemsData['receivableAmountTotal'] += amount;
             }
             reportItemsData['detailsCountTotal'] += 1;
             reportItemsData[`division${detail.division}CountTotal`] += 1;
@@ -188,6 +196,9 @@ const DailyCashReport: React.FC = () => {
           } else if (sale.paymentType === 'Digital') {
             reportItemsData['exclusiveTaxNormalDigitalTotal'] += Math.floor((exclusivePriceNormalTotal * 10) / 100);
             reportItemsData['exclusiveTaxReducedDigitalTotal'] += Math.floor((exclusivePriceReducedTotal * 8) / 100);
+          } else if (sale.paymentType === 'Receivable') {
+            reportItemsData['exclusiveTaxNormalReceivableTotal'] += Math.floor((exclusivePriceNormalTotal * 10) / 100);
+            reportItemsData['exclusiveTaxReducedReceivableTotal'] += Math.floor((exclusivePriceReducedTotal * 8) / 100);
           }
 
           if (sale.status === 'Return') {
@@ -349,6 +360,19 @@ const DailyCashReport: React.FC = () => {
                         )?.toLocaleString()}`}
                       </Table.Cell>
                     </Table.Row>
+                    {currentShop?.receivable && (
+                      <Table.Row>
+                        <Table.Cell className="w-2/3">売掛金</Table.Cell>
+                        <Table.Cell className="text-right w-1/3">
+                          {`¥${(
+                            reportItems['receivableAmountTotal'] +
+                            reportItems['exclusiveTaxNormalReceivableTotal'] +
+                            reportItems['exclusiveTaxReducedReceivableTotal']
+                          )?.toLocaleString()}`}
+                        </Table.Cell>
+                      </Table.Row>
+                    )}
+
                     <Table.Row>
                       <Table.Cell className="w-2/3">客数</Table.Cell>
                       <Table.Cell className="text-right w-1/3">
@@ -513,6 +537,32 @@ const DailyCashReport: React.FC = () => {
                         )?.toLocaleString()}`}
                       </Table.Cell>
                     </Table.Row>
+                    {currentShop?.receivable && (
+                      <Table.Row>
+                        <Table.Cell className="w-2/3">売掛金</Table.Cell>
+                        <Table.Cell className="text-right w-1/3"></Table.Cell>
+                      </Table.Row>
+                    )}
+                    {currentShop?.receivable && (
+                      <Table.Row>
+                        <Table.Cell className="w-2/3">　回数</Table.Cell>
+                        <Table.Cell className="text-right w-1/3">
+                          {`${reportItems['receivableCountTotal']?.toLocaleString()}`}
+                        </Table.Cell>
+                      </Table.Row>
+                    )}
+                    {currentShop?.receivable && (
+                      <Table.Row>
+                        <Table.Cell className="w-2/3">　金額</Table.Cell>
+                        <Table.Cell className="text-right w-1/3">
+                          {`¥${(
+                            reportItems['receivableAmountTotal'] +
+                            reportItems['exclusiveTaxNormalReceivableTotal'] +
+                            reportItems['exclusiveTaxReducedReceivableTotal']
+                          )?.toLocaleString()}`}
+                        </Table.Cell>
+                      </Table.Row>
+                    )}
                     <Table.Row>
                       <Table.Cell className="w-2/3">　</Table.Cell>
                       <Table.Cell className="text-right w-1/3"></Table.Cell>

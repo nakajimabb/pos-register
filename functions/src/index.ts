@@ -555,11 +555,15 @@ export const sendDailyClosingData = functions
               reportItemsData['otc_reduced'] += priceReducedTotal;
               reportItemsData['otc_normal_tax'] += Math.floor((priceNormalTotal * 10) / 100);
               reportItemsData['otc_reduced_tax'] += Math.floor((priceReducedTotal * 8) / 100);
-              if (sale.paymentType === 'Credit' || sale.paymentType === 'Digital') {
+              if (
+                sale.paymentType === 'Credit' ||
+                sale.paymentType === 'Digital' ||
+                sale.paymentType === 'Receivable'
+              ) {
                 const taxNormalCreditTotal = Math.floor((priceNormalTotal * 10) / 100);
                 const taxReducedCreditTotal = Math.floor((priceReducedTotal * 8) / 100);
                 reportItemsData['copayment_adjust'].push([
-                  sale.paymentType === 'Credit' ? 'credit' : 'digital',
+                  sale.paymentType === 'Credit' ? 'credit' : sale.paymentType === 'Digital' ? 'digital' : 'receivable',
                   -(creditTotal + taxNormalCreditTotal + taxReducedCreditTotal),
                 ]);
               }

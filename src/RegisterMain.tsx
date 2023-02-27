@@ -33,7 +33,7 @@ const RegisterMain: React.FC = () => {
   const [openModify, setOpenModify] = useState<boolean>(false);
   const [openSearch, setOpenSearch] = useState<boolean>(false);
   const [registerMode, setRegisterMode] = useState<'Sales' | 'Return'>('Sales');
-  const [paymentType, setPaymentType] = useState<'Cash' | 'Credit' | 'Digital'>('Cash');
+  const [paymentType, setPaymentType] = useState<'Cash' | 'Credit' | 'Digital' | 'Receivable'>('Cash');
   const [registerClosed, setRegisterClosed] = useState<boolean>(false);
   const [registerStatus, setRegisterStatus] = useState<RegisterStatus>();
   const registerSign = registerMode === 'Return' ? -1 : 1;
@@ -414,8 +414,8 @@ const RegisterMain: React.FC = () => {
                   </Table.Row>
                 </Table.Body>
               </Table>
-              <div className="mt-1 ml-4">
-                <Grid cols="3" gap="2">
+              <div className="mt-1 ml-4 w-1/2 pr-2">
+                <Grid cols={currentShop?.receivable ? 4 : 3} gap="2">
                   <Button
                     color="info"
                     size="xs"
@@ -426,7 +426,9 @@ const RegisterMain: React.FC = () => {
                       setOpenPayment(true);
                     }}
                   >
-                    現金会計
+                    現金
+                    <br />
+                    会計
                   </Button>
                   <Button
                     color="success"
@@ -438,7 +440,7 @@ const RegisterMain: React.FC = () => {
                       setOpenPayment(true);
                     }}
                   >
-                    クレジット
+                    ｸﾚｼﾞｯﾄ
                     <br />
                     会計
                   </Button>
@@ -452,10 +454,26 @@ const RegisterMain: React.FC = () => {
                       setOpenPayment(true);
                     }}
                   >
-                    電子マネー
+                    電子ﾏﾈｰ
                     <br />
                     会計
                   </Button>
+                  {currentShop?.receivable && (
+                    <Button
+                      color="secondary"
+                      size="xs"
+                      disabled={basketItems.length === 0}
+                      className="h-20"
+                      onClick={() => {
+                        setPaymentType('Receivable');
+                        setOpenPayment(true);
+                      }}
+                    >
+                      売掛
+                      <br />
+                      会計
+                    </Button>
+                  )}
                 </Grid>
               </div>
             </Flex>

@@ -183,6 +183,13 @@ const ShopEdit: React.FC<Props> = ({ mode, open, shopCode, onClose, onUpdate }) 
                 checked={shop.orderable}
                 onChange={(e) => setShop({ ...shop, orderable: e.target.checked })}
               />
+              &emsp;
+              <Form.Checkbox
+                disabled={mode !== 'edit'}
+                label="売掛金"
+                checked={shop.receivable}
+                onChange={(e) => setShop({ ...shop, receivable: e.target.checked })}
+              />
             </div>
           </Grid>
         </Modal.Body>

@@ -21,6 +21,7 @@ export type Shop = {
   tel: string;
   fax: string;
   orderable?: boolean;
+  receivable?: boolean;
   role?: 'shop' | 'manager' | 'admin';
 };
 
@@ -113,7 +114,7 @@ export type Sale = {
   salesTotal: number;
   taxTotal: number;
   discountTotal: number;
-  paymentType: 'Cash' | 'Credit' | 'Digital';
+  paymentType: 'Cash' | 'Credit' | 'Digital' | 'Receivable';
   cashAmount: number;
   salesTaxFreeTotal: number;
   salesNormalTotal: number;

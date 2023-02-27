@@ -10,7 +10,7 @@ import { toNumber, OTC_DIVISION } from './tools';
 type Props = {
   open: boolean;
   registerMode: 'Sales' | 'Return';
-  paymentType: 'Cash' | 'Credit' | 'Digital';
+  paymentType: 'Cash' | 'Credit' | 'Digital' | 'Receivable';
   basketItems: BasketItem[];
   setBasketItems: React.Dispatch<React.SetStateAction<BasketItem[]>>;
   setRegisterMode: React.Dispatch<React.SetStateAction<'Sales' | 'Return'>>;
@@ -224,10 +224,24 @@ const RegisterPayment: React.FC<Props> = ({
       <Modal.Header
         centered={false}
         onClose={onClose}
-        className={paymentType === 'Cash' ? 'bg-blue-200' : paymentType === 'Credit' ? 'bg-green-200' : 'bg-yellow-200'}
+        className={
+          paymentType === 'Cash'
+            ? 'bg-blue-200'
+            : paymentType === 'Credit'
+            ? 'bg-green-200'
+            : paymentType === 'Digital'
+            ? 'bg-yellow-200'
+            : 'bg-gray-200'
+        }
       >
         {registerMode === 'Return' ? '返品' : 'お会計'}
-        {paymentType === 'Cash' ? '（現金）' : paymentType === 'Credit' ? '（クレジット）' : '（電子マネー）'}
+        {paymentType === 'Cash'
+          ? '（現金）'
+          : paymentType === 'Credit'
+          ? '（クレジット）'
+          : paymentType === 'Digital'
+          ? '（電子マネー）'
+          : '（売掛）'}
       </Modal.Header>
       <Modal.Body>
         <Table border="row" className="table-fixed w-full">
@@ -239,7 +253,7 @@ const RegisterPayment: React.FC<Props> = ({
               <Table.Cell className="text-right text-xl pr-4">¥{salesTotal.toLocaleString()}</Table.Cell>
             </Table.Row>
             <Table.Row className={registerMode === 'Return' ? 'hidden' : ''}>
-              <Table.Cell type="th">お預かり</Table.Cell>
+              <Table.Cell type="th">{paymentType === 'Receivable' ? '未収金' : 'お預かり'}</Table.Cell>
               <Table.Cell>
                 <Form onSubmit={handlePrint} className="space-y-2">
                   <Form.Text
@@ -290,7 +304,9 @@ const RegisterPayment: React.FC<Props> = ({
               {currentShop?.buildingName}
             </p>
             <p className="text-right text-sm mt-2">{currentShop?.formalName}</p>
-            <p className="text-center text-xl font-bold m-2">{registerMode === 'Return' ? '返品' : '領収書'}</p>
+            <p className="text-center text-xl font-bold m-2">
+              {registerMode === 'Return' ? '返品' : paymentType === 'Receivable' ? '未収書' : '領収書'}
+            </p>
             <Table border="cell" className="table-fixed w-full text-sm shadow-none">
               <Table.Head>
                 <Table.Row>
@@ -382,7 +398,7 @@ const RegisterPayment: React.FC<Props> = ({
                   </Table.Row>
                   {registerMode === 'Return' || basketItems.some((item) => !item.outputReceipt) ? null : (
                     <Table.Row>
-                      <Table.Cell type="th">お預かり</Table.Cell>
+                      <Table.Cell type="th">{paymentType === 'Receivable' ? '未収金' : 'お預かり'}</Table.Cell>
                       <Table.Cell className="text-right pr-4">¥{toNumber(cashText).toLocaleString()}</Table.Cell>
                       <Table.Cell></Table.Cell>
                     </Table.Row>
