@@ -285,27 +285,29 @@ const SalesDeliveryList: React.FC = () => {
             await Promise.all(
               detailsSnapshot.docs.map(async (detailDoc) => {
                 const detail = detailDoc.data() as RejectionDetail;
-                shopDetails.set('rejectionCount', toNumber(shopDetails.get('rejectionCount')) + detail.quantity);
-                shopDetails.set(
-                  'rejectionTotal',
-                  toNumber(shopDetails.get('rejectionTotal')) + toNumber(detail.costPrice) * detail.quantity
-                );
-                if (format(rejection.date.toDate(), 'yyyyMM') === format(thisMonth, 'yyyyMM')) {
-                  const productPrices = shopPrices.get(detail.productCode);
-                  if (!productPrices) {
-                    const pr = await getProductPrice(rejection.shopCode, detail.productCode, ['finalCostPrice']);
-                    shopPrices.set(detail.productCode, toNumber(pr?.finalCostPrice));
-                  }
+                if (detail.rejectType === 'waste') {
+                  shopDetails.set('rejectionCount', toNumber(shopDetails.get('rejectionCount')) + detail.quantity);
+                  shopDetails.set(
+                    'rejectionTotal',
+                    toNumber(shopDetails.get('rejectionTotal')) + toNumber(detail.costPrice) * detail.quantity
+                  );
+                  if (format(rejection.date.toDate(), 'yyyyMM') === format(thisMonth, 'yyyyMM')) {
+                    const productPrices = shopPrices.get(detail.productCode);
+                    if (!productPrices) {
+                      const pr = await getProductPrice(rejection.shopCode, detail.productCode, ['finalCostPrice']);
+                      shopPrices.set(detail.productCode, toNumber(pr?.finalCostPrice));
+                    }
 
-                  shopDetails.set(
-                    'rejectionThisMonthCount',
-                    toNumber(shopDetails.get('rejectionThisMonthCount')) + detail.quantity
-                  );
-                  shopDetails.set(
-                    'rejectionThisMonthTotal',
-                    toNumber(shopDetails.get('rejectionThisMonthTotal')) +
-                      toNumber(shopPrices.get(detail.productCode)) * detail.quantity
-                  );
+                    shopDetails.set(
+                      'rejectionThisMonthCount',
+                      toNumber(shopDetails.get('rejectionThisMonthCount')) + detail.quantity
+                    );
+                    shopDetails.set(
+                      'rejectionThisMonthTotal',
+                      toNumber(shopDetails.get('rejectionThisMonthTotal')) +
+                        toNumber(shopPrices.get(detail.productCode)) * detail.quantity
+                    );
+                  }
                 }
               })
             );
