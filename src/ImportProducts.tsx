@@ -155,7 +155,7 @@ const ImportProducts: React.FC = () => {
                       {
                         ...pdct,
                         supplierRef,
-                        unregistered: true, // 未登録フラグ
+                        unregistered: false, // 未登録フラグの設定は無効
                         createdAt,
                         updatedAt,
                       },
