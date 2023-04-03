@@ -20,7 +20,7 @@ import {
   Bytes,
 } from 'firebase/firestore';
 import clsx from 'clsx';
-
+import * as xlsx from 'xlsx';
 import { useAppContext } from './AppContext';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
@@ -30,8 +30,16 @@ import { Product } from './types';
 
 const zlib = require('zlib');
 
+type Row = (string | number)[];
 const db = getFirestore();
 const PER_PAGE = 25;
+
+const s2ab = (s: any) => {
+  const buf = new ArrayBuffer(s.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i !== s.length; ++i) view[i] = s.charCodeAt(i) & 0xff;
+  return buf;
+};
 
 type SearchType = { text: string; categoryId: string; minDate: Date | null; maxDate: Date | null };
 
@@ -191,6 +199,92 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
     }
   };
 
+  const downloadExcel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProcessing(true);
+    const dataArray: Row[] = [];
+    dataArray.push([
+      'PLUコード',
+      '商品名称',
+      '商品かな名称',
+      '商品設定グループ',
+      '下代（原価）',
+      '売価',
+      '売価消費税タイプ（0：外税、1：内税、2：非課税）',
+      '仕入消費税タイプ（0：外税、1：内税、2：非課税）',
+      '売価消費税パターン',
+      '仕入消費税パターン',
+      '稼動フラグ（0:稼動、1:非稼動）',
+      '仕入先コード',
+      '備考',
+      '作成日時',
+      '更新日時',
+    ]);
+
+    let productsArray: Product[] = [];
+
+    const searchText = search.text.trim();
+    if (searchText) {
+      productsArray = await searchProducts(searchText);
+    } else {
+      const conds: QueryConstraint[] = [];
+      if (search.minDate) {
+        conds.push(where('createdAt', '>=', search.minDate));
+      }
+      if (search.maxDate) {
+        const date = new Date(search.maxDate);
+        date.setDate(date.getDate() + 1);
+        conds.push(where('createdAt', '<=', date));
+      }
+      if (search.minDate || search.maxDate) {
+        conds.push(orderBy('createdAt', 'desc'));
+      } else {
+        conds.push(orderBy('code'));
+      }
+      const q = query(collection(db, 'products'), ...conds);
+      const querySnapshot = (await getDocs(q)) as QuerySnapshot<Product>;
+      productsArray = querySnapshot.docs.map((productDoc) => productDoc.data() as Product);
+    }
+
+    productsArray.forEach((product) => {
+      dataArray.push([
+        product.code ?? '',
+        product.name ?? '',
+        product.kana ?? '',
+        product.selfMedication ? '99' : '3',
+        product.costPrice === null ? '' : isNaN(product.costPrice) ? 'NaN' : product.costPrice,
+        product.sellingPrice === null ? '' : isNaN(product.sellingPrice) ? 'NaN' : product.sellingPrice,
+        product.sellingTaxClass === 'exclusive' ? '0' : product.sellingTaxClass === 'inclusive' ? '1' : '2',
+        product.stockTaxClass === 'exclusive' ? '0' : product.stockTaxClass === 'inclusive' ? '1' : '2',
+        product.sellingTax === 10 ? '1' : product.sellingTax === 8 ? '2' : '',
+        product.stockTax === 10 ? '1' : product.stockTax === 8 ? '2' : '',
+        product.hidden ? '1' : '0',
+        product.supplierRef ? product.supplierRef.id : '',
+        product.note ?? '',
+        product.createdAt ? toDateString(product.createdAt.toDate(), 'YYYY/MM/DD hh:mm:ss') : '',
+        product.updatedAt ? toDateString(product.updatedAt.toDate(), 'YYYY/MM/DD hh:mm:ss') : '',
+      ]);
+    });
+
+    const sheet = xlsx.utils.aoa_to_sheet(dataArray);
+    const wscols = [15, 30, 30, 10, 10, 10, 10, 10, 10, 10, 10, 10, 30, 20, 20].map((value) => ({ wch: value }));
+    sheet['!cols'] = wscols;
+    const wb = {
+      SheetNames: ['Sheet1'],
+      Sheets: { Sheet1: sheet },
+    };
+    const wb_out = xlsx.write(wb, { type: 'binary' });
+    var blob = new Blob([s2ab(wb_out)], {
+      type: 'application/octet-stream',
+    });
+
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = `商品マスタ共通.xlsx`;
+    link.click();
+    setProcessing(false);
+  };
+
   return (
     <div className="pt-12">
       {open && (
@@ -234,14 +328,22 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                   className="mr-2"
                 />
 
-                <Button variant="outlined" className="mr-2" onClick={queryProducts(search, 'head')}>
+                <Button
+                  variant="outlined"
+                  disabled={processing}
+                  className="mr-2"
+                  onClick={queryProducts(search, 'head')}
+                >
                   検索
                 </Button>
-                <Button variant="outlined" className="mr-2" onClick={newProduct}>
+                <Button variant="outlined" disabled={processing} className="mr-2" onClick={newProduct}>
                   新規
                 </Button>
                 {role === 'manager' && (
                   <>
+                    <Button variant="outlined" disabled={processing} className="mr-2" onClick={downloadExcel}>
+                      Excel
+                    </Button>
                     <Button variant="outlined" disabled={processing} className="mr-2" onClick={createFullTextSearch}>
                       <small>全文検索データ作成</small>
                     </Button>

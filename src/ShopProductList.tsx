@@ -18,13 +18,15 @@ import {
 } from 'firebase/firestore';
 import Select from 'react-select';
 import clsx from 'clsx';
+import * as xlsx from 'xlsx';
 import { Alert, Button, Card, Flex, Form, Icon, Table } from './components';
 import firebaseError from './firebaseError';
 import { useAppContext } from './AppContext';
 import ShopProductEdit from './ShopProductEdit';
 import { Product, ProductCostPrice, ProductSellingPrice, Stock } from './types';
-import { nameWithCode, arrToPieces } from './tools';
+import { nameWithCode, arrToPieces, toDateString } from './tools';
 
+type Row = (string | number)[];
 const db = getFirestore();
 
 const PER_PAGE = 20;
@@ -34,6 +36,13 @@ type ShopProduct = {
   productCostPrices?: ProductCostPrice[];
   productSellingPrice?: ProductSellingPrice;
   stock?: Stock;
+};
+
+const s2ab = (s: any) => {
+  const buf = new ArrayBuffer(s.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i !== s.length; ++i) view[i] = s.charCodeAt(i) & 0xff;
+  return buf;
 };
 
 const ProductCostPriceList: React.FC = () => {
@@ -98,9 +107,9 @@ const ProductCostPriceList: React.FC = () => {
     }
   };
 
-  const loadProducts = async (productCodes: string[]) => {
+  const loadProducts = async (productCodes: string[], checkExistCodes = true) => {
     const existCodes = Array.from(products.keys());
-    const pdctCodes = productCodes.filter((code) => !existCodes.includes(code));
+    const pdctCodes = checkExistCodes ? productCodes.filter((code) => !existCodes.includes(code)) : productCodes;
     const pieces: string[][] = arrToPieces(pdctCodes, 10);
     const pdcts = new Map<string, Product>();
     await Promise.all(
@@ -114,7 +123,7 @@ const ProductCostPriceList: React.FC = () => {
         });
       })
     );
-    setProducts((prev) => new Map([...Array.from(prev), ...Array.from(pdcts)]));
+    return pdcts;
   };
 
   const queryShopProducts = async (shopCode: string, productCodes: string[], mode: 'query' | 'get' = 'query') => {
@@ -201,7 +210,8 @@ const ProductCostPriceList: React.FC = () => {
         }
         setShopProducts((prev) => new Map([...Array.from(prev.entries()), ...Array.from(items.entries())]));
         const pdctCodes = [...Array.from(shopProducts.keys()), ...Array.from(items.keys())];
-        await loadProducts(pdctCodes);
+        const productsData = await loadProducts(pdctCodes);
+        setProducts((prev) => new Map([...Array.from(prev), ...Array.from(productsData)]));
       } catch (error) {
         setPosition((prev) => ({ ...prev, completed: true }));
         console.log({ error });
@@ -235,21 +245,28 @@ const ProductCostPriceList: React.FC = () => {
       })
       .map((entry) => entry[0]);
 
-  const getPrice = (productCode: string, price: number | null, priceType: 'sellingPrice' | 'costPrice') => {
+  const getPrice = (
+    productCode: string,
+    price: number | null,
+    priceType: 'sellingPrice' | 'costPrice',
+    productsMap?: Map<string, Product | null>
+  ) => {
     if (price !== null) {
       return { isShop: true, price };
     } else {
-      const product = products.get(productCode);
+      if (!productsMap) productsMap = products;
+      const product = productsMap.get(productCode);
       const pdctPrice = product ? product[priceType] : null;
       return { isShop: false, price: pdctPrice };
     }
   };
 
-  const getSupplierName = (productCode: string, supplierName: string) => {
+  const getSupplierName = (productCode: string, supplierName: string, productsMap?: Map<string, Product | null>) => {
     if (supplierName) {
       return { isShop: true, supplierName };
     } else {
-      const product = products.get(productCode);
+      if (!productsMap) productsMap = products;
+      const product = productsMap.get(productCode);
       if (product && product.supplierRef) {
         const supplierCode = product.supplierRef.id;
         return { isShop: false, supplierName: suppliers.get(supplierCode)?.name ?? '' };
@@ -257,6 +274,147 @@ const ProductCostPriceList: React.FC = () => {
         return { isShop: false, supplierName: '' };
       }
     }
+  };
+
+  const downloadExcel = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    let searchProductCodes: string[] = [];
+    if (search.text) {
+      const pds = await searchProducts(search.text);
+      searchProductCodes = pds.map((p) => p.code);
+    }
+
+    const shopCode = search.shopCode;
+    const items: Map<string, ShopProduct> = new Map();
+    const conds: QueryConstraint[] = [];
+    conds.push(orderBy('productCode'));
+    // 店舗在庫
+    {
+      const ref = query(collection(db, 'shops', shopCode, 'stocks'), ...conds);
+      const qsnap = (await getDocs(ref)) as QuerySnapshot<Stock>;
+      qsnap.forEach((snap) => {
+        const data = snap.data();
+        if (searchProductCodes.length == 0 || searchProductCodes.includes(data.productCode)) {
+          const item = items.get(data.productCode);
+          const value = item ?? { productName: data.productName };
+          items.set(data.productCode, { ...value, stock: data });
+        }
+      });
+    }
+    // 店舗売価
+    {
+      const ref = query(collection(db, 'shops', shopCode, 'productSellingPrices'), ...conds);
+      const qsnap = (await getDocs(ref)) as QuerySnapshot<ProductSellingPrice>;
+      qsnap.forEach((dsnap) => {
+        const data = dsnap.data();
+        if (searchProductCodes.length == 0 || searchProductCodes.includes(data.productCode)) {
+          const item = items.get(data.productCode);
+          const value = item ?? { productName: data.productName };
+          items.set(data.productCode, { ...value, productSellingPrice: data });
+        }
+      });
+    }
+    // 店舗原価
+    {
+      const ref = query(collection(db, 'shops', shopCode, 'productCostPrices'), ...conds);
+      const qsnap = (await getDocs(ref)) as QuerySnapshot<ProductCostPrice>;
+      qsnap.forEach((dsnap) => {
+        const data = dsnap.data();
+        if (searchProductCodes.length == 0 || searchProductCodes.includes(data.productCode)) {
+          const item = items.get(data.productCode);
+          const value = item ?? { productName: data.productName };
+          const costPrices = value?.productCostPrices || [];
+          items.set(data.productCode, { ...value, productCostPrices: [...costPrices, data] });
+        }
+      });
+    }
+    const pdctCodes = Array.from(items.keys());
+    const productsMap = await loadProducts(pdctCodes, false);
+
+    const dataArray: Row[] = [];
+    dataArray.push([
+      'PLUコード',
+      '商品名称',
+      '在庫',
+      '店舗売価(税抜)',
+      '店舗原価(税抜)',
+      '仕入先',
+      '非稼働',
+      '返品不可',
+      '未登録',
+    ]);
+    Array.from(items)
+      .sort((a, b) => {
+        if (a[0] < b[0]) return -1;
+        else if (a[0] > b[0]) return 1;
+        else return 0;
+      })
+      .map((entry) => entry[0])
+      .forEach((productCode, i) => {
+        const item = items.get(productCode);
+        const productName = item?.productName;
+        const stock = item?.stock;
+        const { isShop, price: sellingPrice } = getPrice(
+          productCode,
+          item?.productSellingPrice?.sellingPrice ?? null,
+          'sellingPrice',
+          productsMap
+        );
+
+        const product = productsMap.get(productCode);
+        const costPrices = (item?.productCostPrices ?? [
+          { costPrice: undefined, supplierName: undefined, noReturn: undefined },
+        ]) as {
+          costPrice?: number;
+          supplierName?: string;
+          noReturn?: boolean;
+        }[];
+
+        costPrices.forEach((item, j) => {
+          const { isShop: isShop2, price: costPrice } = getPrice(
+            productCode,
+            item.costPrice ?? null,
+            'costPrice',
+            productsMap
+          );
+          const { isShop: isShop3, supplierName } = getSupplierName(productCode, item.supplierName ?? '', productsMap);
+          let noReturn = 0;
+          if (item.noReturn === undefined) {
+            noReturn = product?.noReturn ? 1 : 0;
+          } else {
+            noReturn = item.noReturn ? 1 : 0;
+          }
+          dataArray.push([
+            productCode ?? '',
+            productName ?? '',
+            stock?.quantity ?? 0 ?? '',
+            sellingPrice?.toLocaleString() ?? '',
+            costPrice?.toLocaleString() ?? '',
+            supplierName,
+            product?.hidden ? 1 : 0,
+            noReturn,
+            product?.unregistered ? 1 : 0,
+          ]);
+        });
+      });
+
+    const sheet = xlsx.utils.aoa_to_sheet(dataArray);
+    const wscols = [15, 30, 10, 10, 10, 20].map((value) => ({ wch: value }));
+    sheet['!cols'] = wscols;
+    const wb = {
+      SheetNames: ['Sheet1'],
+      Sheets: { Sheet1: sheet },
+    };
+    const wb_out = xlsx.write(wb, { type: 'binary' });
+    var blob = new Blob([s2ab(wb_out)], {
+      type: 'application/octet-stream',
+    });
+
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = `店舗商品マスタ.xlsx`;
+    link.click();
   };
 
   return (
@@ -296,6 +454,9 @@ const ProductCostPriceList: React.FC = () => {
             </Button>
             <Button variant="outlined" className="mr-2" onClick={newProductCostPrice(search.shopCode)}>
               新規
+            </Button>
+            <Button variant="outlined" className="mr-2" onClick={downloadExcel}>
+              Excel
             </Button>
           </Flex>
         </Flex>
