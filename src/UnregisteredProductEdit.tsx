@@ -13,6 +13,7 @@ const TAX_OPTIONS = [
   { value: '', label: '' },
   { value: '8', label: '8%' },
   { value: '10', label: '10%' },
+  { value: '0', label: '非課税' },
 ];
 
 type Props = {
@@ -72,8 +73,8 @@ const UnregisteredProductEdit: React.FC<Props> = ({ open, productCode, shopCode,
       // 商品マスタ(共通)
       await setDoc(doc(db, 'products', product.code), {
         ...product,
-        sellingTaxClass: 'exclusive',
-        stockTaxClass: 'exclusive',
+        sellingTaxClass: product.sellingTax === 0 ? 'free' : 'exclusive',
+        stockTaxClass: product.sellingTax === 0 ? 'free' : 'exclusive',
         stockTax: product.sellingTax,
         unregistered: true,
         createdAt: serverTimestamp(),
