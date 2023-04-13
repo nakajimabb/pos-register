@@ -336,11 +336,11 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                 >
                   検索
                 </Button>
-                <Button variant="outlined" disabled={processing} className="mr-2" onClick={newProduct}>
-                  新規
-                </Button>
                 {role === 'manager' && (
                   <>
+                    <Button variant="outlined" disabled={processing} className="mr-2" onClick={newProduct}>
+                      新規
+                    </Button>
                     <Button variant="outlined" disabled={processing} className="mr-2" onClick={downloadExcel}>
                       Excel
                     </Button>
@@ -418,25 +418,27 @@ const ProductList: React.FC<Props> = ({ unregistered = false }) => {
                       {product.updatedAt ? toDateString(product.updatedAt.toDate(), 'YYYY-MM-DD') : ''}
                     </Table.Cell>
                     <Table.Cell>
-                      <Button
-                        variant="icon"
-                        size="xs"
-                        color="none"
-                        className="hover:bg-gray-300 "
-                        onClick={editProduct(product.code)}
-                      >
-                        <Icon name="pencil-alt" />
-                      </Button>
                       {role === 'manager' && (
-                        <Button
-                          variant="icon"
-                          size="xs"
-                          color="none"
-                          className="hover:bg-gray-300"
-                          onClick={deleteProduct(product.code)}
-                        >
-                          <Icon name="trash" />
-                        </Button>
+                        <>
+                          <Button
+                            variant="icon"
+                            size="xs"
+                            color="none"
+                            className="hover:bg-gray-300 "
+                            onClick={editProduct(product.code)}
+                          >
+                            <Icon name="pencil-alt" />
+                          </Button>
+                          <Button
+                            variant="icon"
+                            size="xs"
+                            color="none"
+                            className="hover:bg-gray-300"
+                            onClick={deleteProduct(product.code)}
+                          >
+                            <Icon name="trash" />
+                          </Button>
+                        </>
                       )}
                     </Table.Cell>
                   </Table.Row>
