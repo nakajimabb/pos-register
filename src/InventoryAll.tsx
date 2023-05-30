@@ -49,7 +49,7 @@ const InventoryList: React.FC = () => {
     e.preventDefault();
     try {
       registListner('shops');
-      const conds: QueryConstraint[] = [limit(30)];
+      const conds: QueryConstraint[] = [];
       if (search.minDate) {
         conds.push(where('date', '>=', Timestamp.fromDate(search.minDate)));
       }

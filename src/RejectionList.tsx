@@ -35,7 +35,7 @@ const RejectionList: React.FC = () => {
     e.preventDefault();
     if (currentShop) {
       try {
-        const conds: QueryConstraint[] = [limit(30)];
+        const conds: QueryConstraint[] = [];
 
         if (search.minDate) {
           conds.push(where('date', '>=', Timestamp.fromDate(search.minDate)));
