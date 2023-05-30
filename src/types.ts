@@ -247,7 +247,7 @@ export type Rejection = {
   updatedAt?: Timestamp;
 };
 
-export type WasteReason = 'selfConsumption' | 'expired' | 'corruption';
+export type WasteReason = 'selfConsumption' | 'expired' | 'corruption' | 'return';
 
 // 廃棄・返品情報
 export type RejectionDetail = {
@@ -268,6 +268,7 @@ export const wasteReasons = {
   selfConsumption: '自家消費',
   expired: '期限切れ',
   corruption: '破損',
+  return: '返品',
 };
 
 // 出庫情報
@@ -329,6 +330,12 @@ export type MonthlyStock = {
   shopName: string;
 };
 
+export type DailyStock = {
+  date: string;
+  shopCode: string;
+  shopName: string;
+};
+
 export const deliveryPath = (shopCode: string, deliveryNumber: number | undefined = undefined) =>
   `shops/${shopCode}/deliveries/${deliveryNumber ?? ''}`;
 
@@ -359,6 +366,9 @@ export const stockPath = (shopCode: string, productCode: string | undefined = un
 
 export const monthlyStockPath = (shopCode: string, month: string, productCode: string | undefined = undefined) =>
   `shops/${shopCode}/monthlyStocks/${month}/monthlyStockDetails/${productCode ?? ''}`;
+
+export const dailyStockPath = (shopCode: string, date: string, productCode: string | undefined = undefined) =>
+  `shops/${shopCode}/dailyStocks/${date}/dailyStockDetails/${productCode ?? ''}`;
 
 export const inventoryPath = (shopCode: string, date: Date | undefined = undefined) =>
   `shops/${shopCode}/inventories/${date ? toDateString(date, 'YYYY-MM-DD') : ''}`;

@@ -324,6 +324,7 @@ const AppBar: React.FC = () => {
           <Dropdown.Item title="棚卸一覧" to="/invetory_list" />
           {role === 'manager' && <Dropdown.Item title="棚卸モニタ" to="/invetory_all" />}
           {role === 'manager' && <Dropdown.Item title="在庫数取込" to="/import_stocks" />}
+          {role === 'manager' && <Dropdown.Item title="在庫集計表" to="/daily_stock_list" />}
         </Dropdown>
         <Dropdown
           icon={

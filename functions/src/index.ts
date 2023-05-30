@@ -235,6 +235,77 @@ exports.scheduledUpdateShops = functions
     updateShopsFromKKb();
   });
 
+const createDailyStocksImpl = async (date: string) => {
+  try {
+    let results: any[] = [];
+    const shopsSnapshot = await db.collection('shops').get();
+    const shops = shopsSnapshot.docs.map((doc) => doc.data());
+    const shopStocks = new Array<any>();
+    const BATCH_UNIT = 100;
+    const taskSize = Math.ceil(shops.length / BATCH_UNIT);
+    const sequential = [...Array(taskSize).keys()];
+    const tasks1 = sequential.map(async (i) => {
+      const sliced = shops.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+      return Promise.all(
+        sliced.map(async (shop: any) => {
+          const stocksSnapshot = await db.collection('shops').doc(shop.code).collection('stocks').get();
+          if (stocksSnapshot.size > 0) {
+            stocksSnapshot.forEach((doc) => {
+              const stock = doc.data();
+              shopStocks.push({ shopCode: shop.code, stock });
+            });
+            const dailyStocksRef = db.collection('shops').doc(shop.code).collection('dailyStocks').doc(date);
+            await dailyStocksRef.set({ date, shopCode: shop.code, shopName: shop.name }, { merge: true });
+          }
+        })
+      );
+    });
+    await Promise.all(tasks1);
+
+    const taskSize2 = Math.ceil(shopStocks.length / BATCH_UNIT);
+    const sequential2 = [...Array(taskSize2).keys()];
+    const tasks2 = sequential2.map(async (i) => {
+      const batch = db.batch();
+      const sliced = shopStocks.slice(i * BATCH_UNIT, (i + 1) * BATCH_UNIT);
+      sliced.forEach((shopStock: any) => {
+        const stock = shopStock.stock;
+        const ref = db
+          .collection('shops')
+          .doc(shopStock.shopCode)
+          .collection('dailyStocks')
+          .doc(date)
+          .collection('dailyStockDetails')
+          .doc(stock.productCode);
+        const p = { ...stock, date };
+        batch.set(ref, p);
+      });
+      return await batch.commit();
+    });
+    results = results.concat(await Promise.all(tasks2));
+    return { results };
+  } catch (error) {
+    throw new functions.https.HttpsError('unknown', 'error in createDailyStocks', error);
+  }
+};
+
+export const createDailyStocks = functions
+  .runWith({ timeoutSeconds: 540 })
+  .region('asia-northeast1')
+  .https.onCall(async (data) => {
+    return await createDailyStocksImpl(data.date);
+  });
+
+exports.scheduledCreateDailyStocks = functions
+  .runWith({ timeoutSeconds: 540 })
+  .region('asia-northeast1')
+  .pubsub.schedule('0 5 * * *')
+  .timeZone('Asia/Tokyo')
+  .onRun(async () => {
+    const targetDate = new Date();
+    const date = toDateString(targetDate, 'YYYYMMDD');
+    return await createDailyStocksImpl(date);
+  });
+
 const createMonthlyStocksImpl = async (month: string) => {
   try {
     let results: any[] = [];

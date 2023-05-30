@@ -76,7 +76,7 @@ const Button: React.FC<Props> = ({
       if (color !== 'none') {
         classes.push('hover:bg-opacity-75');
       } else {
-        // classes.push('hover:bg-gray-100');
+        classes.push('hover:bg-gray-100');
       }
     } else if (variant === 'outlined') {
       classes.push('hover:bg-gray-100');
@@ -97,7 +97,7 @@ const Button: React.FC<Props> = ({
       classes.push('focus:ring-offset-2');
     }
     if (color === 'none') {
-      // classes.push('focus:ring-gray-300');
+      classes.push('focus:ring-gray-300');
     } else {
       classes.push(`focus:ring-${theme.color[color]}`);
     }
