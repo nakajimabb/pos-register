@@ -330,7 +330,7 @@ const SalesDeliveryList: React.FC = () => {
       const monthlyStockQuerySnapshot = await getDocs(monthlyStockQuery);
       const monthlyStockPieces: QueryDocumentSnapshot<DocumentData>[][] = arrToPieces(
         monthlyStockQuerySnapshot.docs,
-        100
+        10
       );
       for (let piece of monthlyStockPieces) {
         await Promise.all(
@@ -343,7 +343,7 @@ const SalesDeliveryList: React.FC = () => {
             const shopPrices = prices.get(monthlyStock.shopCode) ?? new Map<string, number>();
             const detailsSnapshotPieces: QueryDocumentSnapshot<DocumentData>[][] = arrToPieces(
               detailsSnapshot.docs,
-              100
+              50
             );
             for (let detailsPiece of detailsSnapshotPieces) {
               await Promise.all(
