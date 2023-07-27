@@ -47,13 +47,6 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, 
     setSuppliersOptions(options);
   }, [suppliers]);
 
-  useEffect(() => {
-    setAlert((prev) => ({
-      ...prev,
-      info: `${rejectionDetail.rejectType === 'waste' ? '廃棄' : '返品'}として処理されます。`,
-    }));
-  }, [rejectionDetail]);
-
   const selectValue = (value: string | undefined, options: { label: string; value: string }[]) => {
     return value ? options.find((option) => option.value === value) : { label: '', value: '' };
   };
@@ -142,7 +135,10 @@ const RejectionDetailEdit: React.FC<Props> = ({ open, shopCode, value, onClose, 
                 { value: 'return', label: '返品' },
                 { value: 'waste', label: '廃棄' },
               ]}
-              disabled
+              onChange={(e) => {
+                rejectionDetail.wasteReason = e.target.value === 'return' ? 'return' : undefined;
+                setRejectionDetail({ ...rejectionDetail, rejectType: e.target.value as 'return' | 'waste' });
+              }}
             />
             <Form.Label>仕入価格</Form.Label>
             <Form.Number
